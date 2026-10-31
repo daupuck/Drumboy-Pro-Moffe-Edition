@@ -1,0 +1,17 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 22, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "firmware",
+      "displayName": "Drumboy Pro firmware (Arm GNU Toolchain)",
+      "description": "Bootloader + application + SD-card package. Set ARM_TOOLCHAIN_DIR or put arm-none-eabi-gcc on PATH.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "toolchainFile": "${sourceDir}/cmake/arm-none-eabi.cmake"
+    }
+  ],
+  "buildPresets": [
+    { "name": "firmware", "configurePreset": "firmware" }
+  ]
+}

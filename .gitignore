@@ -14,5 +14,11 @@ _autosave-*
 Debug/
 Release/
 
+# Command-line build output (cmake --preset firmware)
+/build/
+
+# Python
+__pycache__/
+
 # Rhino
 *.3dmbak
