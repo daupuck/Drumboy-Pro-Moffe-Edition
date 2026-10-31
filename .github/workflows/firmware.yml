@@ -1,0 +1,87 @@
+name: Firmware
+
+# Builds the bootloader, the application and the SD-card update package on every push to
+# main and every pull request, so a change that does not compile (or produces a package
+# the bootloader would reject) is caught before it reaches a device.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # Keep in sync with cmake/arm-none-eabi.cmake and 02 Software/DEVELOPMENT.md.
+  ARM_GCC_VERSION: 13.3.rel1
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Arm GNU Toolchain
+        id: cache-arm
+        uses: actions/cache@v4
+        with:
+          path: ~/arm-gnu-toolchain
+          key: arm-gnu-toolchain-${{ env.ARM_GCC_VERSION }}-x86_64
+
+      - name: Install Arm GNU Toolchain ${{ env.ARM_GCC_VERSION }}
+        if: steps.cache-arm.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          url="https://developer.arm.com/-/media/Files/downloads/gnu/${ARM_GCC_VERSION}/binrel/arm-gnu-toolchain-${ARM_GCC_VERSION}-x86_64-arm-none-eabi.tar.xz"
+          mkdir -p ~/arm-gnu-toolchain
+          curl -fsSL "$url" | tar -xJ --strip-components=1 -C ~/arm-gnu-toolchain
+
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Configure
+        shell: bash
+        run: |
+          export ARM_TOOLCHAIN_DIR="$HOME/arm-gnu-toolchain"
+          "$ARM_TOOLCHAIN_DIR/bin/arm-none-eabi-gcc" --version | head -n1
+          cmake --preset firmware
+
+      - name: Build
+        shell: bash
+        run: |
+          mkdir -p build
+          cmake --build --preset firmware 2>&1 | tee build/build.log
+
+      - name: Verify SD-card packages
+        shell: bash
+        run: |
+          for pkg in build/firmware/Drumboy_Pro_Fw_*.bin "02 Software/Firmware"/Drumboy_Pro_Fw_*.bin; do
+            python3 "02 Software/Firmware/make_fw_package.py" --verify "$pkg"
+          done
+
+      - name: Summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### Drumboy Pro firmware"
+            echo '```'
+            grep -E "Memory region|FLASH:|RAM_D1:|DTCMRAM:" build/build.log || true
+            echo '```'
+            echo "Compiler warnings: $(grep -c 'warning:' build/build.log || true)"
+            ls -l build/firmware/ 2>/dev/null | tail -n +2 | awk '{print "- " $NF " (" $5 " bytes)"}'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: drumboy-pro-firmware-${{ github.sha }}
+          path: |
+            build/firmware/*.bin
+            build/*.bin
+            build/*.elf
+            build/*.map
+            build/build.log
+          if-no-files-found: error

@@ -45,20 +45,24 @@ The MCU sits at the center of six subsystems: an NT35510 display driven over a 1
   Drawing/    Mechanical drawings, enclosure models, graphics, fonts
 
 02 Software/
-  Drumboy-Pro-Boot-H723/   Bootloader — STM32CubeIDE project (own repo, linked below)
-  Drumboy-Pro-App-H723/    Application firmware — STM32CubeIDE project (own repo, linked below)
-  Firmware/                 Prebuilt firmware binaries
+  Drumboy-Pro-Boot-H723/   Bootloader — STM32CubeIDE project
+  Drumboy-Pro-App-H723/    Application firmware — STM32CubeIDE project
+  Firmware/                 Prebuilt firmware binaries + SD-package tools (make_fw_package.py)
   Sd Card/                  Reference SD card contents (samples, presets, drumkits, system data)
+  DEVELOPMENT.md            Build, test and SD-card update workflow
+
+CMakeLists.txt, CMakePresets.json, cmake/   Command-line build (same settings as the IDE)
+.github/workflows/firmware.yml              CI: builds and verifies every push and pull request
 ```
 
-### Related repositories
+### Firmware projects
 
-Firmware is split into two independently-built projects that share one flash device — a bad application build can never brick the update path:
+Firmware is split into two independently-built projects that share one flash device — a bad application build can never brick the update path. Both live in this repository (they were originally published as [Randomwaves-Team/Drumboy-Pro-Boot-H723](https://github.com/Randomwaves-Team/Drumboy-Pro-Boot-H723) and [Randomwaves-Team/Drumboy-Pro-App-H723](https://github.com/Randomwaves-Team/Drumboy-Pro-App-H723)):
 
 | Project | Responsibility |
 |---|---|
-| [Drumboy-Pro-Boot-H723](https://github.com/Randomwaves-Team/Drumboy-Pro-Boot-H723) | Checks the SD card for a firmware package, validates and programs it, then jumps to the application |
-| [Drumboy-Pro-App-H723](https://github.com/Randomwaves-Team/Drumboy-Pro-App-H723) | The sequencer, DSP engine, UI, and all runtime behavior |
+| `02 Software/Drumboy-Pro-Boot-H723` | Checks the SD card for a firmware package, validates and programs it, then jumps to the application (only if the application image is valid) |
+| `02 Software/Drumboy-Pro-App-H723` | The sequencer, DSP engine, UI, and all runtime behavior. The `Controller` class is split by subsystem across `Core/Library/Controller/Controller*.cpp`; the real-time audio path is in `ControllerAudio.cpp` |
 
 ## Hardware
 
@@ -66,7 +70,7 @@ Designed in **KiCad 7**. Open `01 Hardware/Main/Drumboy_Main.kicad_pro` for the 
 
 Mechanical design (enclosure and 3D model) lives in `01 Hardware/Drawing/` as **Rhinoceros 8** files — `Drumboy Pro 2D.3dm` and `Drumboy Pro 3D.zip` (zipped to keep it under GitHub's file size limit; unzip to get the `.3dm`).
 
-A full BOM is generated from KiCad at `production/bom.csv`. See the [wiki](https://www.randomwaves.io/drumboy-pro/drumboy-pro-wiki.html) for the annotated schematic walkthrough, clock tree, power-domain isolation scheme, and key component reference.
+A full BOM is generated from KiCad at `01 Hardware/Main/Production/bom.csv`. See the [wiki](https://www.randomwaves.io/drumboy-pro/drumboy-pro-wiki.html) for the annotated schematic walkthrough, clock tree, power-domain isolation scheme, and key component reference.
 
 ## Firmware
 
@@ -76,6 +80,21 @@ Built with **STM32CubeIDE**, written in C/C++ against the STM32 HAL.
 - Application owns sectors 1–7 (`0x08020000`–`0x080FFFFF`), with the vector table relocated at startup
 
 To flash over SWD, wire an ST-Link V2 to the board's `SWDIO` (PA13), `SWCLK` (PA14), and `GND` pins, then build and flash from STM32CubeIDE. See the wiki's [Build, Flash & Debug](https://www.randomwaves.io/drumboy-pro/drumboy-pro-wiki.html) section for details.
+
+### Building from the command line
+
+The same sources build without the IDE (this is what CI runs):
+
+```sh
+# needs Arm GNU Toolchain 13.3.rel1, CMake >= 3.22, Ninja, Python 3
+export ARM_TOOLCHAIN_DIR=/path/to/arm-gnu-toolchain-13.3.rel1   # or put arm-none-eabi-gcc on PATH
+cmake --preset firmware
+cmake --build --preset firmware
+```
+
+This produces `build/Drumboy-Pro-Boot-H723.bin`, `build/Drumboy-Pro-App-H723.bin` and the SD-card update package `build/firmware/Drumboy_Pro_Fw_MM_mm.bin` (version taken from `kVersionMajor`/`kVersionMinor` in the app's `Global.h`).
+
+See **[02 Software/DEVELOPMENT.md](<02 Software/DEVELOPMENT.md>)** for the full workflow: making changes safely, testing a build from the SD card, and rolling back.
 
 ## License
 
