@@ -1,3 +1,8 @@
+// Original package builder. make_fw_package.py in this folder produces byte-identical
+// packages, reads the version from Global.h, and additionally runs the checks the
+// bootloader performs (size, vector table, CRC round-trip). The CMake build and CI use it.
+// This file is kept for reference and still works (build it as a host program).
+
 #include <iostream>
 #include <fstream>
 #include <stdint.h>
