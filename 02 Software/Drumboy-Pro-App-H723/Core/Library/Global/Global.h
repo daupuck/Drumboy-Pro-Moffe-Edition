@@ -22,7 +22,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 const uint8_t kVersionMajor                         = 0x01;
-const uint8_t kVersionMinor                         = 0x01;
+const uint8_t kVersionMinor                         = 0x02;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/
@@ -6419,16 +6419,16 @@ const uint8_t kLayerInstGraphPointCount             = 60;
 const uint16_t kLayerInstGraphColumnHeight          = 61;
 const uint16_t kLayerInstGraphMetaTextHeight        = 8;
 
-static bool gLayerInstGraphCacheInit[kLayerLibrarySize] = {false};
-static uint8_t gLayerInstGraphPrevAmplitude[kLayerLibrarySize][kLayerInstGraphPointCount] = {{0}};
-static bool gLayerInstGraphPrevActiveZone[kLayerLibrarySize][kLayerInstGraphPointCount] = {{false}};
-static uint8_t gLayerInstGraphPrevPitch[kLayerLibrarySize] = {0};
-static uint8_t gLayerInstGraphPrevResolution[kLayerLibrarySize] = {0};
-static uint8_t gLayerInstGraphPrevDirection[kLayerLibrarySize] = {0};
-static uint8_t gLayerInstGraphPrevStartIdx[kLayerLibrarySize] = {0};
-static uint8_t gLayerInstGraphPrevEndIdx[kLayerLibrarySize] = {0};
-static uint8_t gLayerInstGraphPrevBitDepth[kLayerLibrarySize] = {0xFF};
-static char gLayerInstGraphPrevTimeText[kLayerLibrarySize][8] = {{0}};
+inline bool gLayerInstGraphCacheInit[kLayerLibrarySize] = {false};
+inline uint8_t gLayerInstGraphPrevAmplitude[kLayerLibrarySize][kLayerInstGraphPointCount] = {{0}};
+inline bool gLayerInstGraphPrevActiveZone[kLayerLibrarySize][kLayerInstGraphPointCount] = {{false}};
+inline uint8_t gLayerInstGraphPrevPitch[kLayerLibrarySize] = {0};
+inline uint8_t gLayerInstGraphPrevResolution[kLayerLibrarySize] = {0};
+inline uint8_t gLayerInstGraphPrevDirection[kLayerLibrarySize] = {0};
+inline uint8_t gLayerInstGraphPrevStartIdx[kLayerLibrarySize] = {0};
+inline uint8_t gLayerInstGraphPrevEndIdx[kLayerLibrarySize] = {0};
+inline uint8_t gLayerInstGraphPrevBitDepth[kLayerLibrarySize] = {0xFF};
+inline char gLayerInstGraphPrevTimeText[kLayerLibrarySize][8] = {{0}};
 
 static void resetLayerInstGraphCache(uint8_t layerNum_) {
     if (layerNum_ >= kLayerLibrarySize) return;
