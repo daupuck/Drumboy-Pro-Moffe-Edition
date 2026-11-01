@@ -2,6 +2,10 @@
 
 📖 **[Developer Wiki](https://www.randomwaves.io/drumboy-pro/drumboy-pro-wiki.html)** — full hardware specs, schematics walkthrough, firmware architecture, DSP internals, and memory map.
 
+📘 **[User Manual (PDF)](<02 Software/drumboy-pro-user-manual.pdf>)** — Randomwaves' manual for the factory firmware.
+
+✨ **[Moffe Edition — nye funksjoner](MOFFE-EDITION.md)** — what this modded firmware adds (Layer Song beat placement, sample preview, boot screen, fixes), in Norwegian. Version history: [CHANGELOG.md](CHANGELOG.md).
+
 **An open-source hardware groovebox** — sequencer, sampler, and DSP effects engine built around an STM32H723 (Cortex-M7 @ 550 MHz), with a 540×960 touch-free color display, 42 keys, 8 rotary encoders, and full MIDI/Sync I/O.
 
 This repository holds the complete hardware design (KiCad) and firmware (STM32CubeIDE / C++) for Drumboy Pro, released by [Randomwaves](https://randomwaves.io) as an open hardware/software project.
@@ -49,7 +53,11 @@ The MCU sits at the center of six subsystems: an NT35510 display driven over a 1
   Drumboy-Pro-App-H723/    Application firmware — STM32CubeIDE project
   Firmware/                 Prebuilt firmware binaries + SD-package tools (make_fw_package.py)
   Sd Card/                  Reference SD card contents (samples, presets, drumkits, system data)
+  Tests/                    Host unit tests (run in CI)
   DEVELOPMENT.md            Build, test and SD-card update workflow
+  drumboy-pro-user-manual.pdf  User manual (Randomwaves)
+
+MOFFE-EDITION.md, CHANGELOG.md              What the Moffe Edition adds, version history
 
 CMakeLists.txt, CMakePresets.json, cmake/   Command-line build (same settings as the IDE)
 .github/workflows/firmware.yml              CI: builds and verifies every push and pull request
