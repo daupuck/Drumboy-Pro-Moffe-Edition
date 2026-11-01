@@ -3,6 +3,12 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v1.08
+
+- **EUCLID page:** the step strip now shows **CLEAR: UNDO** at the bottom right, so it is
+  visible that the CLEAR key restores the beats the layer had when the page opened. (The
+  device font has no `=`, hence the colon.)
+
 ## v1.07
 
 **Song mode — chain the 5 song banks into a whole song**
