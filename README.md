@@ -1,7 +1,15 @@
 # Drumboy Pro – Moffe Edition
 
-**Unofficial community firmware for the Randomwaves Drumboy Pro**, based on the open-source
-[Randomwaves/Drumboy-Pro](https://github.com/Randomwaves/Drumboy-Pro) project.
+[![Firmware CI](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/actions/workflows/firmware.yml/badge.svg)](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/actions/workflows/firmware.yml)
+[![Latest release](https://img.shields.io/github/v/release/daupuck/Drumboy-Pro-Moffe-Edition?label=release)](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+**Unofficial community firmware for the Randomwaves Drumboy Pro.** Same hardware, more groove —
+and the boot screen now wears sunglasses. 😎
+
+Built on the open-source [Randomwaves/Drumboy-Pro](https://github.com/Randomwaves/Drumboy-Pro)
+project. Installs from the SD card in about five minutes, keeps all your projects, and can be
+rolled back to the factory firmware the same way.
 
 > [!IMPORTANT]
 > This is **not an official Randomwaves release** and is **not affiliated with or endorsed by
@@ -11,23 +19,137 @@
 
 > [!WARNING]
 > **Use at your own risk.** This firmware is provided "as is", without warranty of any kind (see
-> [LICENSE](LICENSE)). Installing it is your own decision and responsibility. Before you install:
-> **back up your whole SD card** — it holds your projects, drumkits and settings — and keep the
-> factory firmware for rolling back (see [Install and roll back](MOFFE-EDITION.md#install-and-roll-back)).
-> Flashing the **bootloader** over SWD is for experienced users only. Modifying the firmware may
-> affect your warranty with Randomwaves.
+> [LICENSE](LICENSE)). Installing it is your own decision and responsibility. **Back up your whole
+> SD card first** and keep the factory firmware for rolling back. Modifying the firmware may affect
+> your warranty with Randomwaves.
 
-✨ **[What the Moffe Edition adds](MOFFE-EDITION.md)** — Euclidean rhythms, song mode, precise beat
-placement, sample preview, safer firmware updates and many fixes. Version history:
-[CHANGELOG.md](CHANGELOG.md). Downloads: [Releases](../../releases).
+## What you get
 
-📖 **[Developer Wiki](https://www.randomwaves.io/drumboy-pro/drumboy-pro-wiki.html)** (Randomwaves) — full hardware specs, schematics walkthrough, firmware architecture, DSP internals, and memory map.
+| | Feature | In one sentence |
+|---|---|---|
+| 🥁 | [**Euclidean rhythms**](MOFFE-EDITION.md#4-euclidean-rhythms--euclid-page-in-layer-song-v106) | Pick steps and hits, turn a knob, hear the pattern change live. |
+| 🎼 | [**Song mode**](MOFFE-EDITION.md#5-song-mode--arrange-parts-into-a-song-v107) | Chain the 5 song banks into intro → verse → chorus, with repeats, looped or played once. |
+| 🎯 | [**Precise beat placement**](MOFFE-EDITION.md#1-place-beats-precisely--layer-song-menu-v103) | Move a single beat, shift a whole layer, or add one beat exactly where you want it. |
+| 🎧 | [**Sample preview**](MOFFE-EDITION.md#3-sample-preview--layer-instrument-menu-v105) | Hear a sample *before* you load it. Your ears will thank you. |
+| 🛟 | [**Safer saving and fixes**](MOFFE-EDITION.md#improvements-and-fixes) | A full card or a failed save no longer leaves half-written files, plus a stack of bug fixes. |
+| 😎 | [**Boot screen**](MOFFE-EDITION.md#2-moffe-edition-boot-screen-v104) | Purely cosmetic. Deeply important. |
 
-📘 **User manual** — published by Randomwaves at [randomwaves.io](https://www.randomwaves.io). It describes the factory firmware; [MOFFE-EDITION.md](MOFFE-EDITION.md) describes what is different here.
+Full guide to every feature: **[MOFFE-EDITION.md](MOFFE-EDITION.md)** ·
+Version history: **[CHANGELOG.md](CHANGELOG.md)**
+
+## Install
+
+### What you need
+
+- A Drumboy Pro (factory firmware v1.01 or any Moffe Edition version).
+- Its microSD card and a computer that can read it.
+- About five minutes. No ST-Link, no soldering, no programming.
+
+### Step 1 — Back up your SD card
+
+Power off the Drumboy Pro, take out the microSD card, put it in your computer and copy **the whole
+card** to a folder on your computer. Your projects (`System/File`), drumkits (`System/Drumkit`)
+and settings (`System/Preset`) live there. Updating does not touch them, but a backup costs
+a minute, and future you will be very grateful in the unlikely event it's needed.
+
+### Step 2 — Download the right file
+
+1. Open **[Releases → latest](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest)**.
+2. Scroll down to **Assets** and click **`Drumboy_Pro_Fw_Moffe_01_08.bin`** (the numbers are the
+   version: `01_08` = v1.08).
+
+What the files in Assets are:
+
+| File | Who needs it |
+|---|---|
+| `Drumboy_Pro_Fw_Moffe_XX_YY.bin` | **Everyone.** This is the firmware update. |
+| `Drumboy_Pro_Fw_01_01.bin` | Only if you want to go back to the factory firmware. |
+| `*.sha256` | Optional, to check that the download is intact (see below). |
+| `Drumboy-Pro-Moffe-Bootloader-vX.YY.bin` | **Not needed, and not for the SD card.** Advanced users with an ST-Link only. |
+| Source code (zip / tar.gz) | Added automatically by GitHub. Not needed to install. |
+
+<details>
+<summary>Optional: check the download</summary>
+
+Open the matching `.sha256` file in a text editor and compare its long number with the output of:
+
+- **Windows:** `certutil -hashfile Drumboy_Pro_Fw_Moffe_01_08.bin SHA256`
+- **macOS:** `shasum -a 256 Drumboy_Pro_Fw_Moffe_01_08.bin`
+- **Linux:** `sha256sum -c Drumboy_Pro_Fw_Moffe_01_08.bin.sha256`
+
+If they differ, download it again. The bootloader also checks a CRC before it writes anything, so
+a damaged file is refused rather than installed.
+</details>
+
+### Step 3 — Copy it to the card
+
+Copy the file to the **root** of the card: the top level, next to the `Sample` and `System`
+folders, **not** inside them.
+
+```
+SD card
+├── Drumboy_Pro_Fw_Moffe_01_08.bin   ← here
+├── Sample/
+└── System/
+```
+
+- **Keep the exact file name.** The bootloader only looks for names that start with
+  `Drumboy_Pro_Fw` and are at most 32 characters long. It is very literal-minded. If your
+  browser saved it as `Drumboy_Pro_Fw_Moffe_01_08 (1).bin`, rename it back.
+- **Make it the only `Drumboy_Pro_Fw…bin` file in the root.** The bootloader installs the first
+  one it finds.
+- Don't change anything else on the card. Eject the card safely before you pull it out.
+
+### Step 4 — Power on
+
+Put the card back in the Drumboy Pro and switch it on. You should see:
+
+1. **UPDATING FIRMWARE** with the version (e.g. **V1.08**) and a line that fills up.
+2. **FIRMWARE UPDATED** for a few seconds.
+3. The normal start-up, now with **sunglasses and MOFFE EDITION** on the logo. If you see the
+   sunglasses, it worked. The sunglasses don't lie.
+
+The bootloader then moves the package to `System/Firmware/` on the card, so the next start-ups are
+normal and quick. That's it, go make some noise.
+
+### If something goes wrong
+
+| What you see | What it means | What to do |
+|---|---|---|
+| Normal start-up, no update screen, no sunglasses | The bootloader didn't find the file. | Check step 3: in the root, exact name, nothing in front of it. |
+| **FIRMWARE ERROR** + **FORMAT-CHECK**, **SIZE-CHECK** or **CRC-CHECK** | The file is damaged, incomplete or not a firmware package (for example the bootloader file). Nothing was written, and your old firmware still runs. | Download the package again and repeat steps 3–4. |
+| **FIRMWARE ERROR** + **VERIFY-CHECK** or **FLASH-CHECK**, or the screen stays dark after a failed update | Writing to the chip failed. | Copy the package to the root again and switch on. The bootloader always starts first and simply tries again. |
+
+> [!NOTE]
+> The factory bootloader **deletes** a package from the card when an update fails. If the file is
+> gone after an error, that's why: copy it again.
+
+Still stuck? Open an [issue](../../issues) with the firmware version and what the screen showed.
+
+### Roll back to the factory firmware
+
+Download **`Drumboy_Pro_Fw_01_01.bin`** from the release Assets (it is also in
+[`02 Software/Firmware/`](<02 Software/Firmware>)) and install it exactly like steps 3–4, with the
+Moffe package removed from the root. Your projects keep working; the factory firmware simply
+ignores the new song-mode and preview settings. No hard feelings.
+
+## Where to find things
+
+| You want… | Go to |
+|---|---|
+| The firmware | [Releases → latest](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest) → Assets |
+| How to use the new features | [MOFFE-EDITION.md](MOFFE-EDITION.md) |
+| What changed in each version | [CHANGELOG.md](CHANGELOG.md) |
+| The original user manual | [randomwaves.io](https://www.randomwaves.io) (Randomwaves; describes the factory firmware) |
+| Hardware details, schematics, memory map | [Developer Wiki](https://www.randomwaves.io/drumboy-pro/drumboy-pro-wiki.html) (Randomwaves) |
+| To report a bug or suggest a feature | [Issues](../../issues) |
+| To build it yourself or contribute | [DEVELOPMENT.md](<02 Software/DEVELOPMENT.md>) · [CONTRIBUTING.md](CONTRIBUTING.md) |
 
 ---
 
-*The rest of this page describes the Drumboy Pro hardware and firmware as published by Randomwaves.*
+## About the Drumboy Pro
+
+*This section describes the Drumboy Pro hardware and firmware as published by Randomwaves.*
 
 **An open-source hardware groovebox** — sequencer, sampler, and DSP effects engine built around an STM32H723 (Cortex-M7 @ 550 MHz), with a 540×960 touch-free color display, 42 keys, 8 rotary encoders, and full MIDI/Sync I/O.
 
@@ -142,5 +264,6 @@ See **[02 Software/DEVELOPMENT.md](<02 Software/DEVELOPMENT.md>)** for the full 
 
 - **Moffe Edition** (this firmware): use this repository's [Issues](../../issues).
 - **Original Drumboy Pro** (hardware, factory firmware): Randomwaves —
-  🌐 [randomwaves.io](https://www.randomwaves.io) · 💬 [Discord](https://discord.gg/5atevNH6UU) ·
-  ✉️ hello@randomwaves.io. Please don't contact Randomwaves about problems with this modified firmware.
+  🌐 [randomwaves.io](https://www.randomwaves.io) · 💬 [Discord](https://discord.gg/5atevNH6UU).
+  Please don't contact Randomwaves about problems with this modified firmware; they didn't make it,
+  and it isn't fair to make them fix it.

@@ -83,7 +83,9 @@ jobs:
           mkdir -p dist
           cp build/firmware/Drumboy_Pro_Fw_Moffe_*.bin dist/
           cp build/Drumboy-Pro-Boot-H723.bin dist/Drumboy-Pro-Moffe-Bootloader-${GITHUB_REF_NAME}.bin
-          for pkg in dist/Drumboy_Pro_Fw_Moffe_*.bin; do
+          # Factory package (as published by Randomwaves), so rolling back needs no repo browsing.
+          cp "02 Software/Firmware/Drumboy_Pro_Fw_01_01.bin" dist/
+          for pkg in dist/Drumboy_Pro_Fw_*.bin; do
             python3 "02 Software/Firmware/make_fw_package.py" --verify "$pkg"
           done
           (cd dist && for f in *.bin; do sha256sum "$f" > "$f.sha256"; done)
@@ -93,6 +95,8 @@ jobs:
         shell: bash
         run: |
           version="${{ steps.version.outputs.version }}"
+          pkg=$(cd dist && ls Drumboy_Pro_Fw_Moffe_*.bin)
+          repo="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
           {
             echo "**Unofficial community firmware for the Randomwaves Drumboy Pro** — not affiliated with or endorsed by Randomwaves."
             echo
@@ -110,16 +114,18 @@ jobs:
             echo
             echo "## Install"
             echo "1. Back up the whole SD card."
-            echo "2. Copy \`Drumboy_Pro_Fw_Moffe_*.bin\` to the **root** of the card (do not rename it; it must be the only \`Drumboy_Pro_Fw*.bin\` there)."
-            echo "3. Power on: *UPDATING FIRMWARE V${version}* → *FIRMWARE UPDATED*."
+            echo "2. Download **\`${pkg}\`** below and copy it to the **root** of the card, next to the \`Sample\` and \`System\` folders. Keep the exact name, and make it the only \`Drumboy_Pro_Fw…bin\` there."
+            echo "3. Power on: *UPDATING FIRMWARE V${version}* → *FIRMWARE UPDATED* → the logo with sunglasses."
             echo
-            echo "Roll back by installing an older package the same way; the factory v1.01 package is in \`02 Software/Firmware/\`."
-            echo "Full guide and feature overview: [MOFFE-EDITION.md](../../blob/${GITHUB_REF_NAME}/MOFFE-EDITION.md)."
+            echo "Step-by-step guide with troubleshooting: [README → Install](${repo}/blob/${GITHUB_REF_NAME}/README.md#install). How to use the features: [MOFFE-EDITION.md](${repo}/blob/${GITHUB_REF_NAME}/MOFFE-EDITION.md)."
             echo
             echo "## Files"
-            echo "- \`Drumboy_Pro_Fw_Moffe_*.bin\` — SD-card update package (this is what most users need)."
-            echo "- \`Drumboy-Pro-Moffe-Bootloader-*.bin\` — **advanced users only**: bootloader for flashing over SWD/ST-Link at 0x08000000. Not needed for SD updates."
-            echo "- \`*.sha256\` — checksums (\`sha256sum -c <file>.sha256\`)."
+            echo "| File | Who needs it |"
+            echo "|---|---|"
+            echo "| \`${pkg}\` | **Everyone.** The firmware update for the SD card. |"
+            echo "| \`Drumboy_Pro_Fw_01_01.bin\` | Only to roll back to the factory firmware (as published by Randomwaves). Install it the same way, with the Moffe package removed. |"
+            echo "| \`*.sha256\` | Optional: checksums to check the download. |"
+            echo "| \`Drumboy-Pro-Moffe-Bootloader-${GITHUB_REF_NAME}.bin\` | **Advanced users only**, for flashing over SWD/ST-Link at 0x08000000. Not for the SD card and not needed for updates. |"
           } > release-notes.md
           cat release-notes.md
 

@@ -82,7 +82,7 @@ and checked against the code in this repo.
 Windows example (PowerShell):
 
 ```powershell
-$env:ARM_TOOLCHAIN_DIR = "C:\tools\arm-gnu-13.3\arm-gnu-toolchain-13.3.rel1-mingw-w64-i686-arm-none-eabi"
+$env:ARM_TOOLCHAIN_DIR = "C:\path\to\arm-gnu-toolchain-13.3.rel1-mingw-w64-i686-arm-none-eabi"
 cmake --preset firmware
 cmake --build --preset firmware
 ```

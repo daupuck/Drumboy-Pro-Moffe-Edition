@@ -5,7 +5,9 @@ Moffe Edition is **unofficial community firmware** for the Drumboy Pro, based on
 is not affiliated with or endorsed by Randomwaves. This page collects everything that is new
 compared with the factory firmware: what each feature does and how to use it on the device.
 
-- **Current version:** v1.08 — download from the repository's [Releases](../../releases)
+- **Current version:** v1.08 — download from the
+  [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest);
+  how to install: [README → Install](README.md#install)
 - **User manual:** published by Randomwaves at [randomwaves.io](https://www.randomwaves.io) (it
   describes the factory firmware); page numbers below refer to it.
 - **Technical details per version:** [CHANGELOG.md](CHANGELOG.md)
@@ -199,19 +201,17 @@ loop.
 
 ## Install and roll back
 
-1. Download `Drumboy_Pro_Fw_Moffe_01_08.bin` from [Releases](../../releases) and check it
-   against the `.sha256` file next to it (optional but recommended).
-2. Back up the whole SD card. `System/File`, `System/Drumkit` and `System/Preset` contain your
-   own data.
-3. Copy the package to the **root** of the card. **Do not rename it** — the bootloader only finds
-   names starting with `Drumboy_Pro_Fw` and up to 32 characters long — and do not change anything
-   else on the card. Make sure it is the **only** `Drumboy_Pro_Fw*.bin` file in the root — the
-   bootloader installs the first one it finds.
-4. Insert the card and power on. The screen shows *UPDATING FIRMWARE V1.08*, then
-   *FIRMWARE UPDATED*.
+The step-by-step guide (which file to download, where to put it, what the screen shows and what
+to do if something goes wrong) is in the **[README → Install](README.md#install)**. In short:
 
-**Roll back:** copy an older package to the root the same way. The factory version is
-`02 Software/Firmware/Drumboy_Pro_Fw_01_01.bin`. The bootloader accepts any version.
+1. Back up the whole SD card.
+2. Download `Drumboy_Pro_Fw_Moffe_01_08.bin` from the
+   [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest).
+3. Copy it, with its exact name, to the root of the card as the only `Drumboy_Pro_Fw…bin` there.
+4. Power on: *UPDATING FIRMWARE V1.08* → *FIRMWARE UPDATED* → sunglasses.
+
+**Roll back:** install `Drumboy_Pro_Fw_01_01.bin` (factory, in the release Assets and in
+`02 Software/Firmware/`) the same way. The bootloader accepts any version, older or newer.
 
 Moffe Edition packages have `Moffe` in their file name, so they can never be confused with an
 official Randomwaves update (`Drumboy_Pro_Fw_MM_mm.bin`); the bootloader accepts both.
