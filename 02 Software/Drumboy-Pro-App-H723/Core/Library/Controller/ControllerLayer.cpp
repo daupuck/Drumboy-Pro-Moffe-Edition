@@ -2333,11 +2333,20 @@ void Controller::note_change(EncoderFunc function_, bool up_) {
         case ENC_NOTE_TRANSPOSE: {
             if (bank.lastActiveBeatNum == -1) return;
             const int delta = up_ ? 1 : -1;
+
+            // Move the melody as a whole (ToneScale.h): at the edge of the range it stops
+            // instead of squashing notes together.
+            int8_t notes[kBeatLibrarySize];
+            uint8_t count = 0;
             for (int16_t i = 0; i <= bank.lastActiveBeatNum; i++) {
-                Beat& beat = bank.beatLibrary[i];
-                if (!beat.getActive()) continue;
-                beat.setNote(tone::clampDegree(tone::clampDegree(beat.getNote(), layer.toneScale) + delta, layer.toneScale));
+                if (bank.beatLibrary[i].getActive()) notes[count++] = bank.beatLibrary[i].getNote();
             }
+            if (!tone::transposeAll(notes, count, delta, layer.toneScale)) return;
+            count = 0;
+            for (int16_t i = 0; i <= bank.lastActiveBeatNum; i++) {
+                if (bank.beatLibrary[i].getActive()) bank.beatLibrary[i].setNote(notes[count++]);
+            }
+
             if ((noteTransposeTotal + delta >= -99) && (noteTransposeTotal + delta <= 99)) noteTransposeTotal += delta;
             lcd_drawNoteData(7);
             break;

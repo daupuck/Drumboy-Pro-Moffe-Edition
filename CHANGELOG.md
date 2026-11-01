@@ -11,7 +11,8 @@ SD-card package is named after it). Rolling back = installing an older package.
   Knobs: **1 MODE** (DRUM / TONE), **2 NOTE** (the selected beat's note, e.g. `D#4`),
   **5 ROOT** (C–B), **6 SCALE** (chromatic, major, minor, dorian, phrygian, lydian, mixolydian,
   harmonic minor, pentatonic major/minor, blues), **7 GLIDE** (0–100), **8 TRANSPOSE** (every
-  note of the bank, in scale steps).
+  note of the bank, in scale steps; the melody moves as a whole and stops when its highest or
+  lowest note reaches the edge of the range, so the intervals are never lost).
 - **DRUM** layers play exactly as before. A **TONE** layer plays each beat at its own note.
   Notes snap to the scale, so a wrong note is impossible.
 - Notes are stored as steps of the scale. Changing ROOT or SCALE later keeps the melody in key

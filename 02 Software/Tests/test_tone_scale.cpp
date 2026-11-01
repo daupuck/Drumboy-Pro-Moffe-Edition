@@ -148,12 +148,71 @@ static void testGlide() {
     CHECK(glideBlockCoef(250, bps) == c100, "glide clamped to 100");
 }
 
+// The old per-note clamping, kept to show the bug this guards against.
+static void transposeEachClamped(int8_t* notes, uint8_t count, int delta, uint8_t scale) {
+    for (uint8_t i = 0; i < count; i++) notes[i] = clampDegree(clampDegree(notes[i], scale) + delta, scale);
+}
+
+static void testTranspose() {
+    const uint8_t minor = scaleIndex("MINOR");  // range -14..+14
+    const int8_t melody[4] = {0, 4, -2, 7};
+
+    // Regression: turning TRANSPOSE far up and back down must give the melody back.
+    {
+        int8_t old[4], fixed[4];
+        for (int i = 0; i < 4; i++) old[i] = fixed[i] = melody[i];
+        int moved = 0;
+        for (int step = 0; step < 30; step++) {
+            transposeEachClamped(old, 4, +1, minor);
+            if (transposeAll(fixed, 4, +1, minor)) moved++;
+        }
+        for (int step = 0; step < 30; step++) {
+            transposeEachClamped(old, 4, -1, minor);
+            transposeAll(fixed, 4, -1, minor);
+        }
+        CHECK(old[0] == old[1] && old[1] == old[2] && old[2] == old[3], "the old code squashed the melody into one note");
+        CHECK(moved == 7, "up stops when the highest note (7) reaches +14: moved %d", moved);
+        // 30 steps down from the top: the melody goes down until its lowest note hits -14.
+        const int8_t expected[4] = {-12, -8, -14, -5};
+        for (int i = 0; i < 4; i++) CHECK(fixed[i] == expected[i], "note %d = %d after far down (expected %d)", i, fixed[i], expected[i]);
+        int8_t back[4];
+        for (int i = 0; i < 4; i++) back[i] = fixed[i];
+        for (int step = 0; step < 12; step++) transposeAll(back, 4, +1, minor);
+        for (int i = 0; i < 4; i++) CHECK(back[i] == melody[i], "note %d restored: %d (expected %d)", i, back[i], melody[i]);
+    }
+
+    // Intervals are kept on every step for every scale, up and down.
+    for (int s = 0; s < kScaleCount; s++) {
+        int8_t notes[5] = {0, 1, -1, 3, -3};
+        for (int step = 0; step < 60; step++) {
+            const int delta = (step < 30) ? 1 : -1;
+            int8_t before[5];
+            for (int i = 0; i < 5; i++) before[i] = notes[i];
+            const bool moved = transposeAll(notes, 5, delta, s);
+            for (int i = 0; i < 5; i++) {
+                CHECK(notes[i] - notes[0] == before[i] - before[0], "scale %d step %d keeps intervals", s, step);
+                CHECK((notes[i] >= minDegree(s)) && (notes[i] <= maxDegree(s)), "scale %d step %d stays in range", s, step);
+                if (!moved) CHECK(notes[i] == before[i], "scale %d step %d: refused step changes nothing", s, step);
+            }
+        }
+    }
+
+    // Edge cases.
+    int8_t one[1] = {0};
+    CHECK(!transposeAll(one, 0, 1, minor), "empty bank");
+    CHECK(!transposeAll(one, 1, 0, minor), "zero delta");
+    int8_t wide[2] = {20, 0};  // 20 only exists in a wider scale; in MINOR it sounds as +14
+    CHECK(!transposeAll(wide, 2, 1, minor) && wide[0] == 20, "already at the top: refused, untouched");
+    CHECK(transposeAll(wide, 2, -1, minor) && wide[0] == 13 && wide[1] == -1, "down: brought into range first");
+}
+
 int main() {
     testScaleTables();
     testSemitones();
     testRatio();
     testNames();
     testGlide();
+    testTranspose();
     std::printf("%s: %d checks, %d failures\n", failures ? "FAILED" : "OK", checks, failures);
     return failures ? 1 : 0;
 }

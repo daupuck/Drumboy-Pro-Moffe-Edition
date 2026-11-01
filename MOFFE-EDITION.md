@@ -182,7 +182,7 @@ NOTE). Once more goes back to the edit page.
 | **5 ROOT** | The key: C to B. |
 | **6 SCALE** | Chromatic, major, minor, dorian, phrygian, lydian, mixolydian, harmonic minor, pentatonic major, pentatonic minor, blues. |
 | **7 GLIDE** | 0 = off. Higher values slide from the previous note into the next one, from a quick 303-style slide up to half a second. |
-| **8 TRANSPOSE** | Moves every note of the bank one scale step up or down. The value shows how far you have moved since the page opened. |
+| **8 TRANSPOSE** | Moves every note of the bank one scale step up or down, keeping the melody intact. It stops when the highest or lowest note reaches the edge of the range. The value shows how far you have moved since the page opened. |
 | **LEFT / RIGHT** | Select the beat whose note you edit (SHIFT + LEFT/RIGHT still moves it). |
 | **Layer key** | Plays the selected beat's note. |
 | **CLEAR** | Undoes the note edits made since the page opened (**CLEAR: UNDO**). |

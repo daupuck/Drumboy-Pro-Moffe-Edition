@@ -67,6 +67,25 @@ inline int8_t clampDegree(int degree, uint8_t scale) {
     return static_cast<int8_t>(degree);
 }
 
+// TRANSPOSE: moves every note `delta` scale steps, keeping the intervals between them. Notes
+// are first brought into the scale's range (that is how they sound). When the highest or lowest
+// note would leave the range nothing changes and false is returned, so the melody stops at the
+// edge as a whole; clamping each note on its own would pile them up on the same edge note and
+// lose the melody for good.
+inline bool transposeAll(int8_t* notes, uint8_t count, int delta, uint8_t scale) {
+    if ((count == 0) || (delta == 0)) return false;
+    int lowest = clampDegree(notes[0], scale);
+    int highest = lowest;
+    for (uint8_t i = 1; i < count; i++) {
+        const int d = clampDegree(notes[i], scale);
+        if (d < lowest) lowest = d;
+        if (d > highest) highest = d;
+    }
+    if ((highest + delta > maxDegree(scale)) || (lowest + delta < minDegree(scale))) return false;
+    for (uint8_t i = 0; i < count; i++) notes[i] = static_cast<int8_t>(clampDegree(notes[i], scale) + delta);
+    return true;
+}
+
 // Floor division that rounds towards minus infinity (C++ '/' rounds towards zero).
 inline int floorDiv(int a, int b) { return (a >= 0) ? (a / b) : -((-a + b - 1) / b); }
 
