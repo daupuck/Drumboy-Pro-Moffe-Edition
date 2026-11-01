@@ -88,7 +88,7 @@ cmake --build --preset firmware
 1. **Branch.** `git switch -c feature/<name>` from an up-to-date `main`. Never develop on `main`.
 2. **Change the code.** Keep each change small enough to test on the device in one sitting.
 3. **Build locally** with `cmake --build --preset firmware`. It must build with no errors; look
-   at new warnings in code you touched (`build/build.log`).
+   at new warnings in code you touched (`build/build.log`). Run the host unit tests (below).
 4. **Check memory.** The build prints memory usage. `RAM_D1` is already around 90 %;
    watch it. Flash for the application must stay below 896 KB (the packager refuses larger
    images).
@@ -99,6 +99,23 @@ cmake --build --preset firmware
 6. **Open a pull request.** CI builds both projects and verifies the package; download the
    package from the workflow run's artifacts if you want the exact CI build.
 7. **Test on the device** (below). Merge only after it passes.
+
+### Host unit tests
+
+Logic that doesn't need hardware lives in small headers without HAL dependencies, so the
+**same code** that runs on the device can be tested on a PC. Example:
+`Drumboy-Pro-App-H723/Core/Library/Global/LayerSongEdit.h` (Layer Song MOVE / SHIFT ALL / ADD),
+tested by `02 Software/Tests/test_layer_song_edit.cpp`. CI compiles and runs every
+`02 Software/Tests/test_*.cpp` with `-Wall -Wextra -Werror`.
+
+```sh
+g++ -std=c++17 -Wall -Wextra -Werror -I"02 Software/Drumboy-Pro-App-H723/Core/Library/Global" \
+    "02 Software/Tests/test_layer_song_edit.cpp" -o test_layer_song_edit && ./test_layer_song_edit
+```
+
+On Windows without g++, `zig c++` (winget `zig.zig`) works with the same flags. When adding a
+feature, put the decision logic (positions, ranges, parsing) in such a header and test it;
+keep the Controller method as thin glue (snapshot → pure function → write back → redraw).
 
 ### Rules that keep changes safe
 

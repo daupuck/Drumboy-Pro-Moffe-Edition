@@ -41,6 +41,17 @@ jobs:
       - name: Install Ninja
         run: sudo apt-get update && sudo apt-get install -y ninja-build
 
+      - name: Host unit tests
+        shell: bash
+        run: |
+          for t in "02 Software/Tests"/test_*.cpp; do
+            name=$(basename "$t" .cpp)
+            g++ -std=c++17 -Wall -Wextra -Werror \
+                -I"02 Software/Drumboy-Pro-App-H723/Core/Library/Global" \
+                "$t" -o "/tmp/$name"
+            "/tmp/$name"
+          done
+
       - name: Configure
         shell: bash
         run: |

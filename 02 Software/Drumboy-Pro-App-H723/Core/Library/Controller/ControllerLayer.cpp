@@ -2469,49 +2469,186 @@ void Controller::layerSong_generateBeat(uint8_t type) {
 }
 
 void Controller::layerSong_shiftSelectedBeat(bool direction_) {
-    /// @brief Shifts selected beat start position by one quantize step.
+    /// @brief Shifts selected beat by one quantize step (ADD + LEFT/RIGHT).
+    /// Kept for compatibility; uses the same logic as the MOVE encoder, which keeps fills
+    /// and can pass neighbouring beats (the old version stopped at neighbours and cleared fills).
 
-    uint16_t quantizeInterval = kQuantizeInterval[rhythm.quantize];
-    Layer& layer = layerLibrary[selectedLayerNum];
-    Bank& bank = layer.bankLibrary[activeSongBank];
-    Beat& beat = bank.beatLibrary[selectedBeatNum];
-    uint16_t interval = beat.getStartInterval();
+    layerSong_moveSelectedBeat(direction_);
+}
 
-    // 1. DIRECTIONAL SHIFT APPLY
-    // Shift forward/backward when neighbor and boundary constraints allow.
-    if (direction_) {
-        uint16_t newInterval = interval + quantizeInterval;
-        if (((selectedBeatNum == bank.lastActiveBeatNum) && (newInterval < songInterval)) || ((selectedBeatNum < bank.lastActiveBeatNum) && (newInterval < bank.beatLibrary[selectedBeatNum + 1].getStartInterval()))) {
-            // Extend previous beat
-            if (selectedBeatNum > 0) {
-                bank.beatLibrary[selectedBeatNum - 1].setEndInterval(newInterval);
-                bank.setBeatFill(selectedBeatNum - 1, 0, 0, 0, 0);
-                lcd_drawBeat(selectedLayerNum, activeSongBank, (selectedBeatNum - 1), false);
-            }
+////////////////////////////////////////////////////////////////////////////////
+/* Layer Song Edit Functions (MOVE / SHIFT ALL / single-beat ADD) ------------*/
+////////////////////////////////////////////////////////////////////////////////
 
-            // Update beat position
-            lcd_clearBeat(selectedLayerNum, activeSongBank, selectedBeatNum);
-            beat.setStartInterval(newInterval);
-            bank.setBeatFill(selectedBeatNum, 0, 0, 0, 0);
-            layerSong_setSelectedBeatFill(0, 0, 0, 0);
-        }
-    } else if (interval >= quantizeInterval) {
-        uint16_t newInterval = interval - quantizeInterval;
-        if (((selectedBeatNum == 0) && (newInterval >= 0)) || ((selectedBeatNum > 0) && (newInterval > bank.beatLibrary[selectedBeatNum - 1].getStartInterval()))) {
-            // Shrink previous beat
-            if (selectedBeatNum > 0) {
-                bank.beatLibrary[selectedBeatNum - 1].setEndInterval(newInterval);
-                bank.setBeatFill(selectedBeatNum - 1, 0, 0, 0, 0);
-                lcd_drawBeat(selectedLayerNum, activeSongBank, (selectedBeatNum - 1), false);
-            }
+namespace {
 
-            // Update beat position
-            lcd_clearBeat(selectedLayerNum, activeSongBank, selectedBeatNum);
-            beat.setStartInterval(newInterval);
-            bank.setBeatFill(selectedBeatNum, 0, 0, 0, 0);
-            layerSong_setSelectedBeatFill(0, 0, 0, 0);
-        }
+// Masks the sequencer tick (TIM15 -> interruptPlay) while a bank is rewritten. That ISR
+// reads the beat list to trigger notes and also writes to it while recording, so a
+// half-rebuilt bank must never be visible to it. The previous enable state is restored,
+// so this is safe whether or not the transport is running. A tick that arrives while
+// masked stays pending and runs right after (a few microseconds of jitter).
+struct SequencerIrqGuard {
+    const bool wasEnabled;
+    SequencerIrqGuard() : wasEnabled(NVIC_GetEnableIRQ(TIM15_IRQn) != 0) {
+        NVIC_DisableIRQ(TIM15_IRQn);
+        __DSB();
+        __ISB();
     }
+    ~SequencerIrqGuard() {
+        if (wasEnabled) NVIC_EnableIRQ(TIM15_IRQn);
+    }
+    SequencerIrqGuard(const SequencerIrqGuard&) = delete;
+    SequencerIrqGuard& operator=(const SequencerIrqGuard&) = delete;
+};
+
+uint16_t quantizeStep(uint8_t quantize_) {
+    return static_cast<uint16_t>(kQuantizeInterval[quantize_]);
+}
+
+}  // namespace
+
+uint8_t Controller::layerSong_snapshotBank(uint8_t layerNum_, uint8_t bankTab_, BeatSnapshot* beats_) {
+    /// @brief Copies the active beats of a bank (position + fill settings) into beats_.
+    /// Returns the number of beats copied. beats_ must hold kBeatLibrarySize entries.
+
+    Bank& bank = layerLibrary[layerNum_].bankLibrary[bankTab_];
+    uint8_t count = 0;
+    for (int16_t i = 0; i <= bank.lastActiveBeatNum; i++) {
+        const Beat& beat = bank.beatLibrary[i];
+        if (!beat.getActive()) continue;
+        beats_[count].startInterval = beat.getStartInterval();
+        beats_[count].fillType = beat.getFillType();
+        beats_[count].fillPattern = beat.getFillPattern();
+        beats_[count].fillTime = beat.getFillTime();
+        beats_[count].fillLevel = beat.getFillLevel();
+        count++;
+    }
+    return count;
+}
+
+int8_t Controller::layerSong_rebuildBank(uint8_t layerNum_, uint8_t bankTab_, BeatSnapshot* beats_, uint8_t count_, int8_t track_) {
+    /// @brief Rewrites a bank from a list of beats in any order.
+    /// Sorts by start interval, drops duplicate positions, recomputes every end interval and
+    /// every fill (fills are stored with absolute positions, so they must be regenerated after
+    /// a move), and updates the play pointer. Returns the new index of the entry that was at
+    /// position track_ in beats_, or -1 if it was dropped / the bank is empty.
+
+    Bank& bank = layerLibrary[layerNum_].bankLibrary[bankTab_];
+    int8_t tracked = track_;
+
+    // 1-2. SORT BY POSITION, DROP DUPLICATES, follow the tracked entry (LayerSongEdit.h).
+    count_ = layersong::sortUnique(beats_, count_, tracked);
+    if (count_ > kBeatLibrarySize) count_ = kBeatLibrarySize;
+
+    // 3. REWRITE BANK with the sequencer tick masked.
+    {
+        SequencerIrqGuard guard;
+
+        for (uint8_t i = 0; i < kBeatLibrarySize; i++) bank.resetBeat(i);
+        for (uint8_t i = 0; i < kBeatFillLibrarySize; i++) bank.beatFillLibrary[i].reset();
+
+        for (uint8_t i = 0; i < count_; i++) {
+            const uint16_t endInterval = (i + 1 < count_) ? beats_[i + 1].startInterval : songInterval;
+            bank.setBeat(i, beats_[i].startInterval, endInterval);
+        }
+        for (uint8_t i = 0; i < count_; i++) {
+            bank.setBeatFill(i, beats_[i].fillType, beats_[i].fillPattern, beats_[i].fillTime, beats_[i].fillLevel);
+        }
+
+        bank.lastActiveBeatNum = (count_ > 0) ? static_cast<int8_t>(count_ - 1) : -1;
+        layerSong_calculatePlayBeatNum(layerNum_, bankTab_, playInterval);
+    }
+
+    return ((count_ > 0) && (tracked >= 0) && (tracked < count_)) ? tracked : -1;
+}
+
+void Controller::layerSong_redrawEdited() {
+    /// @brief Redraws the selected layer's lane and the Layer Song fields after an edit.
+
+    if ((menu != LAYER_SONG_MENU) || (selectedLayerNum == -1)) return;
+    lcd_drawSong(selectedLayerNum, activeSongBank);
+    lcd_drawLayerSong_BeatFillTypeData(selectedLayerNum);  // also refreshes MOVE position
+    lcd_drawLayerSong_BeatFillPatternData(selectedLayerNum);
+    lcd_drawLayerSong_BeatFillTimeData(selectedLayerNum);
+    lcd_drawLayerSong_BeatFillLevelData(selectedLayerNum);
+    lcd_drawLayerSong_BeatFillGraphData(selectedLayerNum);
+}
+
+void Controller::layerSong_moveSelectedBeat(bool direction_) {
+    /// @brief MOVE: moves the selected beat to the next/previous quantize grid line.
+    /// Off-grid beats (e.g. recorded live) snap to the grid on the first move. Positions that
+    /// already hold a beat are skipped, so a beat can pass its neighbours. Fill settings are
+    /// kept. The move stops at the start and end of the song (no wrap-around).
+
+    if (selectedLayerNum == -1) return;
+    Bank& bank = layerLibrary[selectedLayerNum].bankLibrary[activeSongBank];
+    if ((bank.lastActiveBeatNum == -1) || (selectedBeatNum < 0) || (selectedBeatNum > bank.lastActiveBeatNum)) return;
+
+    BeatSnapshot beats[kBeatLibrarySize];
+    const uint8_t count = layerSong_snapshotBank(selectedLayerNum, activeSongBank, beats);
+    if (selectedBeatNum >= count) return;
+
+    // 1. TARGET: next free grid line in the requested direction (LayerSongEdit.h).
+    const int32_t target = layersong::moveTarget(beats, count, static_cast<uint8_t>(selectedBeatNum), direction_,
+                                                 quantizeStep(rhythm.quantize), songInterval);
+    if (target < 0) return;  // reached the song edge
+
+    // 2. APPLY + REDRAW
+    beats[selectedBeatNum].startInterval = static_cast<uint16_t>(target);
+    selectedBeatNum = layerSong_rebuildBank(selectedLayerNum, activeSongBank, beats, count, selectedBeatNum);
+    layerSong_redrawEdited();
+}
+
+void Controller::layerSong_shiftAllBeats(bool direction_) {
+    /// @brief SHIFT ALL: rotates every beat of the active bank by one quantize step.
+    /// Beats pushed past the end re-enter at the start (and vice versa), so the pattern is
+    /// never lost and turning the other way restores it. Relative timing, including
+    /// off-grid beats, and all fills are kept. The selection follows the selected beat.
+
+    if (selectedLayerNum == -1) return;
+    Bank& bank = layerLibrary[selectedLayerNum].bankLibrary[activeSongBank];
+    if ((bank.lastActiveBeatNum == -1) || (songInterval == 0)) return;
+
+    BeatSnapshot beats[kBeatLibrarySize];
+    const uint8_t count = layerSong_snapshotBank(selectedLayerNum, activeSongBank, beats);
+    if (count == 0) return;
+
+    if (!layersong::shiftAll(beats, count, direction_, quantizeStep(rhythm.quantize), songInterval)) return;
+
+    const int8_t track = ((selectedBeatNum >= 0) && (selectedBeatNum < count)) ? selectedBeatNum : 0;
+    selectedBeatNum = layerSong_rebuildBank(selectedLayerNum, activeSongBank, beats, count, track);
+    layerSong_redrawEdited();
+}
+
+void Controller::layerSong_insertBeat() {
+    /// @brief ADD tap: inserts one plain beat in the middle of the gap after the selected beat.
+    /// The position is the quantize grid line closest to the middle that lies strictly inside
+    /// the gap (after the last beat the gap wraps to the first beat). On an empty layer the
+    /// beat goes to the start of the song. The new beat becomes the selection so it can be
+    /// placed precisely with MOVE. Does nothing when the gap has no free grid line or the
+    /// bank is full (64 beats).
+
+    if (selectedLayerNum == -1) return;
+
+    BeatSnapshot beats[kBeatLibrarySize];
+    const uint8_t count = layerSong_snapshotBank(selectedLayerNum, activeSongBank, beats);
+    if (count >= kBeatLibrarySize) return;
+
+    // Sort defensively (banks written by older code could have the last beat out of order),
+    // keeping track of the selected beat, then find the gap after it.
+    int8_t sel = selectedBeatNum;
+    const uint8_t sorted = layersong::sortUnique(beats, count, sel);
+    const int32_t position = layersong::insertPosition(beats, sorted, sel, quantizeStep(rhythm.quantize), songInterval);
+    if (position < 0) return;  // no free grid line in this gap
+
+    beats[sorted].startInterval = static_cast<uint16_t>(position);
+    beats[sorted].fillType = 0;
+    beats[sorted].fillPattern = 0;
+    beats[sorted].fillTime = 0;
+    beats[sorted].fillLevel = 0;
+
+    selectedBeatNum = layerSong_rebuildBank(selectedLayerNum, activeSongBank, beats, sorted + 1, sorted);
+    layerSong_redrawEdited();
 }
 
 void Controller::layerSong_resetSelectedBeat() {
@@ -2615,8 +2752,11 @@ void Controller::layerSong_resetAllBeats(uint8_t layerNum_, uint8_t bankTab_) {
 
         // 3. CONDITIONAL UI REFRESH
         // Refresh beat widgets when target bank is currently visible.
-        if ((selectedLayerNum == layerNum_) && (activeSongBank == bankTab_) && (menu = LAYER_SONG_MENU)) {
-            selectedBeatNum = -1;
+        // The selection always becomes invalid for an emptied bank; the fields are only redrawn
+        // when the Layer Song menu is visible. (This used to read "menu = LAYER_SONG_MENU", an
+        // assignment that silently switched the menu state when a layer was cleared elsewhere.)
+        if ((selectedLayerNum == layerNum_) && (activeSongBank == bankTab_)) selectedBeatNum = -1;
+        if ((selectedLayerNum == layerNum_) && (activeSongBank == bankTab_) && (menu == LAYER_SONG_MENU)) {
             lcd_drawLayerSong_BeatFillTypeData(selectedLayerNum);
             lcd_drawLayerSong_BeatFillPatternData(selectedLayerNum);
             lcd_drawLayerSong_BeatFillTimeData(selectedLayerNum);
@@ -2717,12 +2857,13 @@ void Controller::layerSong_arrangeActiveBeats(uint8_t layerNum_, uint8_t bankTab
         // 4. SORT PHASE
         // Sort active beats by start interval and rebuild end intervals.
         if ((sort_) && (bank.lastActiveBeatNum > 0)) {
-            // Sort beats.
+            // Sort beats (selection sort over indices 0..lastActiveBeatNum inclusive; the
+            // bounds used to stop one short, leaving the last beat unsorted).
             uint8_t min;
             Beat temp;
-            for (uint8_t i = 0; i < (bank.lastActiveBeatNum - 1); i++) {
+            for (uint8_t i = 0; i < bank.lastActiveBeatNum; i++) {
                 min = i;
-                for (uint8_t j = i + 1; j < bank.lastActiveBeatNum; j++) {
+                for (uint8_t j = i + 1; j <= bank.lastActiveBeatNum; j++) {
                     if (bank.beatLibrary[j].getStartInterval() < bank.beatLibrary[min].getStartInterval()) {
                         min = j;
                     }

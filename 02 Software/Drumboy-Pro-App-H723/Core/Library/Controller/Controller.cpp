@@ -121,6 +121,7 @@ Controller::Controller()
       layerSongResetKeyFlag(false),
       layerSongResetActionFlag(false),
       layerBeatKeyFlag(false),
+      layerSongAddPending(false),
       layerFillCopyKeyFlag(false),
       layerFillPasteKeyFlag(false),
       // Logic Control Flags (Rhythm, Mixer, UI)

@@ -3142,6 +3142,8 @@ void Controller::lcd_drawLayerSongMenu(uint8_t layerNum_) {
     lcd.drawText(kHeaderPattern, kMenuHeaderTextSize, kMenuHeaderX[1], kMenuHeaderY[1]);
     lcd.drawText(kHeaderTiming, kMenuHeaderTextSize, kMenuHeaderX[4], kMenuHeaderY[4]);
     lcd.drawText(kHeaderVelocity, kMenuHeaderTextSize, kMenuHeaderX[5], kMenuHeaderY[5]);
+    lcd.drawText(kHeaderMove, kMenuHeaderTextSize, kMenuHeaderX[6], kMenuHeaderY[6]);
+    lcd.drawText(kHeaderShiftAll, kMenuHeaderTextSize, kMenuHeaderX[7], kMenuHeaderY[7]);
 
     // 4. DATA DRAW
     // Draw beat-fill values and graph.
@@ -3150,6 +3152,8 @@ void Controller::lcd_drawLayerSongMenu(uint8_t layerNum_) {
     lcd_drawLayerSong_BeatFillTimeData(layerNum_);
     lcd_drawLayerSong_BeatFillLevelData(layerNum_);
     lcd_drawLayerSong_BeatFillGraphData(layerNum_);
+    lcd_drawLayerSong_MoveData(layerNum_);
+    lcd_drawLayerSong_ShiftData(layerNum_);
 
     // 5. SIGN DRAW
     // Draw sign placeholders for visible fields.
@@ -3158,6 +3162,8 @@ void Controller::lcd_drawLayerSongMenu(uint8_t layerNum_) {
     lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[1], kMenuSignBoxY[1]);
     lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[4], kMenuSignBoxY[4]);
     lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[5], kMenuSignBoxY[5]);
+    lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[6], kMenuSignBoxY[6]);
+    lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[7], kMenuSignBoxY[7]);
 
     // 6. GRAPH BACKGROUND DRAW
     // Draw graph axes and boundary markers.
@@ -3188,6 +3194,10 @@ void Controller::lcd_drawLayerSong_BeatFillTypeData(uint8_t layerNum_) {
     const char* text;
     (selectedBeatNum != -1) ? text = kFillTypeDataLibrary[bank.beatLibrary[selectedBeatNum].getFillType()].nameLong : text = kDataDashR;
     lcd.drawText(text, kMenuDataTextSize, kMenuDataX[0], kMenuDataY[0]);
+
+    // This field is redrawn on every selection change (beat left/right, insert, delete,
+    // move, shift, fill edit), so the MOVE position readout is refreshed from here too.
+    if ((menu == LAYER_SONG_MENU) && (layerNum_ == selectedLayerNum)) lcd_drawLayerSong_MoveData(layerNum_);
 
     // 3. OPTIONAL INDEX OVERLAY
     // Optional beat index overlay block kept disabled.
@@ -3274,6 +3284,43 @@ void Controller::lcd_drawLayerSong_BeatFillLevelData(uint8_t layerNum_) {
         text = kDataDashR;
     }
     lcd.drawText(text, kMenuDataTextSize, kMenuDataX[5], kMenuDataY[5]);
+}
+
+void Controller::lcd_drawLayerSong_MoveData(uint8_t layerNum_) {
+    /// @brief Draws the selected beat's position under MOVE as bar.beat.sixteenth.
+    /// A trailing "+" marks a beat that sits between sixteenths (e.g. recorded live or
+    /// placed with a 1:32 / 1:64 grid).
+
+    Layer& layer = layerLibrary[layerNum_];
+    Bank& bank = layer.bankLibrary[activeSongBank];
+    lcd_setMenuDataState(WHITE);
+
+    char text[kMenuDataTextSize + 1];
+    const uint16_t sixteenth = measureInterval / 4;
+    if ((selectedBeatNum >= 0) && (selectedBeatNum <= bank.lastActiveBeatNum) && (barInterval > 0) && (sixteenth > 0)) {
+        const uint16_t start = bank.beatLibrary[selectedBeatNum].getStartInterval();
+        const unsigned bar = (start / barInterval) + 1;
+        const unsigned inBar = start % barInterval;
+        const unsigned beat = (inBar / measureInterval) + 1;
+        const unsigned inBeat = inBar % measureInterval;
+        const unsigned step = (inBeat / sixteenth) + 1;
+        const bool offGrid = (inBeat % sixteenth) != 0;
+
+        char position[40];  // sized for the compiler's worst case; real text is e.g. "12.4.3+"
+        snprintf(position, sizeof(position), "%u.%u.%u%s", bar, beat, step, offGrid ? "+" : "");
+        snprintf(text, sizeof(text), "%10.10s", position);
+    } else {
+        snprintf(text, sizeof(text), "%s", kDataDashR);
+    }
+    lcd.drawText(text, kMenuDataTextSize, kMenuDataX[6], kMenuDataY[6]);
+}
+
+void Controller::lcd_drawLayerSong_ShiftData(uint8_t layerNum_) {
+    /// @brief Draws the step size used by MOVE and SHIFT ALL (the Rhythm menu quantize).
+
+    (void)layerNum_;
+    lcd_setMenuDataState(WHITE);
+    lcd.drawText(kQuantizeDataLibrary[rhythm.quantize].nameLongR, kMenuDataTextSize, kMenuDataX[7], kMenuDataY[7]);
 }
 
 void Controller::lcd_drawLayerSong_BeatFillGraphData(uint8_t layerNum_) {
