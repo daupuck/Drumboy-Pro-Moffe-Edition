@@ -227,6 +227,19 @@ class Controller {
     uint32_t previewBytesRead = 0;
     uint32_t previewOutCount = 0;     // samples written to RAM_PREVIEW_ADDRESS
     sampleformat::Plan previewPlan = {};
+
+    // Layer Song EUCLID page (page 1 of LAYER_SONG_MENU; S + layer toggles). Every knob turn
+    // regenerates the bank from euclidBase, the layer's beats captured when the page opened,
+    // so results never accumulate and CLEAR restores the base.
+    uint8_t layerSongPage = 0;
+    EuclidSettings euclidSettings;
+    BeatSnapshot euclidBase[kBeatLibrarySize];
+    uint8_t euclidBaseCount = 0;
+    int8_t euclidBaseLayer = -1;
+    int8_t euclidBaseBank = -1;
+    bool euclidTruncated = false;
+    bool euclidPattern[kMaxEuclidSteps] = {};
+    int16_t euclidPlayStep = -1;
     bool layerFillCopyKeyFlag;
     bool layerFillPasteKeyFlag;
 
@@ -1021,6 +1034,21 @@ class Controller {
     void layerSong_setSelectedBeatFillLevel(uint8_t fillLevel_);
     void layerSong_generateBeat(uint8_t type);
     void layerSong_shiftSelectedBeat(bool direction_);
+
+    /* Layer Song EUCLID Page ------------------------------- */
+
+    bool euclidPageActive() const { return (menu == LAYER_SONG_MENU) && (layerSongPage == 1); }
+    void layerSong_togglePage();
+    void euclid_captureBase();
+    void euclid_computePattern();
+    void euclid_apply();
+    void euclid_restore();
+    void euclid_change(EncoderFunc function_, bool up_);
+    void lcd_drawLayerSongEuclidMenu(uint8_t layerNum_);
+    void lcd_drawEuclidData(uint8_t slot_);
+    void lcd_drawEuclidStrip();
+    void lcd_drawEuclidCell(uint8_t step_, bool playing_);
+    void lcd_updateEuclidPlayhead();
 
     /* Sample Preview --------------------------------------- */
 

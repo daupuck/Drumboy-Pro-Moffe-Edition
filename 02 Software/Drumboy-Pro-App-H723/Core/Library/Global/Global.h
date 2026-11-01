@@ -22,7 +22,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 const uint8_t kVersionMajor                         = 0x01;
-const uint8_t kVersionMinor                         = 0x05;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMinor                         = 0x06;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/
@@ -953,6 +953,12 @@ const char kHeaderMove[]                            = "MOVE      ";
 const char kHeaderShiftAll[]                        = "SHIFT ALL ";
 const char kHeaderPreview[]                         = "PREVIEW   ";
 const char kHeaderPreviewLevel[]                    = "PREV LEVEL";
+const char kHeaderEuclidSteps[]                     = "STEPS     ";
+const char kHeaderEuclidHits[]                      = "HITS      ";
+const char kHeaderEuclidRotate[]                    = "ROTATE    ";
+const char kHeaderEuclidGrid[]                      = "GRID      ";
+const char kHeaderEuclidLength[]                    = "LENGTH    ";
+const char kHeaderEuclidMode[]                      = "MODE      ";
 const char kHeaderVolume[]                          = "VOLUME    ";
 const char kHeaderWet[]                             = "WET       ";
 
@@ -1254,10 +1260,18 @@ typedef enum {
     ENC_METRO_PREVIEW                               = 0x63,  // sample preview on/off (Metronome menu, knob 5)
     ENC_METRO_PREVIEW_LEVEL                         = 0x64,  // sample preview level   (Metronome menu, knob 6)
 
+    // Layer Song EUCLID page (S + layer again)
+    ENC_EUCLID_STEPS                                = 0x65,
+    ENC_EUCLID_HITS                                 = 0x66,
+    ENC_EUCLID_ROTATE                               = 0x67,
+    ENC_EUCLID_GRID                                 = 0x68,
+    ENC_EUCLID_LENGTH                               = 0x69,
+    ENC_EUCLID_MODE                                 = 0x6A,
+
     // Must equal the number of rows before the trailing NONE row in kEncoderFuncDataLibrary,
     // which is indexed by EncoderFunc value. Never stored on SD (only the global map is
     // persisted, and it is range-checked against kMaxEncoderGlobalFunction).
-    ENC_FNC_NONE                                    = 0x65
+    ENC_FNC_NONE                                    = 0x6B
 } EncoderFunc;
 
 const EncoderFunc encoderLocalFunction[][8] = {
@@ -1430,6 +1444,12 @@ constexpr EncoderFuncData kEncoderFuncDataLibrary[] = {
     {ENC_SONG_SHIFT,          ENC_RES_M, "SHIFT ALL ", "SONG  ", "   ", false},
     {ENC_METRO_PREVIEW,       ENC_RES_S, "PREVIEW   ", "METRO ", "   ", false},
     {ENC_METRO_PREVIEW_LEVEL, ENC_RES_F, "PREV LEVEL", "METRO ", "  %", false},
+    {ENC_EUCLID_STEPS,        ENC_RES_M, "STEPS     ", "EUCLID", "   ", false},
+    {ENC_EUCLID_HITS,         ENC_RES_M, "HITS      ", "EUCLID", "   ", false},
+    {ENC_EUCLID_ROTATE,       ENC_RES_M, "ROTATE    ", "EUCLID", "   ", false},
+    {ENC_EUCLID_GRID,         ENC_RES_S, "GRID      ", "EUCLID", "   ", false},
+    {ENC_EUCLID_LENGTH,       ENC_RES_S, "LENGTH    ", "EUCLID", "   ", false},
+    {ENC_EUCLID_MODE,         ENC_RES_S, "MODE      ", "EUCLID", "   ", false},
 
     // Row for ENC_FNC_NONE itself, so lookups with function == ENC_FNC_NONE stay in bounds.
     {ENC_FNC_NONE,            ENC_RES_F, "----------", "      ", "   ", true}
@@ -1462,7 +1482,12 @@ const uint8_t kMinEncoderGlobalFunction             = 0;
 const uint8_t kMaxEncoderGlobalFunction             = 68;
 
 const uint8_t kMinEncoderLocalFunction              = 0;
-const uint8_t kMaxEncoderLocalFunction              = ENC_METRO_PREVIEW_LEVEL;
+const uint8_t kMaxEncoderLocalFunction              = ENC_EUCLID_MODE;
+
+// Knob map of the Layer Song EUCLID page (used instead of the LAYER_SONG_MENU row while
+// Controller::layerSongPage == 1). Slots 2/3 hold the step strip, like the fill graph.
+const EncoderFunc kEncoderEuclidFunction[8]         = {ENC_EUCLID_STEPS, ENC_EUCLID_HITS, ENC_FNC_NONE, ENC_FNC_NONE,
+                                                       ENC_EUCLID_ROTATE, ENC_EUCLID_GRID, ENC_EUCLID_LENGTH, ENC_EUCLID_MODE};
 
 const uint8_t kMinEncoderResolution                 = 0;
 const uint8_t kMaxEncoderResolution                 = 8;
@@ -7203,6 +7228,31 @@ struct Bank {
 
 // BeatSnapshot and the MOVE / SHIFT ALL / ADD position arithmetic (host-testable).
 #include "LayerSongEdit.h"
+
+// Euclidean rhythms for the Layer Song EUCLID page (host-testable).
+#include "EuclidPattern.h"
+
+const uint8_t kMinEuclidSteps                       = 1;
+const uint8_t kMaxEuclidSteps                       = euclid::kMaxSteps;  // 32
+const uint8_t kInitialEuclidSteps                   = 16;
+const uint8_t kInitialEuclidHits                    = 4;
+const uint8_t kMinEuclidGrid                        = 1;   // kQuantizeInterval index: 1:32
+const uint8_t kMaxEuclidGrid                        = 4;   //                          1:4
+const uint8_t kInitialEuclidGrid                    = 2;   //                          1:16
+
+// Settings of the EUCLID page. A tool, not song data: the beats it writes are ordinary beats
+// saved with the project; these values are kept for the session only.
+struct EuclidSettings {
+    uint8_t steps                                   = kInitialEuclidSteps;
+    uint8_t hits                                    = kInitialEuclidHits;
+    uint8_t rotate                                  = 0;
+    uint8_t grid                                    = kInitialEuclidGrid;
+    bool repeat                                     = true;   // LENGTH: REPEAT over the song / ONCE
+    bool merge                                      = false;  // MODE: REPLACE / MERGE with existing beats
+};
+
+const char kEuclidLengthText[2][11]                 = {"      ONCE", "    REPEAT"};
+const char kEuclidModeText[2][11]                   = {"   REPLACE", "     MERGE"};
 
 /*----------------------------------------------------------------------------*/
 

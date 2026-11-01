@@ -1,139 +1,177 @@
 # Drumboy Pro – Moffe Edition
 
-Moffe Edition er en videreutviklet utgave av Drumboy Pro-firmwaren fra Randomwaves
-(fabrikkversjon v1.01). Denne siden samler alt som er nytt sammenlignet med fabrikkversjonen:
-hva funksjonene gjør og hvordan du bruker dem på enheten.
+Moffe Edition is a community-extended version of the Drumboy Pro firmware by Randomwaves
+(based on the factory firmware v1.01). This page collects everything that is new compared with
+the factory firmware: what each feature does and how to use it on the device.
 
-- **Gjeldende versjon:** v1.05
-- **Brukermanual (Randomwaves):** [02 Software/drumboy-pro-user-manual.pdf](<02 Software/drumboy-pro-user-manual.pdf>) –
-  sidetallene nedenfor viser til den.
-- **Tekniske detaljer per versjon:** [CHANGELOG.md](CHANGELOG.md)
-- **Bygge, teste og installere:** [02 Software/DEVELOPMENT.md](<02 Software/DEVELOPMENT.md>)
+- **Current version:** v1.06
+- **User manual (Randomwaves):** [02 Software/drumboy-pro-user-manual.pdf](<02 Software/drumboy-pro-user-manual.pdf>) –
+  page numbers below refer to it.
+- **Technical details per version:** [CHANGELOG.md](CHANGELOG.md)
+- **Build, test and install:** [02 Software/DEVELOPMENT.md](<02 Software/DEVELOPMENT.md>)
 
-> **Status (1. november 2026):** alt er bygget, enhetstestet og kjørt gjennom CI, men ennå ikke
-> testet på en fysisk Drumboy Pro. Ta sikkerhetskopi av SD-kortet før du installerer.
+> **Status (1 November 2026):** everything is built, unit-tested and verified by CI, but has not
+> yet been tested on a physical Drumboy Pro. Back up your SD card before installing.
 
-## Knappenumrene
+## Knob numbering
 
-Knappene nummereres slik skjermen viser dem: to rader med fire, fra venstre mot høyre. Navnet på
-hver funksjon står på skjermen rett over verdien.
+Knobs are numbered the way the screen shows them: two rows of four, left to right. Each
+function's name is shown on screen directly above its value.
 
 ```
- Øverst:   [1]  [2]  [3]  [4]
- Nederst:  [5]  [6]  [7]  [8]
+ Top:     [1]  [2]  [3]  [4]
+ Bottom:  [5]  [6]  [7]  [8]
 ```
 
 ---
 
-## 1. Plassere beats nøyaktig – Layer Song-menyen (v1.03)
+## 1. Place beats precisely – Layer Song menu (v1.03)
 
-Åpnes med **S + lagtast** (manualen s. 37–38). Før kunne beats bare lages med mønstergeneratoren
-eller spilles inn live, og de kunne ikke flyttes fritt. Nå bruker de to ledige knappene nede til
-høyre til å flytte beats.
+Open with **S + layer key** (manual pp. 37–38). Previously, beats could only be created with the
+pattern generator or recorded live, and could not be moved freely. The two unused knobs at the
+bottom right now move beats.
 
-| Kontroll | Hva den gjør |
+| Control | What it does |
 |---|---|
-| **Knapp 7 – MOVE** | Flytter valgt beat ett steg til venstre eller høyre. Hopper over andre beats, beholder fillen og stopper ved start og slutt av sangen. Under knappen står posisjonen som `takt.slag.sekstendedel`, for eksempel `2.3.4`. En `+` bak betyr at beaten ligger mellom to sekstendedeler. |
-| **Knapp 8 – SHIFT ALL** | Flytter *alle* beats på laget ett steg. Det som skyves ut på slutten, kommer inn igjen på starten, så du kommer tilbake ved å vri motsatt vei. Under knappen står steglengden, for eksempel `1:16`. |
-| **ADD (kort trykk)** | Setter inn én beat midt i luken etter valgt beat og velger den, så du kan finplassere den med MOVE. På et tomt lag havner den første beaten på starten. |
-| ADD (holdes inne, tomt lag) | Mønstergeneratoren, som før. |
-| ADD + LEFT/RIGHT | Flytter valgt beat på samme måte som MOVE. |
+| **Knob 7 – MOVE** | Moves the selected beat one step left or right. It passes other beats, keeps its fill and stops at the start and end of the song. The value shows the position as `bar.beat.sixteenth`, e.g. `2.3.4`; a trailing `+` means the beat sits between two sixteenths. |
+| **Knob 8 – SHIFT ALL** | Moves *all* beats of the layer one step. Beats pushed past the end come back in at the start, so turning the other way restores the pattern. The value shows the step size, e.g. `1:16`. |
+| **ADD (short press)** | Inserts one beat in the middle of the gap after the selected beat and selects it, ready to place with MOVE. On an empty layer the first beat goes to the start. |
+| ADD (hold, empty layer) | Pattern generator, as before. |
+| ADD + LEFT/RIGHT | Moves the selected beat, same as MOVE. |
 
-**Steglengden** er kvantiseringen i Rhythm-menyen (fra 1:64 til 1:1).
+**Step size** is the quantize setting in the Rhythm menu (1:64 to 1:1).
 
-**Arbeidsflyt:** velg en beat med LEFT/RIGHT, trykk kort på **ADD**, og vri **MOVE** til beaten
-står der du vil.
+**Workflow:** select a beat with LEFT/RIGHT, tap **ADD**, then turn **MOVE** until the beat sits
+where you want it.
 
-## 2. Moffe Edition-oppstartsskjerm (v1.04)
+## 2. Moffe Edition boot screen (v1.04)
 
-Når enheten starter, toner logoen inn, og **pikselsolbriller** glir ned over øynene. Deretter
-kommer **MOFFE** frem i store magenta bokstaver, én og én, og **EDITION** toner inn under.
+At power-on the logo fades in and **pixel sunglasses** slide down over its eyes. Then **MOFFE**
+appears in large magenta letters, one at a time, and **EDITION** fades in below.
 
-- Tegnes av firmwaren, så SD-kortet og logofilen er uendret, og det virker med alle kort.
-- Oppstarten blir ikke lengre, fordi animasjonen bruker pausen som allerede fantes etter logoen.
-- Navn, farge og timing er konstanter (`kEdition*`) i appens `Global.h`.
+- Drawn by the firmware, so the SD card and the logo file are unchanged and any card works.
+- Boot time is unchanged: the animation runs inside the pause that already followed the logo.
+- Name, colour and timing are constants (`kEdition*`) in the app's `Global.h`.
 
-## 3. Forhåndslytting av samples – Layer Instrument-menyen (v1.05)
+## 3. Sample preview – Layer Instrument menu (v1.05)
 
-Åpnes med **I + lagtast** (manualen, Layer Instrument). Nå kan du høre et sample *før* du laster
-det.
+Open with **I + layer key** (manual, Layer Instrument). You can now hear a sample *before* you
+load it.
 
-| Du gjør | Det skjer |
+| You do | What happens |
 |---|---|
-| Vrir **SAMPLE** (eller **INST**) og stopper | Etter et kort øyeblikk (0,15 s) spilles det valgte samplet én gang. Vrir du videre, stopper det, og det neste spilles når du stopper igjen. |
-| Trykker **lagtasten** til laget du redigerer | Forhåndslyttingen spilles på nytt så lenge valgt sample er et annet enn det lastede. |
-| Trykker **ADD** | Samplet lastes inn på laget, som før. |
+| Turn **SAMPLE** (or **INST**) and stop | After a short moment (0.15 s) the selected sample plays once. Turning again stops it, and the next one plays when you stop. |
+| Press the **layer key** of the layer you are editing | Replays the preview, as long as the selected sample differs from the loaded one. |
+| Press **ADD** | Loads the sample onto the layer, as before. |
 
-- Det som er lastet på laget, røres ikke før du trykker **ADD**.
-- **PREVIEW** vises på skjermen der **LOADING** vanligvis står.
-- Lyden er tørr, uten lagets pitch, EQ og effekter, men master volume, mute og limiter virker.
-- Lange samples starter med en gang, og menyene låses ikke mens filen leses.
-- Under innspilling spiller lagtasten det lastede samplet, som før.
+- What is loaded on the layer is not touched until you press **ADD**.
+- **PREVIEW** appears on screen where **LOADING** usually does.
+- The preview is dry (no pitch, EQ or effects of the layer), but master volume, mute and limiter
+  apply.
+- Long samples start immediately, and the menus are never locked while the file is read.
+- While recording, the layer key plays the loaded sample, as before.
 
-**Innstillinger i Metronome-menyen:**
+**Settings in the Metronome menu:**
 
-| Knapp | Innstilling | Standard |
+| Knob | Setting | Default |
 |---|---|---|
-| **5 – PREVIEW** | Forhåndslytting av eller på | ON |
-| **6 – PREV LEVEL** | Lydnivå for forhåndslyttingen, 0–100 | 70 |
+| **5 – PREVIEW** | Sample preview on or off | ON |
+| **6 – PREV LEVEL** | Preview volume, 0–100 | 70 |
 
-Begge lagres og huskes når du slår av og på.
+Both are saved and kept across power cycles.
 
----
+## 4. Euclidean rhythms – EUCLID page in Layer Song (v1.06)
 
-## Forbedringer og feilrettinger
+A Euclidean pattern spreads a number of **hits** as evenly as possible over a number of
+**steps**. It is a fast, musical starting point for drums. Examples: E(3,8) = `x..x..x.`
+(tresillo), E(5,8) = `x.xx.xx.` (cinquillo) and E(4,16) = four even hits.
 
-### Tryggere firmwareoppdatering (v1.02)
-- Bootloaderen starter ikke en ødelagt app etter en mislykket oppdatering. Den viser
-  *NO VALID APPLICATION* og prøver pakken igjen ved neste oppstart.
-- Feil under skriving til flash vises som *FLASH-CHECK*. Tidligere sto det misvisende *FORMAT-CHECK*.
-- **Merk:** bootloaderen kan bare oppdateres med ST-Link (SWD). En SD-oppdatering oppdaterer bare
-  appen. Uten ST-Link fortsetter enheten med fabrikk-bootloaderen, og det er trygt.
+**Open the page:** press **S + layer key** as usual, then **S + the same layer key once more**.
+Do the same to go back.
 
-### Lagring på SD-kortet (v1.02)
-- Er kortet fullt, eller feiler en lagring, får du *save error* i stedet for en halvskrevet fil.
-- Systeminnstillinger og knappeoppsett som ikke ble lagret, prøves lagret igjen automatisk.
-- Instrumentnavn over 25 tegn virker.
-- Veldig korte eller ødelagte WAV-filer får ikke lenger enheten til å henge.
+```
+ Top:     [1 STEPS]   [2 HITS]   [ step strip: ■··■··■· ]
+ Bottom:  [5 ROTATE]  [6 GRID]   [7 LENGTH]  [8 MODE]
+```
 
-### Rettet visning og oppførsel
-- Tempo og MIDI-kanal i Global-menyen kunne vises feil (v1.02).
-- ADD + LEFT/RIGHT i Layer Song slettet fillen på beaten og på beaten foran (v1.03).
-- Å tømme et lag fra en annen meny, for eksempel ved paste, kunne bytte menytilstanden stille (v1.03).
-- Etter kvantisering kunne siste beat havne i feil rekkefølge (v1.03).
-- I Global-menyen viste REVERB DAMPING og PREDELAY hverandres navn (v1.03).
-
----
-
-## Versjoner
-
-| Versjon | Innhold |
+| Control | What it does |
 |---|---|
-| v1.01 | Fabrikkfirmware fra Randomwaves (`02 Software/Firmware/Drumboy_Pro_Fw_01_01.bin`) |
-| v1.02 | Tryggere firmwareoppdatering, sikrere lagring på SD, feilrettinger |
-| v1.03 | Layer Song: MOVE, SHIFT ALL og ADD for én beat |
-| v1.04 | Moffe Edition-oppstartsskjerm |
-| v1.05 | Forhåndslytting av samples i Layer Instrument-menyen |
+| **1 STEPS** | Number of steps in the pattern (1–32) |
+| **2 HITS** | Number of hits (0 up to the number of steps) |
+| **5 ROTATE** | Shifts the pattern one step at a time, wrapping around |
+| **6 GRID** | Length of each step, from 1:32 to 1:4 |
+| **7 LENGTH** | **REPEAT** repeats the pattern over the whole song, **ONCE** lays it down once |
+| **8 MODE** | **REPLACE** replaces the layer's beats; **MERGE** adds the hits on top of the beats you already have, which keep their fills |
+| **CLEAR** | Restores the beats the layer had when you opened the page |
 
-## Installere og gå tilbake
+- **You hear changes immediately.** The pattern is written to the layer on every turn, so you can
+  shape it while the sequencer plays.
+- **The step strip** at the top right shows the pattern; the step being played is marked in cyan.
+- **Polymeters:** STEPS 7 with GRID 1:16 gives a 7/16 pattern that drifts against the bar.
+- **Maximum 64 beats** per layer and bank. If the pattern needs more, *MAX 64 BEATS* is shown and
+  the rest is cut.
+- **The pattern is saved as ordinary beats** in the project, and you can fine-tune it on the edit
+  page with MOVE and fills. The EUCLID knob settings themselves are not saved.
+- **On the EUCLID page, UP/DOWN and a short ADD press do nothing**, because the next turn would
+  overwrite those edits.
 
-1. Ta sikkerhetskopi av hele SD-kortet. `System/File`, `System/Drumkit` og `System/Preset`
-   inneholder dine egne data.
-2. Legg pakken `Drumboy_Pro_Fw_01_05.bin` i **roten** av kortet. Ikke gi filen nytt navn, og ikke
-   endre noe annet på kortet.
-3. Sett kortet i enheten og slå den på. Skjermen viser *UPDATING FIRMWARE V1.05* og deretter
+---
+
+## Improvements and fixes
+
+### Safer firmware updates (v1.02)
+- The bootloader no longer starts a broken app after a failed update. It shows
+  *NO VALID APPLICATION* and retries the package on the next power-on.
+- Errors while writing flash show *FLASH-CHECK*; previously the misleading *FORMAT-CHECK* appeared.
+- **Note:** the bootloader itself can only be updated with an ST-Link (SWD). An SD update only
+  updates the app. Without an ST-Link the device keeps the factory bootloader, which is safe.
+
+### Saving to the SD card (v1.02)
+- If the card is full or a save fails, you get *save error* instead of a half-written file.
+- System settings and knob mappings that failed to save are retried automatically.
+- Instrument names longer than 25 characters work.
+- Very short or corrupt WAV files no longer hang the device.
+
+### Display and behaviour fixes
+- Tempo and MIDI channel in the Global menu could be displayed incorrectly (v1.02).
+- ADD + LEFT/RIGHT in Layer Song erased the fill of the beat and of the beat before it (v1.03).
+- Clearing a layer from another menu, e.g. by pasting, could silently switch the menu state (v1.03).
+- After quantizing, the last beat could end up out of order (v1.03).
+- In the Global menu, REVERB DAMPING and PREDELAY showed each other's names (v1.03).
+
+---
+
+## Versions
+
+| Version | Contents |
+|---|---|
+| v1.01 | Factory firmware from Randomwaves (`02 Software/Firmware/Drumboy_Pro_Fw_01_01.bin`) |
+| v1.02 | Safer firmware updates, more reliable SD saving, fixes |
+| v1.03 | Layer Song: MOVE, SHIFT ALL and single-beat ADD |
+| v1.04 | Moffe Edition boot screen |
+| v1.05 | Sample preview in the Layer Instrument menu |
+| v1.06 | Layer Song EUCLID page: Euclidean rhythms |
+
+## Install and roll back
+
+1. Back up the whole SD card. `System/File`, `System/Drumkit` and `System/Preset` contain your
+   own data.
+2. Copy the package `Drumboy_Pro_Fw_01_06.bin` to the **root** of the card. Do not rename the
+   file, and do not change anything else on the card.
+3. Insert the card and power on. The screen shows *UPDATING FIRMWARE V1.06*, then
    *FIRMWARE UPDATED*.
 
-**Gå tilbake:** legg en eldre pakke i roten på samme måte. Fabrikkversjonen ligger i
-`02 Software/Firmware/Drumboy_Pro_Fw_01_01.bin`. Bootloaderen godtar alle versjoner.
+**Roll back:** copy an older package to the root the same way. The factory version is
+`02 Software/Firmware/Drumboy_Pro_Fw_01_01.bin`. The bootloader accepts any version.
 
-Pakken bygges med `cmake --build --preset firmware` (havner i `build/firmware/`), eller lastes
-ned fra GitHub Actions under hver kjøring. Se [DEVELOPMENT.md](<02 Software/DEVELOPMENT.md>).
+Build the package with `cmake --build --preset firmware` (it ends up in `build/firmware/`), or
+download it from the GitHub Actions run of any commit. See
+[DEVELOPMENT.md](<02 Software/DEVELOPMENT.md>).
 
-## For utviklere
+## For developers
 
-- Bygging fra kommandolinjen og CI som bygger, tester og verifiserer hver PR.
-- Enhetstester på PC for logikken som ikke trenger maskinvare (`02 Software/Tests`).
-- `make_fw_package.py` lager og verifiserer SD-pakker etter de samme reglene som bootloaderen.
-- `Controller.cpp` er delt opp etter delsystem. Lydmotoren ligger i `ControllerAudio.cpp`.
-- Regler og arbeidsflyt for trygge endringer står i [DEVELOPMENT.md](<02 Software/DEVELOPMENT.md>).
+- Command-line build, and CI that builds, tests and verifies every pull request.
+- Host unit tests for the logic that needs no hardware (`02 Software/Tests`).
+- `make_fw_package.py` builds and verifies SD packages with the same rules as the bootloader.
+- `Controller.cpp` is split by subsystem; the real-time audio engine is in `ControllerAudio.cpp`.
+- Rules and workflow for safe changes are in [DEVELOPMENT.md](<02 Software/DEVELOPMENT.md>).
