@@ -492,6 +492,10 @@ class Controller {
     void lcd_update();
     void lcd_drawLogo(bool animate_);
     void lcd_clearLogo(bool animate_);
+    void lcd_drawEdition(bool animate_);
+    void lcd_clearEdition();
+    void lcd_drawEditionShades(int16_t offset_);
+    void lcd_restoreLogoRows(int16_t firstRow_, int16_t lastRow_);
     void lcd_drawPage(bool animate_);
     void lcd_clearPage();
     // Alert functions

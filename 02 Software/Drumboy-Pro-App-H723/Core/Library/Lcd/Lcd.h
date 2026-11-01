@@ -133,6 +133,8 @@ class Lcd {
     /* Text Rendering Functions ---------------------------------- */
 
     void drawText(const char text[], uint16_t textLength, uint16_t x, uint16_t y);
+    void drawTextScaled(const char text[], uint16_t textLength, uint16_t x, uint16_t y, uint8_t scale);
+    uint16_t getTextScaledWidth(uint16_t textLength, uint8_t scale) const;
     void drawNumber(int32_t num, uint8_t numSize, uint16_t x, uint16_t y);
 
     /* Display Control Functions --------------------------------- */

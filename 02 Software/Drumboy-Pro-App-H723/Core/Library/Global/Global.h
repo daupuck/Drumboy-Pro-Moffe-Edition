@@ -22,7 +22,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 const uint8_t kVersionMajor                         = 0x01;
-const uint8_t kVersionMinor                         = 0x03;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMinor                         = 0x04;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/
@@ -662,7 +662,7 @@ const RGB16Color kPlayColor1                        = CYAN;
 const uint16_t kImageLogoWidth                      = 170;
 const uint16_t kImageLogoHeight                     = 170;
 const uint16_t kImageLogoX                          = 395;
-const uint16_t kImageLogoY                          = 185;
+const uint16_t kImageLogoY                          = 150;  // was 185; moved up to fit the edition name below
 const uint16_t kImageLogoPalette                    = 64;
 
 const uint16_t kImageMenuAWidth                     = 920;
@@ -692,7 +692,27 @@ const uint16_t kGraphLfoY                           = 30;
 const uint16_t kLimitAlertX                         = 285;
 const uint16_t kLimitAlertY                         = 110;
 
-const uint16_t kSdDataY                             = 440;
+const uint16_t kSdDataY                             = 460;  // was 440; below the edition name
+
+/* Edition branding on the boot screen ------------------------------------------
+   Drawn by firmware on top of the SD-card logo (Controller::lcd_drawEdition), so no SD files
+   change. Change the name/colour here. Shades geometry is in logo pixels (170 x 170 image;
+   eyes centred at (52,108) and (119,108)). */
+const char kEditionName[]                           = "MOFFE";
+const char kEditionLabel[]                          = "EDITION";
+const RGB16Color kEditionAccentColor                = MAGENTA;
+const uint8_t kEditionNameScale                     = 3;      // FONT_14x18 x 3 = 42 x 54 px glyphs
+const uint8_t kEditionNameSpacing                   = 2;      // font units, scaled with the text
+const uint8_t kEditionLabelSpacing                  = 10;
+const uint16_t kEditionCenterX                      = 480;
+const uint16_t kEditionNameY                        = kImageLogoY + 190;
+const uint16_t kEditionLabelY                       = kImageLogoY + 256;
+const uint16_t kEditionShadesTop                    = 96;     // logo rows covered by the shades: 96..120
+const uint16_t kEditionShadesBottom                 = 120;
+const int16_t kEditionShadesDrop[]                  = {-90, -64, -44, -28, -16, -8, -3, 0};  // eased slide-in (logo rows)
+const uint16_t kEditionShadesFrameMs                = 40;
+const uint16_t kEditionLetterMs                     = 90;
+const uint16_t kEditionLabelFadeMs                  = 60;
 
 /*----------------------------------------------------------------------------*/
 

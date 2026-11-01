@@ -300,8 +300,15 @@ void Controller::initialize() {
     // Execute regular user-mode startup flow.
     else {
         // 1. Visual Branding & Filesystem Loading
+        // The edition animation runs inside the existing 1 s post-logo pause, so boot time
+        // does not change.
         lcd_drawLogo(animation);
-        if (animation) HAL_Delay(1000);
+        const uint32_t brandingStart = HAL_GetTick();
+        lcd_drawEdition(animation);
+        if (animation) {
+            const uint32_t spent = HAL_GetTick() - brandingStart;
+            if (spent < 1000) HAL_Delay(1000 - spent);
+        }
 
         lcd_drawSdDataIntro();
         sd_getLibraries();  // Load instrument/sample lists from SD Card
@@ -311,6 +318,7 @@ void Controller::initialize() {
         // Clean up UI and transition to main interface
         lcd_clearSdData();
         lcd_clearLogo(animation);
+        lcd_clearEdition();
         if (animation) HAL_Delay(500);
         lcd_drawPage(animation);
 

@@ -3,6 +3,16 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v1.04 — Moffe Edition
+
+- **Boot screen:** pixel sunglasses slide down onto the logo's eyes, then **MOFFE** appears in
+  large magenta letters, letter by letter, with **EDITION** fading in below. Drawn by the
+  firmware on top of the SD-card logo, so no SD files change and any card works. Boot time is
+  unchanged (the animation runs inside the existing pause after the logo).
+- The logo moved up 35 px and the SD statistics line down 20 px to make room.
+- The name, colour and timing are constants in the app's `Global.h` (`kEdition*`).
+- New `Lcd::drawTextScaled()` for large text built from the device fonts.
+
 ## v1.03
 
 **Layer Song menu — place beats where you want them**

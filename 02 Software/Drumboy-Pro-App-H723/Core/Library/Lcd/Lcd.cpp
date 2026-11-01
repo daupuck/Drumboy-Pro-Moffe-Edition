@@ -1462,6 +1462,54 @@ void Lcd::drawText(const char text[], uint16_t textLength, uint16_t x, uint16_t 
     LCD_CS_HIGH;
 }
 
+uint16_t Lcd::getTextScaledWidth(uint16_t textLength, uint8_t scale) const {
+    /// @brief Width in pixels of text drawn with drawTextScaled() using the current font/spacing.
+
+    if ((textLength == 0) || (scale == 0)) return 0;
+    return static_cast<uint16_t>((textLength * (fontWidth + fontSpacing) - fontSpacing) * scale);
+}
+
+void Lcd::drawTextScaled(const char text[], uint16_t textLength, uint16_t x, uint16_t y, uint8_t scale) {
+    /// @brief Draws text with the current font enlarged by an integer factor (each font pixel
+    /// becomes a scale x scale block in the foreground color). The background is left untouched,
+    /// so clear the area first. Alignment and spacing follow the current settings; spacing is
+    /// scaled too. Intended for occasional large labels (boot screen), not for frequent redraws:
+    /// it issues one fillRect per lit font pixel.
+
+    if ((textLength == 0) || (scale == 0)) return;
+
+    // 1. ALIGNMENT
+    const uint16_t wText = getTextScaledWidth(textLength, scale);
+    uint16_t xPos;
+    switch (fontAlignment) {
+        case CENTER:
+            xPos = x - (wText / 2);
+            break;
+        case RIGHT:
+            xPos = x - wText;
+            break;
+        case LEFT:
+        default:
+            xPos = x;
+            break;
+    }
+
+    // 2. GLYPH RASTER: one block per set bit, most significant bit = leftmost pixel.
+    const uint16_t cell = static_cast<uint16_t>((fontWidth + fontSpacing) * scale);
+    for (uint16_t i = 0; i < textLength; i++) {
+        const uint8_t index = getLetter(text[i]);
+        const uint16_t xGlyph = xPos + (i * cell);
+        for (uint16_t row = 0; row < fontHeight; row++) {
+            const uint16_t lineData = *(fontData + (index * fontHeight) + row);
+            uint16_t mask = 1 << (fontWidth - 1);
+            for (uint16_t col = 0; col < fontWidth; col++) {
+                if (lineData & mask) fillRect(xGlyph + (col * scale), y + (row * scale), scale, scale);
+                mask >>= 1;
+            }
+        }
+    }
+}
+
 void Lcd::drawNumber(int32_t num, uint8_t numSize, uint16_t x, uint16_t y) {
     /// @brief Formats a signed number and renders it as fixed-width text.
 
