@@ -8,7 +8,7 @@ Controller::updateFirmware):
     0       24    "RW_DRUMBOY_PRO_FIRMWARE "  (ASCII, no NUL)
     24      2     version major  (u16, < 10)
     26      2     version minor  (u16, < 100)
-    28      4     payload size   (u32, 1 .. 917504)
+    28      4     payload size   (u32, 1 .. 917503, multiple of 4 - see MAX_PAYLOAD)
     32      4     CRC-32 of payload (zlib / ISO-3309)
     36      n     payload = raw application image linked at 0x08020000
 
@@ -36,7 +36,13 @@ HEADER_SIZE = len(HEADER_TITLE) + 12  # 36
 
 APP_FLASH_START = 0x08020000
 APP_FLASH_END = 0x08100000  # exclusive
-MAX_PAYLOAD = APP_FLASH_END - APP_FLASH_START  # 917504 bytes (896 KB)
+APP_FLASH_SIZE = APP_FLASH_END - APP_FLASH_START  # 917504 bytes (896 KB)
+
+# Packages must also install on devices that still run the factory (v1.01) bootloader:
+#  - it requires size < 917504 (strictly less; the current bootloader accepts <=), and
+#  - it programs firmwareSize / 4 words, silently dropping a 1-3 byte tail.
+MAX_PAYLOAD = APP_FLASH_SIZE - 1
+PAYLOAD_ALIGN = 4
 
 # RAM regions a valid initial stack pointer may point into (end address inclusive),
 # matching Controller::isApplicationValid() in the bootloader.
@@ -50,7 +56,13 @@ class PackageError(Exception):
 def check_payload(payload: bytes) -> None:
     """Raise PackageError if the bootloader would reject or mis-handle this image."""
     if not 0 < len(payload) <= MAX_PAYLOAD:
-        raise PackageError(f"payload is {len(payload)} bytes; must be 1..{MAX_PAYLOAD}")
+        raise PackageError(
+            f"payload is {len(payload)} bytes; must be 1..{MAX_PAYLOAD} "
+            f"(factory bootloader rejects >= {APP_FLASH_SIZE})")
+    if len(payload) % PAYLOAD_ALIGN:
+        raise PackageError(
+            f"payload is {len(payload)} bytes, not a multiple of {PAYLOAD_ALIGN}; the factory "
+            "bootloader would drop the last bytes. Check the linker script alignment.")
     if len(payload) < 8:
         raise PackageError("payload too small to contain a vector table")
 
