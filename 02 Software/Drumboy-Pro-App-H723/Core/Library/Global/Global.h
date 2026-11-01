@@ -22,7 +22,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 const uint8_t kVersionMajor                         = 0x01;
-const uint8_t kVersionMinor                         = 0x06;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMinor                         = 0x07;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/
@@ -959,6 +959,10 @@ const char kHeaderEuclidRotate[]                    = "ROTATE    ";
 const char kHeaderEuclidGrid[]                      = "GRID      ";
 const char kHeaderEuclidLength[]                    = "LENGTH    ";
 const char kHeaderEuclidMode[]                      = "MODE      ";
+const char kHeaderSong[]                            = "SONG      ";
+const char kHeaderSongStep[]                        = "STEP      ";
+const char kHeaderSongPart[]                        = "PART      ";
+const char kHeaderSongRepeat[]                      = "REPEAT    ";
 const char kHeaderVolume[]                          = "VOLUME    ";
 const char kHeaderWet[]                             = "WET       ";
 
@@ -1268,10 +1272,16 @@ typedef enum {
     ENC_EUCLID_LENGTH                               = 0x69,
     ENC_EUCLID_MODE                                 = 0x6A,
 
+    // Song mode (Rhythm menu, bottom row)
+    ENC_RHYTHM_SONG                                 = 0x6B,  // OFF / LOOP / ONCE
+    ENC_RHYTHM_SONG_STEP                            = 0x6C,  // chain step being edited
+    ENC_RHYTHM_SONG_PART                            = 0x6D,  // part (song bank) of that step, or END
+    ENC_RHYTHM_SONG_REPEAT                          = 0x6E,  // loops of that step
+
     // Must equal the number of rows before the trailing NONE row in kEncoderFuncDataLibrary,
     // which is indexed by EncoderFunc value. Never stored on SD (only the global map is
     // persisted, and it is range-checked against kMaxEncoderGlobalFunction).
-    ENC_FNC_NONE                                    = 0x6B
+    ENC_FNC_NONE                                    = 0x6F
 } EncoderFunc;
 
 const EncoderFunc encoderLocalFunction[][8] = {
@@ -1286,7 +1296,7 @@ const EncoderFunc encoderLocalFunction[][8] = {
     // MIXER_MENU = 0x04
     {ENC_MIXER_MASTERVOLUME, ENC_MIXER_HPVOLUME, ENC_MIXER_LOVOLUME, ENC_MIXER_LIVOLUME, ENC_MIXER_LIMIXERIN, ENC_MIXER_PAN, ENC_MIXER_LIMITER, ENC_MIXER_NORMALIZE},
     // RHYTHM_MENU = 0x05
-    {ENC_RHYTHM_TEMPO, ENC_RHYTHM_MEASURE, ENC_RHYTHM_BAR, ENC_RHYTHM_QUANTIZE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE},
+    {ENC_RHYTHM_TEMPO, ENC_RHYTHM_MEASURE, ENC_RHYTHM_BAR, ENC_RHYTHM_QUANTIZE, ENC_RHYTHM_SONG, ENC_RHYTHM_SONG_STEP, ENC_RHYTHM_SONG_PART, ENC_RHYTHM_SONG_REPEAT},
     // METRO_MENU = 0x06
     {ENC_METRO_ACTIVE, ENC_METRO_PRECOUNT, ENC_METRO_SAMPLE, ENC_METRO_VOLUME, ENC_METRO_PREVIEW, ENC_METRO_PREVIEW_LEVEL, ENC_FNC_NONE, ENC_FNC_NONE},
     // IO_MENU = 0x07
@@ -1450,6 +1460,10 @@ constexpr EncoderFuncData kEncoderFuncDataLibrary[] = {
     {ENC_EUCLID_GRID,         ENC_RES_S, "GRID      ", "EUCLID", "   ", false},
     {ENC_EUCLID_LENGTH,       ENC_RES_S, "LENGTH    ", "EUCLID", "   ", false},
     {ENC_EUCLID_MODE,         ENC_RES_S, "MODE      ", "EUCLID", "   ", false},
+    {ENC_RHYTHM_SONG,         ENC_RES_S, "SONG      ", "RHYTHM", "   ", false},
+    {ENC_RHYTHM_SONG_STEP,    ENC_RES_S, "STEP      ", "RHYTHM", "   ", false},
+    {ENC_RHYTHM_SONG_PART,    ENC_RES_S, "PART      ", "RHYTHM", "   ", false},
+    {ENC_RHYTHM_SONG_REPEAT,  ENC_RES_S, "REPEAT    ", "RHYTHM", "  X", false},
 
     // Row for ENC_FNC_NONE itself, so lookups with function == ENC_FNC_NONE stay in bounds.
     {ENC_FNC_NONE,            ENC_RES_F, "----------", "      ", "   ", true}
@@ -1482,7 +1496,7 @@ const uint8_t kMinEncoderGlobalFunction             = 0;
 const uint8_t kMaxEncoderGlobalFunction             = 68;
 
 const uint8_t kMinEncoderLocalFunction              = 0;
-const uint8_t kMaxEncoderLocalFunction              = ENC_EUCLID_MODE;
+const uint8_t kMaxEncoderLocalFunction              = ENC_RHYTHM_SONG_REPEAT;
 
 // Knob map of the Layer Song EUCLID page (used instead of the LAYER_SONG_MENU row while
 // Controller::layerSongPage == 1). Slots 2/3 hold the step strip, like the fill graph.
@@ -7253,6 +7267,20 @@ struct EuclidSettings {
 
 const char kEuclidLengthText[2][11]                 = {"      ONCE", "    REPEAT"};
 const char kEuclidModeText[2][11]                   = {"   REPLACE", "     MERGE"};
+
+// Song mode: chain of parts (song banks) played automatically (Rhythm menu, knobs 5-8).
+#include "SongChain.h"
+
+const char kSongModeText[3][5]                      = {"OFF", "LOOP", "ONCE"};
+
+// Where the chain lives in the project file's 1500-byte drumkit-style block. Both ranges are
+// unused by every other reader/writer: 175..179 lies between the reverb (..174) and the LFO
+// block (180..), and layer 1's reference slot ends with the sample name copy at +51..+83
+// (33 bytes incl. NUL), leaving +84..+99 free.
+const uint16_t kSongChainHeaderOffset               = 176;
+const uint16_t kSongChainStepsOffset                = 500 + 84;
+static_assert(kSongChainStepsOffset + songchain::kMaxSteps <= 500 + 100, "song chain steps must stay inside layer 1's free bytes");
+static_assert(songchain::kParts == kBankLibrarySize, "song chain parts must match the number of song banks");
 
 /*----------------------------------------------------------------------------*/
 

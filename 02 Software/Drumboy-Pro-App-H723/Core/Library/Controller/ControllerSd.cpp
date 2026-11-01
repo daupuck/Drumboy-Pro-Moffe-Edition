@@ -869,6 +869,16 @@ SdResult Controller::sd_loadFile(uint8_t fileNum_) {
                     rhythm_setBar(data[15]);
                     rhythm_setQuantize(data[16]);
 
+                    // Song mode chain (v1.07+). Files from older firmware hold zeros here,
+                    // which decode to the default chain with song mode OFF.
+                    {
+                        uint8_t chainBytes[songchain::kEncodedSize];
+                        chainBytes[0] = static_cast<uint8_t>(data[kSongChainHeaderOffset]);
+                        for (uint8_t i = 0; i < songchain::kMaxSteps; i++) chainBytes[1 + i] = static_cast<uint8_t>(data[kSongChainStepsOffset + i]);
+                        songchain::decode(chainBytes, songChain);
+                        song_onFileLoaded();
+                    }
+
                     // Metronome settings
 
                     // IO settings
@@ -1370,6 +1380,15 @@ SdResult Controller::sd_saveFile(uint8_t fileNum_) {
     f_close(&sd.file);
     if (HAL_SD_GetState(&hsd2) != HAL_SD_STATE_READY) {
         HAL_SD_Abort(&hsd2);
+    }
+
+    // SONG MODE CHAIN (v1.07+): project data only (not drumkits), stored in bytes of the
+    // drumkit-style block that no other field uses (see kSongChainHeaderOffset in Global.h).
+    {
+        uint8_t chainBytes[songchain::kEncodedSize];
+        songchain::encode(songChain, chainBytes);
+        data[kSongChainHeaderOffset] = chainBytes[0];
+        for (uint8_t i = 0; i < songchain::kMaxSteps; i++) data[kSongChainStepsOffset + i] = chainBytes[1 + i];
     }
 
     // 5. FILE WRITE PIPELINE

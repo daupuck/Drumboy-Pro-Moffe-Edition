@@ -2601,6 +2601,13 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
             euclid_change(encoder[encoderNum_].function, true);
             break;
 
+        case ENC_RHYTHM_SONG:
+        case ENC_RHYTHM_SONG_STEP:
+        case ENC_RHYTHM_SONG_PART:
+        case ENC_RHYTHM_SONG_REPEAT:
+            song_change(encoder[encoderNum_].function, true);
+            break;
+
         default:
             break;
     }
@@ -3171,6 +3178,13 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
         case ENC_EUCLID_LENGTH:
         case ENC_EUCLID_MODE:
             euclid_change(encoder[encoderNum_].function, false);
+            break;
+
+        case ENC_RHYTHM_SONG:
+        case ENC_RHYTHM_SONG_STEP:
+        case ENC_RHYTHM_SONG_PART:
+        case ENC_RHYTHM_SONG_REPEAT:
+            song_change(encoder[encoderNum_].function, false);
             break;
 
         default:

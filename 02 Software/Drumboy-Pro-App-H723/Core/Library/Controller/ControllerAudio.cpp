@@ -139,6 +139,9 @@ void Controller::play() {
     // 5. PLAY POINTER RECALCULATION
     // Recompute initial play beat pointer from current play interval.
     layerSong_calculatePlayBeatNum(0, 0, playInterval);
+
+    // Song mode: from the top, start the chain at step 1 (switches to its first part).
+    song_startIfAtTop();
 }
 
 void Controller::stop() {
@@ -202,6 +205,9 @@ void Controller::stop() {
 
 void Controller::reset() {
     /// @brief Resets transport to loop start and normalizes related runtime states.
+
+    // Song mode: back to step 1 of the chain (also when already at the top).
+    song_rewind();
 
     // 1. MIDI RESET TRANSMISSION
     // Enqueue MIDI Stop (0xFC) + Song Position Pointer to 0 (0xF2 0x00 0x00)

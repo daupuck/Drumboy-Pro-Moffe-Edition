@@ -112,7 +112,7 @@ Logic that doesn't need hardware lives in small headers without HAL dependencies
 tested by `02 Software/Tests/test_layer_song_edit.cpp`, and `Global/SampleFormat.h` (WAV PCM
 conversion used by the sample loader and the preview), tested by `test_sample_format.cpp`, and
 `Global/EuclidPattern.h` (Euclidean rhythms for the Layer Song EUCLID page), tested by
-`test_euclid.cpp`. CI compiles and runs every
+`test_euclid.cpp`, and `Global/SongChain.h` (song mode chain), tested by `test_song_chain.cpp`. CI compiles and runs every
 `02 Software/Tests/test_*.cpp` with `-Wall -Wextra -Werror`.
 
 ```sh

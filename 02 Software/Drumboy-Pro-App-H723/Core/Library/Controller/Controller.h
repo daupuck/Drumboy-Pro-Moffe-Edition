@@ -240,6 +240,16 @@ class Controller {
     bool euclidTruncated = false;
     bool euclidPattern[kMaxEuclidSteps] = {};
     int16_t euclidPlayStep = -1;
+
+    // Song mode (Rhythm menu knobs 5-8). The chain is project data (saved in the .rwf file);
+    // position/running flags are shared with the sequencer ISR (interruptPlay), which advances
+    // the chain at every loop end.
+    songchain::Chain songChain = songchain::defaultChain();
+    songchain::Position songPosition;
+    volatile bool songChainRunning = false;       // chain drives the banks while playing
+    volatile bool songChainPendingStart = false;  // SONG turned on mid-song: start at the next loop end
+    volatile bool songChainDisplayFlag = false;   // ISR -> main loop: redraw the SONG field
+    uint8_t songEditStep = 0;
     bool layerFillCopyKeyFlag;
     bool layerFillPasteKeyFlag;
 
@@ -1049,6 +1059,20 @@ class Controller {
     void lcd_drawEuclidStrip();
     void lcd_drawEuclidCell(uint8_t step_, bool playing_);
     void lcd_updateEuclidPlayhead();
+
+    /* Song Mode --------------------------------------------- */
+
+    void song_change(EncoderFunc function_, bool up_);
+    void song_setMode(uint8_t mode_);
+    void song_startIfAtTop();        // play(): start the chain when playing from the top
+    void song_rewind();              // reset(): back to step 1
+    void song_onLoopEnd(bool& stop_);  // interruptPlay(), at every loop end
+    void song_onFileLoaded();
+    void song_service();             // main loop: redraw after ISR updates
+    void lcd_drawRhythm_SongData();
+    void lcd_drawRhythm_SongStepData();
+    void lcd_drawRhythm_SongPartData();
+    void lcd_drawRhythm_SongRepeatData();
 
     /* Sample Preview --------------------------------------- */
 

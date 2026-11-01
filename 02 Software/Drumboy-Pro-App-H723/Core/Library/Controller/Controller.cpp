@@ -377,6 +377,9 @@ void Controller::update() {
         // Layer Song EUCLID page: mark the step that is playing now.
         lcd_updateEuclidPlayhead();
 
+        // Song mode: show where the chain is after the sequencer moved on.
+        song_service();
+
         // 3. OUTPUT & UI REFRESH
         // Refresh LED outputs and LCD frame content.
         led_action();

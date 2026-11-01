@@ -1163,6 +1163,163 @@ void Controller::rhythm_setQuantize(uint8_t quantize_) {
     }
 }
 
+/* Song Mode Functions (Rhythm menu, knobs 5-8) -------------------------------*/
+
+// The chain (songChain) is project data, saved in the .rwf file. The sequencer ISR advances it
+// at every loop end (song_onLoopEnd); bank switches use the same end-of-loop mechanism as the
+// manual SONG BANK trigger (bankShiftFlag / targetSongBank).
+
+void Controller::song_setMode(uint8_t mode_) {
+    /// @brief Sets OFF / LOOP / ONCE. Turning it on while playing starts the chain at the
+    /// next loop end; turning it off leaves the current bank playing.
+
+    if (mode_ > songchain::ONCE) return;
+    songChain.mode = mode_;
+    if (mode_ == songchain::OFF) {
+        songChainRunning = false;
+        songChainPendingStart = false;
+    } else if (playActive && !songChainRunning) {
+        songChainPendingStart = true;
+    }
+    if (menu == RHYTHM_MENU) lcd_drawRhythm_SongData();
+}
+
+void Controller::song_change(EncoderFunc function_, bool up_) {
+    /// @brief Handles the song mode knobs in the Rhythm menu.
+
+    songchain::Step& step = songChain.steps[songEditStep];
+    switch (function_) {
+        case ENC_RHYTHM_SONG:
+            if (up_ && (songChain.mode < songchain::ONCE)) song_setMode(songChain.mode + 1);
+            if (!up_ && (songChain.mode > songchain::OFF)) song_setMode(songChain.mode - 1);
+            return;
+
+        case ENC_RHYTHM_SONG_STEP:
+            if (up_ && (songEditStep < songchain::kMaxSteps - 1)) songEditStep++;
+            if (!up_ && (songEditStep > 0)) songEditStep--;
+            break;
+
+        case ENC_RHYTHM_SONG_PART:
+            // 1..5, then END
+            if (up_) {
+                if (step.part < songchain::kParts - 1) {
+                    step.part++;
+                } else if (step.part < songchain::kParts) {
+                    step.part = songchain::kPartEnd;
+                }
+            } else {
+                if (step.part >= songchain::kParts) {
+                    step.part = songchain::kParts - 1;
+                } else if (step.part > 0) {
+                    step.part--;
+                }
+            }
+            if ((step.repeats < 1) || (step.repeats > songchain::kMaxRepeats)) step.repeats = 1;
+            break;
+
+        case ENC_RHYTHM_SONG_REPEAT:
+            if (up_ && (step.repeats < songchain::kMaxRepeats)) step.repeats++;
+            if (!up_ && (step.repeats > 1)) step.repeats--;
+            break;
+
+        default:
+            return;
+    }
+
+    // Step/part changes alter the chain length, shown in STEP and SONG.
+    if (menu == RHYTHM_MENU) {
+        lcd_drawRhythm_SongData();
+        lcd_drawRhythm_SongStepData();
+        lcd_drawRhythm_SongPartData();
+        lcd_drawRhythm_SongRepeatData();
+    }
+}
+
+void Controller::song_startIfAtTop() {
+    /// @brief Called from play(): from the top of the song, start the chain at step 1 and switch
+    /// straight to its part. Resuming a paused song keeps its place in the chain.
+
+    if ((songChain.mode == songchain::OFF) || songChainRunning) return;
+    if (playInterval != 0) {
+        songChainPendingStart = true;  // started mid-loop: begin at the next loop end
+        return;
+    }
+    uint8_t part = activeSongBank;
+    if (!songchain::start(songChain, songPosition, part)) return;
+    songChainRunning = true;
+    songChainPendingStart = false;
+    if (part != activeSongBank) {
+        activeSongBank = part;
+        targetSongBank = part;
+        bankShiftFlag = false;
+        bankActionFlag = true;  // main loop redraws the bank tab and lanes
+        for (uint8_t i = 0; i < kLayerLibrarySize; i++) layerSong_calculatePlayBeatNum(i, activeSongBank, playInterval);
+    }
+    songChainDisplayFlag = true;
+}
+
+void Controller::song_rewind() {
+    /// @brief Called from reset(): the next PLAY starts the chain at step 1.
+
+    songPosition = songchain::Position{};
+    songChainRunning = false;
+    songChainPendingStart = false;
+    songChainDisplayFlag = true;
+}
+
+void Controller::song_onLoopEnd(bool& stop_) {
+    /// @brief Sequencer ISR, at the end of every loop (before the bank shift is applied).
+    /// Chooses the part for the next loop, or asks the caller to stop (ONCE, after the last
+    /// loop of the last step). Must not draw: it only sets flags for the main loop.
+
+    stop_ = false;
+    if (songChain.mode == songchain::OFF) {
+        songChainRunning = false;
+        songChainPendingStart = false;
+        return;
+    }
+
+    uint8_t part = activeSongBank;
+    if (songChainPendingStart) {
+        songChainPendingStart = false;
+        songChainRunning = songchain::start(songChain, songPosition, part);
+    } else if (songChainRunning) {
+        if (songchain::advance(songChain, songPosition, part) == songchain::STOP) {
+            stop_ = true;
+            songChainDisplayFlag = true;
+            return;
+        }
+    } else {
+        return;
+    }
+
+    if (songChainRunning && (part != activeSongBank)) {
+        targetSongBank = part;
+        bankShiftFlag = true;
+    }
+    songChainDisplayFlag = true;
+}
+
+void Controller::song_onFileLoaded() {
+    /// @brief After a project file is loaded: the chain restarts from step 1 (at the next loop
+    /// end if the transport is running).
+
+    songPosition = songchain::Position{};
+    songChainRunning = false;
+    songChainPendingStart = playActive && (songChain.mode != songchain::OFF);
+    songEditStep = 0;
+    songChainDisplayFlag = true;
+}
+
+void Controller::song_service() {
+    /// @brief Main loop: redraws the SONG field after the sequencer moved through the chain.
+
+    if (songChainDisplayFlag) {
+        songChainDisplayFlag = false;
+        if (menu == RHYTHM_MENU) lcd_drawRhythm_SongData();
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 /* Metronome Functions -------------------------------------------------------*/
 ////////////////////////////////////////////////////////////////////////////////
