@@ -179,6 +179,16 @@ void Controller::interruptPlay() {
                     }
                 }
             } else {
+                // SONG MODE: choose the part for the next loop (queued as a bank shift, applied
+                // just below) or, in ONCE mode after the last step, stop and return to the top.
+                // Runs before playInterval is cleared so reset() sees a running song.
+                bool songStop = false;
+                song_onLoopEnd(songStop);
+                if (songStop) {
+                    reset();
+                    return;
+                }
+
                 // LOOP END PROCEDURES
                 // Reset play interval and apply end-of-loop bank/play pointer updates.
                 playInterval = 0;

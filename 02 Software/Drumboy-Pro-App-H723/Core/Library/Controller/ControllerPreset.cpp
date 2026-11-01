@@ -515,6 +515,9 @@ void Controller::file_newAction() {
     // 6. GLOBAL DSP MODULE RESET
     // Reset rhythm, EQ, filters, effects, and reverb blocks.
     rhythm_reset();
+    songChain = songchain::defaultChain();  // song mode OFF, empty chain
+    songEditStep = 0;
+    song_rewind();
     eq_reset();
     filter_reset(0);
     filter_reset(1);

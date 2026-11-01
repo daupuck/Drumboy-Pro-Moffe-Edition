@@ -3,6 +3,33 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v1.07
+
+**Song mode — chain the 5 song banks into a whole song**
+
+- **Rhythm menu, bottom row:** **5 SONG** (OFF / LOOP / ONCE), **6 STEP** (which chain step
+  you edit, shown as `step/length`), **7 PART** (song bank 1–5 for that step, or END),
+  **8 REPEAT** (how many loops that step plays, 1–16).
+- Up to 16 steps, e.g. intro ×2 → verse ×4 → fill ×1 → chorus ×2 … The chain ends at the first
+  END (or after step 16).
+- With SONG on, **PLAY from the top starts at step 1** and switches to its part at once; parts
+  then change automatically at the end of each loop, using the same mechanism as the manual
+  SONG BANK trigger. **STOP** pauses and PLAY resumes in place; **RESET** returns to step 1.
+- **LOOP** starts the chain again after the last step; **ONCE** stops (and returns to the top)
+  exactly at the end of the last loop of the last step.
+- While the chain runs, SONG shows the mode and the playing step, e.g. `LOOP 3/6`.
+- Turning SONG on during playback starts the chain at the next loop end; turning it off keeps
+  the current bank playing. Manual SONG BANK switching still works.
+- **Saved with the project** (.rwf) in bytes of the file that nothing else uses — file size and
+  format are unchanged, older firmware ignores them, and files from older firmware load with
+  song mode OFF. Drumkit files are not affected. NEW FILE resets the chain.
+- All parts share the song length set by BAR × MEASURE; use REPEAT for longer sections.
+
+Under the hood: chain logic (start, advance, LOOP/ONCE, encode/decode) is a pure function set in
+`Global/SongChain.h`, host-tested (`test_song_chain.cpp`). The sequencer ISR calls
+`song_onLoopEnd()` once per loop, just before the existing bank shift; it never draws. The
+audio engine is unchanged; `interruptPlay` grew by one call (+32 B).
+
 ## v1.06
 
 **Layer Song EUCLID page — generate Euclidean rhythms**

@@ -1258,6 +1258,10 @@ void Controller::lcd_drawRhythmMenu() {
     lcd.drawText(kHeaderMeasure, kMenuHeaderTextSize, kMenuHeaderX[1], kMenuHeaderY[1]);
     lcd.drawText(kHeaderBar, kMenuHeaderTextSize, kMenuHeaderX[2], kMenuHeaderY[2]);
     lcd.drawText(kHeaderQuantize, kMenuHeaderTextSize, kMenuHeaderX[3], kMenuHeaderY[3]);
+    lcd.drawText(kHeaderSong, kMenuHeaderTextSize, kMenuHeaderX[4], kMenuHeaderY[4]);
+    lcd.drawText(kHeaderSongStep, kMenuHeaderTextSize, kMenuHeaderX[5], kMenuHeaderY[5]);
+    lcd.drawText(kHeaderSongPart, kMenuHeaderTextSize, kMenuHeaderX[6], kMenuHeaderY[6]);
+    lcd.drawText(kHeaderSongRepeat, kMenuHeaderTextSize, kMenuHeaderX[7], kMenuHeaderY[7]);
 
     // 4. SIGN/UNIT DRAW
     // Draw unit/sign text for each parameter slot.
@@ -1266,6 +1270,10 @@ void Controller::lcd_drawRhythmMenu() {
     lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[1], kMenuSignBoxY[1]);
     lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[2], kMenuSignBoxY[2]);
     lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[3], kMenuSignBoxY[3]);
+    lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[4], kMenuSignBoxY[4]);
+    lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[5], kMenuSignBoxY[5]);
+    lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[6], kMenuSignBoxY[6]);
+    lcd.drawText("  X", kMenuSignTextSize, kMenuSignBoxX[7], kMenuSignBoxY[7]);
 
     // 5. DATA DRAW
     // Draw rhythm parameter values.
@@ -1273,6 +1281,60 @@ void Controller::lcd_drawRhythmMenu() {
     lcd_drawRhythm_MeasureData();
     lcd_drawRhythm_BarData();
     lcd_drawRhythm_QuantizeData();
+    lcd_drawRhythm_SongData();
+    lcd_drawRhythm_SongStepData();
+    lcd_drawRhythm_SongPartData();
+    lcd_drawRhythm_SongRepeatData();
+}
+
+/* Song mode fields (knobs 5-8) */
+
+void Controller::lcd_drawRhythm_SongData() {
+    /// @brief SONG: the mode, plus the playing step while the chain runs (e.g. "LOOP 3/6").
+
+    char text[kMenuDataTextSize + 1];
+    char value[24];
+    const uint8_t mode = (songChain.mode <= songchain::ONCE) ? songChain.mode : songchain::OFF;
+    if (songChainRunning) {
+        snprintf(value, sizeof(value), "%s %u/%u", kSongModeText[mode], songPosition.step + 1, songchain::length(songChain));
+    } else {
+        snprintf(value, sizeof(value), "%s", kSongModeText[mode]);
+    }
+    snprintf(text, sizeof(text), "%10.10s", value);
+    lcd_setMenuDataState(WHITE);
+    lcd.drawText(text, kMenuDataTextSize, kMenuDataX[4], kMenuDataY[4]);
+}
+
+void Controller::lcd_drawRhythm_SongStepData() {
+    /// @brief STEP: the chain step being edited and the chain length (e.g. "05/06").
+
+    char text[kMenuDataTextSize + 1];
+    char value[24];
+    const uint8_t length = songchain::length(songChain);
+    if (length > 0) {
+        snprintf(value, sizeof(value), "%02u/%02u", songEditStep + 1, length);
+    } else {
+        snprintf(value, sizeof(value), "%02u/--", songEditStep + 1);
+    }
+    snprintf(text, sizeof(text), "%10.10s", value);
+    lcd_setMenuDataState(WHITE);
+    lcd.drawText(text, kMenuDataTextSize, kMenuDataX[5], kMenuDataY[5]);
+}
+
+void Controller::lcd_drawRhythm_SongPartData() {
+    /// @brief PART: the part (song bank 1-5) of the edited step, or END.
+
+    const uint8_t part = songChain.steps[songEditStep].part;
+    lcd_setMenuDataState(WHITE);
+    lcd.drawText((part < songchain::kParts) ? kNumberDataLibrary[part + 1].nameLongR : "       END", kMenuDataTextSize, kMenuDataX[6], kMenuDataY[6]);
+}
+
+void Controller::lcd_drawRhythm_SongRepeatData() {
+    /// @brief REPEAT: how many loops the edited step plays ("--" for END).
+
+    const songchain::Step& step = songChain.steps[songEditStep];
+    lcd_setMenuDataState(WHITE);
+    lcd.drawText((step.part < songchain::kParts) ? kNumberDataLibrary[step.repeats].nameLongR : kDataDashR, kMenuDataTextSize, kMenuDataX[7], kMenuDataY[7]);
 }
 
 void Controller::lcd_drawRhythm_TempoData() {

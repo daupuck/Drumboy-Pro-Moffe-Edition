@@ -4,7 +4,7 @@ Moffe Edition is a community-extended version of the Drumboy Pro firmware by Ran
 (based on the factory firmware v1.01). This page collects everything that is new compared with
 the factory firmware: what each feature does and how to use it on the device.
 
-- **Current version:** v1.06
+- **Current version:** v1.07
 - **User manual (Randomwaves):** [02 Software/drumboy-pro-user-manual.pdf](<02 Software/drumboy-pro-user-manual.pdf>) –
   page numbers below refer to it.
 - **Technical details per version:** [CHANGELOG.md](CHANGELOG.md)
@@ -115,6 +115,40 @@ Do the same to go back.
 - **On the EUCLID page, UP/DOWN and a short ADD press do nothing**, because the next turn would
   overwrite those edits.
 
+## 5. Song mode – arrange parts into a song (v1.07)
+
+Each of the 5 song banks (manual p. 39) can hold a part of a song: intro, verse, chorus, fill,
+outro. Song mode plays them in an order you set, switching automatically at the end of each
+loop.
+
+**Rhythm menu, bottom row:**
+
+```
+ Top:     [1 TEMPO]  [2 MEASURE]  [3 BAR]   [4 QUANTIZE]     (unchanged)
+ Bottom:  [5 SONG]   [6 STEP]     [7 PART]  [8 REPEAT]
+```
+
+| Knob | What it does |
+|---|---|
+| **5 SONG** | **OFF**: banks switch manually, as before. **LOOP**: the chain starts again after the last step. **ONCE**: the song stops at the end of the last step. |
+| **6 STEP** | Which step of the chain you are editing (1–16), shown as `step/length` |
+| **7 PART** | The part (song bank 1–5) that step plays, or **END** to end the chain there |
+| **8 REPEAT** | How many loops that step plays (1–16) |
+
+**Example:** step 1 = part 1 × 2 (intro), step 2 = part 2 × 4 (verse), step 3 = part 3 × 1
+(fill), step 4 = part 4 × 2 (chorus), step 5 = END.
+
+- **PLAY** from the top starts at step 1. **STOP** pauses, and PLAY continues where it was.
+  **RESET** goes back to step 1.
+- **ONCE** stops exactly at the end of the last loop of the last step, ready to play again from
+  the top.
+- While the song plays, SONG shows where it is, e.g. `LOOP 3/6`.
+- Turning SONG on during playback starts the chain at the next loop end. You can still switch
+  banks manually with SONG BANK + layer key.
+- **Saved with the project.** Files from older firmware open with song mode OFF; drumkits are
+  not affected. NEW FILE resets the chain.
+- All parts share the song length (BAR × MEASURE). Use REPEAT for longer sections.
+
 ---
 
 ## Improvements and fixes
@@ -151,14 +185,15 @@ Do the same to go back.
 | v1.04 | Moffe Edition boot screen |
 | v1.05 | Sample preview in the Layer Instrument menu |
 | v1.06 | Layer Song EUCLID page: Euclidean rhythms |
+| v1.07 | Song mode: chain the 5 song banks into a song |
 
 ## Install and roll back
 
 1. Back up the whole SD card. `System/File`, `System/Drumkit` and `System/Preset` contain your
    own data.
-2. Copy the package `Drumboy_Pro_Fw_01_06.bin` to the **root** of the card. Do not rename the
+2. Copy the package `Drumboy_Pro_Fw_01_07.bin` to the **root** of the card. Do not rename the
    file, and do not change anything else on the card.
-3. Insert the card and power on. The screen shows *UPDATING FIRMWARE V1.06*, then
+3. Insert the card and power on. The screen shows *UPDATING FIRMWARE V1.07*, then
    *FIRMWARE UPDATED*.
 
 **Roll back:** copy an older package to the root the same way. The factory version is
