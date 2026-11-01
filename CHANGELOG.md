@@ -16,6 +16,9 @@ SD-card package is named after it). Rolling back = installing an older package.
   credits and a `NOTICE` file for third-party licenses, a release workflow (tag → draft release
   with package, bootloader and SHA-256 checksums), issue templates and `CONTRIBUTING.md`. The
   Randomwaves user manual is no longer included (it is not MIT-licensed); it is linked instead.
+- **Install guide:** the README has a step-by-step install guide (which file to download, where
+  it goes on the card, what the screen shows, troubleshooting, roll back). Releases also include
+  the factory package for rolling back.
 
 ## v1.07
 
