@@ -110,7 +110,9 @@ Logic that doesn't need hardware lives in small headers without HAL dependencies
 **same code** that runs on the device can be tested on a PC. Example:
 `Drumboy-Pro-App-H723/Core/Library/Global/LayerSongEdit.h` (Layer Song MOVE / SHIFT ALL / ADD),
 tested by `02 Software/Tests/test_layer_song_edit.cpp`, and `Global/SampleFormat.h` (WAV PCM
-conversion used by the sample loader and the preview), tested by `test_sample_format.cpp`. CI compiles and runs every
+conversion used by the sample loader and the preview), tested by `test_sample_format.cpp`, and
+`Global/EuclidPattern.h` (Euclidean rhythms for the Layer Song EUCLID page), tested by
+`test_euclid.cpp`. CI compiles and runs every
 `02 Software/Tests/test_*.cpp` with `-Wall -Wextra -Werror`.
 
 ```sh

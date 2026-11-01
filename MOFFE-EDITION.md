@@ -4,7 +4,7 @@ Moffe Edition er en videreutviklet utgave av Drumboy Pro-firmwaren fra Randomwav
 (fabrikkversjon v1.01). Denne siden samler alt som er nytt sammenlignet med fabrikkversjonen:
 hva funksjonene gjør og hvordan du bruker dem på enheten.
 
-- **Gjeldende versjon:** v1.05
+- **Gjeldende versjon:** v1.06
 - **Brukermanual (Randomwaves):** [02 Software/drumboy-pro-user-manual.pdf](<02 Software/drumboy-pro-user-manual.pdf>) –
   sidetallene nedenfor viser til den.
 - **Tekniske detaljer per versjon:** [CHANGELOG.md](CHANGELOG.md)
@@ -79,6 +79,41 @@ det.
 
 Begge lagres og huskes når du slår av og på.
 
+## 4. Euclid-rytmer – EUCLID-siden i Layer Song (v1.06)
+
+Et Euclid-mønster fordeler et antall **slag** så jevnt som mulig over et antall **steg**. Det
+er et raskt og musikalsk utgangspunkt for trommer. Eksempler: E(3,8) = `x..x..x.` (tresillo),
+E(5,8) = `x.xx.xx.` (cinquillo) og E(4,16) = fire jevne slag.
+
+**Åpne siden:** trykk **S + lagtast** som vanlig, og trykk **S + samme lagtast én gang til**.
+Gjør det samme for å gå tilbake.
+
+```
+ Øverst:   [1 STEPS]   [2 HITS]   [ stegrute: ■··■··■· ]
+ Nederst:  [5 ROTATE]  [6 GRID]   [7 LENGTH]  [8 MODE]
+```
+
+| Knapp | Hva den gjør |
+|---|---|
+| **1 STEPS** | Antall steg i mønsteret (1–32) |
+| **2 HITS** | Antall slag (0 til antall steg) |
+| **5 ROTATE** | Forskyver mønsteret ett steg om gangen og går rundt |
+| **6 GRID** | Lengden på hvert steg, fra 1:32 til 1:4 |
+| **7 LENGTH** | **REPEAT** gjentar mønsteret over hele sangen, **ONCE** legger det én gang |
+| **8 MODE** | **REPLACE** erstatter lagets beats, **MERGE** legger slagene oppå beatene du har fra før, og de beholder fillene sine |
+| **CLEAR** | Går tilbake til beatene laget hadde da du åpnet siden |
+
+- **Du hører endringene med en gang.** Mønsteret skrives til laget hver gang du vrir, så du kan
+  justere mens sequenceren spiller.
+- **Stegruten** øverst til høyre viser mønsteret. Steget som spilles akkurat nå, markeres i cyan.
+- **Polyrytmer:** STEPS 7 med GRID 1:16 gir et mønster på 7/16 som glir mot takten.
+- **Maks 64 beats** per lag og bank. Blir mønsteret lengre, vises *MAX 64 BEATS*, og resten
+  kuttes.
+- **Mønsteret lagres som vanlige beats** i prosjektet, og du kan finjustere det på den vanlige
+  siden med MOVE og fills. Knappeinnstillingene på EUCLID-siden lagres ikke.
+- **På EUCLID-siden gjør UP/DOWN og et kort ADD-trykk ingenting**, fordi neste vri ville
+  overskrevet endringene.
+
 ---
 
 ## Forbedringer og feilrettinger
@@ -114,14 +149,15 @@ Begge lagres og huskes når du slår av og på.
 | v1.03 | Layer Song: MOVE, SHIFT ALL og ADD for én beat |
 | v1.04 | Moffe Edition-oppstartsskjerm |
 | v1.05 | Forhåndslytting av samples i Layer Instrument-menyen |
+| v1.06 | EUCLID-siden i Layer Song: Euclid-rytmer |
 
 ## Installere og gå tilbake
 
 1. Ta sikkerhetskopi av hele SD-kortet. `System/File`, `System/Drumkit` og `System/Preset`
    inneholder dine egne data.
-2. Legg pakken `Drumboy_Pro_Fw_01_05.bin` i **roten** av kortet. Ikke gi filen nytt navn, og ikke
+2. Legg pakken `Drumboy_Pro_Fw_01_06.bin` i **roten** av kortet. Ikke gi filen nytt navn, og ikke
    endre noe annet på kortet.
-3. Sett kortet i enheten og slå den på. Skjermen viser *UPDATING FIRMWARE V1.05* og deretter
+3. Sett kortet i enheten og slå den på. Skjermen viser *UPDATING FIRMWARE V1.06* og deretter
    *FIRMWARE UPDATED*.
 
 **Gå tilbake:** legg en eldre pakke i roten på samme måte. Fabrikkversjonen ligger i

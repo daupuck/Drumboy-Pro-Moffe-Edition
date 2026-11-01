@@ -1976,6 +1976,10 @@ void Controller::layerSong_select(uint8_t layerNum_, uint8_t bankNum_) {
         // Default to first beat when bank has content; otherwise keep no selection.
         (layerLibrary[selectedLayerNum].bankLibrary[bankNum_].lastActiveBeatNum != -1) ? selectedBeatNum = 0 : selectedBeatNum = -1;
 
+        // Always open on the edit page (page 0); S + the same layer again opens EUCLID.
+        layerSongPage = 0;
+        euclidPlayStep = -1;
+
         // 4. UI TRANSITION & RENDER
         // Animate and redraw Layer Song menu widgets.
         lcd_transitionMenu();
@@ -1989,7 +1993,153 @@ void Controller::layerSong_select(uint8_t layerNum_, uint8_t bankNum_) {
         ledLayerPlayMode = false;
         ledLayerSelectFlag = true;
         ledLayerSelectData = 0x01 << selectedLayerNum;
+    } else {
+        // 6. PAGE TOGGLE: S + the layer already shown switches edit <-> EUCLID page.
+        layerSong_togglePage();
     }
+}
+
+void Controller::layerSong_togglePage() {
+    /// @brief Switches the Layer Song menu between the edit page and the EUCLID page.
+    /// Opening EUCLID captures the layer's beats as the base (for MERGE and CLEAR = restore).
+
+    if (selectedLayerNum == -1) return;
+    layerSongPage = (layerSongPage == 0) ? 1 : 0;
+    euclidPlayStep = -1;
+
+    // 1. CLEAR THE SLOTS AND THE GRAPH AREA (as a menu transition does).
+    lcd.setBackColor(BLACK);
+    const uint8_t slots[6] = {0, 1, 4, 5, 6, 7};
+    for (uint8_t i = 0; i < 6; i++) lcd_clearMenuTab(slots[i]);
+    lcd.setForeColor(GRAY_50);
+    lcd.clearRect(493, 30, 325, 60);
+    lcd.drawVLine(kMenuLineX[3], kMenuLineY[3], kMenuLineHeight);
+    preBeatFillType = -1;
+    preBeatFillPattern = -1;
+    preBeatFillTime = -1;
+    preBeatFillLevel = -1;
+
+    // 2. DRAW THE NEW PAGE
+    if (layerSongPage == 1) {
+        euclid_captureBase();
+        euclid_computePattern();
+        euclidTruncated = false;
+        lcd_drawLayerSongEuclidMenu(selectedLayerNum);
+    } else {
+        Bank& bank = layerLibrary[selectedLayerNum].bankLibrary[activeSongBank];
+        selectedBeatNum = (bank.lastActiveBeatNum != -1) ? 0 : -1;
+        lcd_drawLayerSongMenu(selectedLayerNum);
+        lcd_drawSong(selectedLayerNum, activeSongBank);
+    }
+    encoder_update();
+}
+
+void Controller::euclid_captureBase() {
+    /// @brief Remembers the selected layer's current beats (active bank) as the EUCLID base.
+
+    if (selectedLayerNum == -1) return;
+    euclidBaseCount = layerSong_snapshotBank(selectedLayerNum, activeSongBank, euclidBase);
+    euclidBaseLayer = selectedLayerNum;
+    euclidBaseBank = activeSongBank;
+}
+
+void Controller::euclid_computePattern() {
+    /// @brief Recomputes euclidPattern from the current settings (hits, steps, rotation).
+
+    for (uint8_t i = 0; i < kMaxEuclidSteps; i++) euclidPattern[i] = false;
+    euclid::pattern(euclidSettings.hits, euclidSettings.steps, euclidPattern);
+    euclid::rotate(euclidPattern, euclidSettings.steps, euclidSettings.rotate);
+}
+
+void Controller::euclid_apply() {
+    /// @brief Writes the Euclid pattern to the selected layer (active bank), live.
+    /// Always rebuilt from the base captured when the page opened, so turning knobs back and
+    /// forth never accumulates beats. MERGE keeps the base beats and their fills.
+
+    if (selectedLayerNum == -1) return;
+    // The layer or bank changed since the page opened: that becomes the new base.
+    if ((euclidBaseLayer != selectedLayerNum) || (euclidBaseBank != activeSongBank)) euclid_captureBase();
+
+    euclid_computePattern();
+
+    uint16_t positions[kBeatLibrarySize];
+    bool truncatedHits = false;
+    const uint8_t hitCount = euclid::positions(euclidPattern, euclidSettings.steps,
+                                               static_cast<uint16_t>(kQuantizeInterval[euclidSettings.grid]),
+                                               songInterval, euclidSettings.repeat, positions, kBeatLibrarySize, truncatedHits);
+
+    BeatSnapshot beats[kBeatLibrarySize];
+    bool truncatedMerge = false;
+    const uint8_t count = euclid::compose(euclidBase, euclidBaseCount, positions, hitCount, euclidSettings.merge,
+                                          beats, kBeatLibrarySize, truncatedMerge);
+    euclidTruncated = truncatedHits || truncatedMerge;
+
+    layerSong_rebuildBank(selectedLayerNum, activeSongBank, beats, count, -1);
+    selectedBeatNum = (count > 0) ? 0 : -1;
+
+    lcd_drawSong(selectedLayerNum, activeSongBank);
+    lcd_drawEuclidStrip();
+}
+
+void Controller::euclid_restore() {
+    /// @brief CLEAR on the EUCLID page: puts back the beats the layer had when the page opened.
+
+    if ((selectedLayerNum == -1) || (euclidBaseLayer != selectedLayerNum) || (euclidBaseBank != activeSongBank)) return;
+    BeatSnapshot beats[kBeatLibrarySize];
+    for (uint8_t i = 0; i < euclidBaseCount; i++) beats[i] = euclidBase[i];
+    layerSong_rebuildBank(selectedLayerNum, activeSongBank, beats, euclidBaseCount, -1);
+    selectedBeatNum = (euclidBaseCount > 0) ? 0 : -1;
+    euclidTruncated = false;
+    lcd_drawSong(selectedLayerNum, activeSongBank);
+    lcd_drawEuclidStrip();
+}
+
+void Controller::euclid_change(EncoderFunc function_, bool up_) {
+    /// @brief Handles an EUCLID page knob: updates the setting, redraws it and applies live.
+
+    EuclidSettings& s = euclidSettings;
+    uint8_t slot = 0;
+    switch (function_) {
+        case ENC_EUCLID_STEPS:
+            if (up_ && (s.steps < kMaxEuclidSteps)) s.steps++;
+            if (!up_ && (s.steps > kMinEuclidSteps)) s.steps--;
+            if (s.hits > s.steps) s.hits = s.steps;
+            if (s.rotate >= s.steps) s.rotate = s.steps - 1;
+            slot = 0;
+            break;
+        case ENC_EUCLID_HITS:
+            if (up_ && (s.hits < s.steps)) s.hits++;
+            if (!up_ && (s.hits > 0)) s.hits--;
+            slot = 1;
+            break;
+        case ENC_EUCLID_ROTATE:  // wraps around, like turning a circle
+            s.rotate = up_ ? static_cast<uint8_t>((s.rotate + 1) % s.steps) : static_cast<uint8_t>((s.rotate + s.steps - 1) % s.steps);
+            slot = 4;
+            break;
+        case ENC_EUCLID_GRID:
+            if (up_ && (s.grid < kMaxEuclidGrid)) s.grid++;
+            if (!up_ && (s.grid > kMinEuclidGrid)) s.grid--;
+            slot = 5;
+            break;
+        case ENC_EUCLID_LENGTH:
+            s.repeat = !s.repeat;
+            slot = 6;
+            break;
+        case ENC_EUCLID_MODE:
+            s.merge = !s.merge;
+            slot = 7;
+            break;
+        default:
+            return;
+    }
+
+    // STEPS also bounds HITS and ROTATE, so redraw those too.
+    lcd_drawEuclidData(slot);
+    if (function_ == ENC_EUCLID_STEPS) {
+        lcd_drawEuclidData(1);
+        lcd_drawEuclidData(4);
+    }
+    euclid_apply();
 }
 
 void Controller::layerSong_reset(uint8_t layerNum_, uint8_t bankNum_) {

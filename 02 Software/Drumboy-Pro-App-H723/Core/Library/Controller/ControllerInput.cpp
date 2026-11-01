@@ -397,7 +397,7 @@ void Controller::keyboard_action() {
                                             break;
 
                                         case LAYER_SONG_MENU:
-                                            layerSong_menuUp(0);
+                                            if (layerSongPage == 0) layerSong_menuUp(0);  // fill type; not on the EUCLID page
                                             break;
                                     }
                                 }
@@ -468,7 +468,7 @@ void Controller::keyboard_action() {
                                             break;
 
                                         case LAYER_SONG_MENU:
-                                            layerSong_menuDown(0);
+                                            if (layerSongPage == 0) layerSong_menuDown(0);  // fill type; not on the EUCLID page
                                             break;
                                     }
                                 }
@@ -885,7 +885,10 @@ void Controller::keyboard_action() {
                                             break;
 
                                         case LAYER_SONG_MENU:
-                                            if (layerLibrary[selectedLayerNum].bankLibrary[activeSongBank].lastActiveBeatNum != -1) {
+                                            if (layerSongPage == 1) {
+                                                // EUCLID page: CLEAR puts back the beats from before the page opened.
+                                                euclid_restore();
+                                            } else if (layerLibrary[selectedLayerNum].bankLibrary[activeSongBank].lastActiveBeatNum != -1) {
                                                 layerSongResetKeyFlag = true;
                                                 startLongKeyTimer();
                                             }
@@ -992,7 +995,8 @@ void Controller::keyboard_action() {
 
                             case KEY_ADD: {
                                 // Decide on the tap-insert before the long-press flags are cleared.
-                                const bool insertBeat = layerSongAddPending && (menu == LAYER_SONG_MENU) && !alertFlag && (selectedLayerNum != -1);
+                                // Not on the EUCLID page: the next knob turn would regenerate over it.
+                                const bool insertBeat = layerSongAddPending && (menu == LAYER_SONG_MENU) && (layerSongPage == 0) && !alertFlag && (selectedLayerNum != -1);
                                 layerSongAddPending = false;
                                 stopLongKeyTimer();
                                 keyboard.shiftKeyPress = false;
@@ -1443,7 +1447,7 @@ void Controller::keyboard_upLong() {
             break;
 
         case LAYER_SONG_MENU:
-            layerSong_menuUp(0);
+            if (layerSongPage == 0) layerSong_menuUp(0);  // fill type; not on the EUCLID page
             break;
     }
 }
@@ -1519,7 +1523,7 @@ void Controller::keyboard_downLong() {
             break;
 
         case LAYER_SONG_MENU:
-            layerSong_menuDown(0);
+            if (layerSongPage == 0) layerSong_menuDown(0);  // fill type; not on the EUCLID page
             break;
     }
 }
@@ -1848,7 +1852,8 @@ void Controller::encoder_update() {
             enc.function = encoderGlobalFunction[activeEncoderBank][i];
         } else {
             enc.mode = ENC_MODE_LOCAL;
-            enc.function = encoderLocalFunction[menuSafe][i];
+            // Layer Song has a second page (EUCLID) with its own knob map.
+            enc.function = ((menuSafe == LAYER_SONG_MENU) && (layerSongPage == 1)) ? kEncoderEuclidFunction[i] : encoderLocalFunction[menuSafe][i];
         }
 
         // 2. COUNTER STATE RESET
@@ -2015,6 +2020,7 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
     // INPUT VALIDATION: reject LFO/Layer edits when no target is selected.
     if ((encoder[encoderNum_].function >= ENC_LFO_ACTIVE) && (encoder[encoderNum_].function <= ENC_LFO_DEPTH) && (selectedLfoNum == -1)) return;
     if ((encoder[encoderNum_].function >= ENC_INST_0_INST) && (encoder[encoderNum_].function <= ENC_SONG_SHIFT) && (selectedLayerNum == -1)) return;
+    if ((encoder[encoderNum_].function >= ENC_EUCLID_STEPS) && (encoder[encoderNum_].function <= ENC_EUCLID_MODE) && (selectedLayerNum == -1)) return;
 
     // 2. PARAMETER INCREMENT DISPATCH
     switch (encoder[encoderNum_].function) {
@@ -2586,6 +2592,15 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
             layerSong_shiftAllBeats(true);
             break;
 
+        case ENC_EUCLID_STEPS:
+        case ENC_EUCLID_HITS:
+        case ENC_EUCLID_ROTATE:
+        case ENC_EUCLID_GRID:
+        case ENC_EUCLID_LENGTH:
+        case ENC_EUCLID_MODE:
+            euclid_change(encoder[encoderNum_].function, true);
+            break;
+
         default:
             break;
     }
@@ -2607,6 +2622,7 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
     // INPUT VALIDATION: reject LFO/Layer edits when no target is selected.
     if ((encoder[encoderNum_].function >= ENC_LFO_ACTIVE) && (encoder[encoderNum_].function <= ENC_LFO_DEPTH) && (selectedLfoNum == -1)) return;
     if ((encoder[encoderNum_].function >= ENC_INST_0_INST) && (encoder[encoderNum_].function <= ENC_SONG_SHIFT) && (selectedLayerNum == -1)) return;
+    if ((encoder[encoderNum_].function >= ENC_EUCLID_STEPS) && (encoder[encoderNum_].function <= ENC_EUCLID_MODE) && (selectedLayerNum == -1)) return;
 
     // 2. PARAMETER DECREMENT DISPATCH
     switch (encoder[encoderNum_].function) {
@@ -3146,6 +3162,15 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
         case ENC_SONG_SHIFT:
             layerSongAddPending = false;
             layerSong_shiftAllBeats(false);
+            break;
+
+        case ENC_EUCLID_STEPS:
+        case ENC_EUCLID_HITS:
+        case ENC_EUCLID_ROTATE:
+        case ENC_EUCLID_GRID:
+        case ENC_EUCLID_LENGTH:
+        case ENC_EUCLID_MODE:
+            euclid_change(encoder[encoderNum_].function, false);
             break;
 
         default:

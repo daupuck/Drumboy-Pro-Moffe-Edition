@@ -374,6 +374,9 @@ void Controller::update() {
         // Sample preview: debounce + stream one SD chunk (non-blocking, Layer Inst audition).
         preview_service();
 
+        // Layer Song EUCLID page: mark the step that is playing now.
+        lcd_updateEuclidPlayhead();
+
         // 3. OUTPUT & UI REFRESH
         // Refresh LED outputs and LCD frame content.
         led_action();

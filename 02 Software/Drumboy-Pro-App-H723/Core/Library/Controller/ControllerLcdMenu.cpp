@@ -3201,6 +3201,8 @@ void Controller::lcd_drawLayerSongMenu(uint8_t layerNum_) {
 }
 
 void Controller::lcd_drawLayerSong_BeatFillTypeData(uint8_t layerNum_) {
+    if (euclidPageActive()) return;  // the EUCLID page uses these slots
+
     /// @brief Draws beat-fill type value for selected beat.
 
     // 1. CONTEXT LOAD
@@ -3244,6 +3246,8 @@ void Controller::lcd_drawLayerSong_BeatFillTypeData(uint8_t layerNum_) {
 }
 
 void Controller::lcd_drawLayerSong_BeatFillPatternData(uint8_t layerNum_) {
+    if (euclidPageActive()) return;  // the EUCLID page uses these slots
+
     /// @brief Draws beat-fill pattern value for selected beat.
 
     // 1. CONTEXT LOAD
@@ -3260,6 +3264,8 @@ void Controller::lcd_drawLayerSong_BeatFillPatternData(uint8_t layerNum_) {
 }
 
 void Controller::lcd_drawLayerSong_BeatFillTimeData(uint8_t layerNum_) {
+    if (euclidPageActive()) return;  // the EUCLID page uses these slots
+
     /// @brief Draws beat-fill time-mode value for selected beat.
 
     // 1. CONTEXT LOAD
@@ -3285,6 +3291,8 @@ void Controller::lcd_drawLayerSong_BeatFillTimeData(uint8_t layerNum_) {
 }
 
 void Controller::lcd_drawLayerSong_BeatFillLevelData(uint8_t layerNum_) {
+    if (euclidPageActive()) return;  // the EUCLID page uses these slots
+
     /// @brief Draws beat-fill level mode for selected beat.
 
     // 1. CONTEXT LOAD
@@ -3307,6 +3315,8 @@ void Controller::lcd_drawLayerSong_BeatFillLevelData(uint8_t layerNum_) {
 }
 
 void Controller::lcd_drawLayerSong_MoveData(uint8_t layerNum_) {
+    if (euclidPageActive()) return;  // the EUCLID page uses these slots
+
     /// @brief Draws the selected beat's position under MOVE as bar.beat.sixteenth.
     /// A trailing "+" marks a beat that sits between sixteenths (e.g. recorded live or
     /// placed with a 1:32 / 1:64 grid).
@@ -3336,6 +3346,8 @@ void Controller::lcd_drawLayerSong_MoveData(uint8_t layerNum_) {
 }
 
 void Controller::lcd_drawLayerSong_ShiftData(uint8_t layerNum_) {
+    if (euclidPageActive()) return;  // the EUCLID page uses these slots
+
     /// @brief Draws the step size used by MOVE and SHIFT ALL (the Rhythm menu quantize).
 
     (void)layerNum_;
@@ -3343,7 +3355,167 @@ void Controller::lcd_drawLayerSong_ShiftData(uint8_t layerNum_) {
     lcd.drawText(kQuantizeDataLibrary[rhythm.quantize].nameLongR, kMenuDataTextSize, kMenuDataX[7], kMenuDataY[7]);
 }
 
+/* Lcd Layer Song EUCLID Page Functions --------------------------------------*/
+
+void Controller::lcd_drawLayerSongEuclidMenu(uint8_t layerNum_) {
+    /// @brief Draws the EUCLID page of the Layer Song menu: headers, values and step strip.
+
+    // 1. ICON + LAYER NUMBER (same as the edit page)
+    lcd_drawMenuIcon(LAYER_SONG_MENU);
+    lcd_setMenuHeaderState(CYAN);
+    lcd.drawText(kDataMenuNum + layerNum_, 1, kMenuNumX, kMenuNumY);
+
+    // 2. HEADERS
+    lcd_setMenuHeaderState(CYAN);
+    lcd.drawText(kHeaderEuclidSteps, kMenuHeaderTextSize, kMenuHeaderX[0], kMenuHeaderY[0]);
+    lcd.drawText(kHeaderEuclidHits, kMenuHeaderTextSize, kMenuHeaderX[1], kMenuHeaderY[1]);
+    lcd.drawText(kHeaderEuclidRotate, kMenuHeaderTextSize, kMenuHeaderX[4], kMenuHeaderY[4]);
+    lcd.drawText(kHeaderEuclidGrid, kMenuHeaderTextSize, kMenuHeaderX[5], kMenuHeaderY[5]);
+    lcd.drawText(kHeaderEuclidLength, kMenuHeaderTextSize, kMenuHeaderX[6], kMenuHeaderY[6]);
+    lcd.drawText(kHeaderEuclidMode, kMenuHeaderTextSize, kMenuHeaderX[7], kMenuHeaderY[7]);
+
+    // 3. SIGNS
+    lcd_setMenuSignState(CYAN);
+    const uint8_t slots[6] = {0, 1, 4, 5, 6, 7};
+    for (uint8_t i = 0; i < 6; i++) lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[slots[i]], kMenuSignBoxY[slots[i]]);
+
+    // 4. VALUES + STRIP
+    for (uint8_t i = 0; i < 6; i++) lcd_drawEuclidData(slots[i]);
+    lcd_drawEuclidStrip();
+}
+
+void Controller::lcd_drawEuclidData(uint8_t slot_) {
+    /// @brief Draws one EUCLID page value (slot = knob position 0..7).
+
+    if (!euclidPageActive()) return;
+    const EuclidSettings& s = euclidSettings;
+    const char* text;
+    switch (slot_) {
+        case 0:
+            text = kNumberDataLibrary[s.steps].nameLongR;
+            break;
+        case 1:
+            text = kNumberDataLibrary[s.hits].nameLongR;
+            break;
+        case 4:
+            text = kNumberDataLibrary[s.rotate].nameLongR;
+            break;
+        case 5:
+            text = kQuantizeDataLibrary[s.grid].nameLongR;
+            break;
+        case 6:
+            text = kEuclidLengthText[s.repeat ? 1 : 0];
+            break;
+        case 7:
+            text = kEuclidModeText[s.merge ? 1 : 0];
+            break;
+        default:
+            return;
+    }
+    lcd_setMenuDataState(WHITE);
+    lcd.drawText(text, kMenuDataTextSize, kMenuDataX[slot_], kMenuDataY[slot_]);
+}
+
+namespace {
+
+// Step strip geometry inside the fill-graph area (x 516..796, y 32..87).
+constexpr uint16_t kEuclidCellY = kBeatGraphStartY + 18;
+constexpr uint16_t kEuclidCellHeight = 24;
+constexpr uint16_t kEuclidMaxPitch = 35;
+
+uint16_t euclidPitch(uint8_t steps) {
+    const uint16_t pitch = (steps > 0) ? (kBeatGraphWidth / steps) : kEuclidMaxPitch;
+    return (pitch > kEuclidMaxPitch) ? kEuclidMaxPitch : pitch;
+}
+
+uint16_t euclidStripX(uint8_t steps) {
+    return kBeatGraphStartX + ((kBeatGraphWidth - (euclidPitch(steps) * steps)) / 2);
+}
+
+}  // namespace
+
+void Controller::lcd_drawEuclidCell(uint8_t step_, bool playing_) {
+    /// @brief Draws one step of the strip: filled = hit, outline = rest, cyan = now playing.
+
+    if (!euclidPageActive() || (step_ >= euclidSettings.steps)) return;
+    const uint16_t pitch = euclidPitch(euclidSettings.steps);
+    const uint16_t width = (pitch > 3) ? (pitch - 2) : 1;
+    const uint16_t x = euclidStripX(euclidSettings.steps) + (step_ * pitch);
+
+    lcd.setBackColor(BLACK);
+    lcd.clearRect(x, kEuclidCellY, width, kEuclidCellHeight);
+    lcd.setForeColor(playing_ ? CYAN : (euclidPattern[step_] ? WHITE : GRAY_50));
+    if (euclidPattern[step_]) {
+        lcd.fillRect(x, kEuclidCellY, width, kEuclidCellHeight);
+    } else {
+        lcd.drawRect(x, kEuclidCellY, width, kEuclidCellHeight);
+    }
+}
+
+void Controller::lcd_drawEuclidStrip() {
+    /// @brief Draws the whole step strip with its "E(hits,steps)" title and beat ticks.
+
+    if (!euclidPageActive()) return;
+    const EuclidSettings& s = euclidSettings;
+    euclidPlayStep = -1;  // cells are redrawn without the playhead; the next update re-marks it
+
+    lcd.setBackColor(BLACK);
+    lcd.clearRect(kBeatGraphStartX, kBeatGraphStartY, kBeatGraphWidth + 1, kBeatGraphHeight + 1);
+
+    // Title, and a warning when the bank's 64-beat limit cut the pattern.
+    char title[24];
+    snprintf(title, sizeof(title), "EUCLID E(%u,%u)", s.hits, s.steps);
+    lcd.setFont(FONT_05x07);
+    lcd.setAlignment(LEFT);
+    lcd.setForeColor(GRAY_75);
+    lcd.drawText(title, strlen(title), kBeatGraphStartX, kBeatGraphStartY + 2);
+    if (euclidTruncated) {
+        lcd.setAlignment(RIGHT);
+        lcd.setForeColor(RED);
+        lcd.drawText("MAX 64 BEATS", 12, kBeatGraphEndX, kBeatGraphStartY + 2);
+    }
+
+    // Cells, plus a tick under every 4th step for orientation.
+    const uint16_t pitch = euclidPitch(s.steps);
+    const uint16_t x0 = euclidStripX(s.steps);
+    for (uint8_t i = 0; i < s.steps; i++) {
+        lcd_drawEuclidCell(i, false);
+        if ((i % 4) == 0) {
+            lcd.setForeColor(GRAY_50);
+            lcd.fillRect(x0 + (i * pitch), kEuclidCellY + kEuclidCellHeight + 3, 2, 3);
+        }
+    }
+}
+
+void Controller::lcd_updateEuclidPlayhead() {
+    /// @brief Main loop: marks the step that is playing now (cyan) while the EUCLID page is
+    /// open and the transport runs. Redraws only the two cells that change.
+
+    if (!euclidPageActive() || !playActive) {
+        if (euclidPlayStep >= 0) {
+            const int16_t previous = euclidPlayStep;
+            euclidPlayStep = -1;
+            lcd_drawEuclidCell(static_cast<uint8_t>(previous), false);
+        }
+        return;
+    }
+
+    const uint32_t grid = static_cast<uint32_t>(kQuantizeInterval[euclidSettings.grid]);
+    const uint32_t cycle = grid * euclidSettings.steps;
+    if (cycle == 0) return;
+    const uint32_t position = playInterval;
+    const int16_t step = ((!euclidSettings.repeat) && (position >= cycle)) ? -1 : static_cast<int16_t>((position % cycle) / grid);
+
+    if (step != euclidPlayStep) {
+        if (euclidPlayStep >= 0) lcd_drawEuclidCell(static_cast<uint8_t>(euclidPlayStep), false);
+        if (step >= 0) lcd_drawEuclidCell(static_cast<uint8_t>(step), true);
+        euclidPlayStep = step;
+    }
+}
+
 void Controller::lcd_drawLayerSong_BeatFillGraphData(uint8_t layerNum_) {
+    if (euclidPageActive()) return;  // the EUCLID page uses these slots
+
     /// @brief Draws beat-fill graph for selected beat and handles clear/reset states.
 
     // 1. CONTEXT LOAD

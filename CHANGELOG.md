@@ -3,6 +3,33 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v1.06
+
+**Layer Song EUCLID page — generate Euclidean rhythms**
+
+- **S + layer** opens Layer Song as before; pressing **S + the same layer again** switches to the
+  **EUCLID** page (and back).
+- Knobs: **1 STEPS** (1–32), **2 HITS** (0–STEPS), **5 ROTATE** (wraps), **6 GRID** (1:32–1:4),
+  **7 LENGTH** (REPEAT over the song / ONCE), **8 MODE** (REPLACE the layer's beats / MERGE with
+  them, keeping their fills).
+- Every turn rewrites the layer live, so you hear it while the sequencer plays. The pattern is
+  always rebuilt from the beats the layer had when the page opened, so nothing accumulates, and
+  **CLEAR** puts those beats back.
+- The fill-graph area shows the pattern as a step strip, titled `EUCLID E(hits,steps)`; the step
+  being played is marked in cyan. `MAX 64 BEATS` appears if the bank's 64-beat limit cut it.
+- STEPS × GRID that does not fill a bar gives polymeters (e.g. 7 steps of 1:16).
+- The result is ordinary beats, saved with the project; fine-tune them on the edit page with
+  MOVE and fills. The knob settings are not saved (they are a tool, not song data).
+- On the EUCLID page, UP/DOWN and the ADD tap are inactive (they edit things the page
+  regenerates); everything else in Layer Song works as before.
+
+Under the hood: Bjorklund's algorithm, rotation, expansion to song positions and REPLACE/MERGE
+are pure functions in `Global/EuclidPattern.h`, host-tested (1607 checks, including the
+patterns from Toussaint's paper and maximal evenness for every steps/hits up to 32). Writes go
+through the same `layerSong_rebuildBank` as MOVE/SHIFT ALL (sequencer tick masked). The page is
+a flag on `LAYER_SONG_MENU`, not a new menu, so all existing Layer Song handling is unchanged.
+Audio path and sequencer ISR unchanged.
+
 ## v1.05
 
 **Sample preview in the Layer Instrument menu — hear a sample before you load it**
