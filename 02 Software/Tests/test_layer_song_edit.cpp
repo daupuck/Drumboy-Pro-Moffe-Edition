@@ -1,8 +1,9 @@
 // Host unit tests for the Layer Song edit arithmetic (MOVE, SHIFT ALL, single-beat ADD).
 // Tests the same header the firmware uses: Core/Library/Global/LayerSongEdit.h.
 //
-//   g++ -std=c++17 -Wall -Wextra -Werror -I"../Drumboy-Pro-App-H723/Core/Library/Global" \
+//   g++ -std=c++17 -Wall -Wextra -Werror -I"../Drumboy-Pro-App-H723/Core/Library/Global"
 //       test_layer_song_edit.cpp -o test_layer_song_edit && ./test_layer_song_edit
+//   (one command; no line-continuation backslash here, it would make this a multi-line comment)
 //
 // Units: 800 per quarter note; one 4/4 bar = 3200. Steps: 1:16 = 200, 1:8 = 400, 1:4 = 800.
 

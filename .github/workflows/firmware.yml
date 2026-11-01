@@ -82,7 +82,7 @@ jobs:
             grep -E "Memory region|FLASH:|RAM_D1:|DTCMRAM:" build/build.log || true
             echo '```'
             echo "Compiler warnings: $(grep -c 'warning:' build/build.log || true)"
-            ls -l build/firmware/ 2>/dev/null | tail -n +2 | awk '{print "- " $NF " (" $5 " bytes)"}'
+            (ls -l build/firmware/ 2>/dev/null | tail -n +2 | awk '{print "- " $NF " (" $5 " bytes)"}') || true
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload firmware
