@@ -358,6 +358,9 @@ void Controller::triggerReset() {
 void Controller::processAudioBlock(uint32_t* inputBuffer_, uint32_t* outputBuffer_) {
     /// @brief Orchestrates the complete real-time audio processing pipeline, managing signal generation, sequential DSP stages, and final output buffering.
 
+    // Start of the CPU meter measurement (see the end of this function).
+    const uint32_t cpuStart = DWT_CYCCNT;
+
     // 0. I2S ERROR FLAG POLL
     // Count and clear overrun/underrun. The HAL never enables these interrupts, so polling
     // here is the only visibility; an rx overrun can permanently shift I2S word alignment.
@@ -400,6 +403,27 @@ void Controller::processAudioBlock(uint32_t* inputBuffer_, uint32_t* outputBuffe
         // 4. FINAL OUTPUT PROCESSING
         // Apply final mix and write to I2S output buffer.
         processAudioSend(outputBuffer_);
+    }
+
+    // 5. CPU METER
+    // Cycles spent in this block against the real time since the previous block started
+    // (~400k cycles at 550 MHz). Interrupts that preempt the audio ISR count as load too,
+    // since they delay it just the same. Costs two register reads and one division per block.
+    uint32_t busy = DWT_CYCCNT - cpuStart;
+    const uint32_t period = cpuStart - cpuLastStart;
+    cpuLastStart = cpuStart;
+    if ((period > 0) && (period < 4000000u)) {  // skips the very first block and long stalls
+        if (busy > 4000000u) busy = 4000000u;   // keeps busy * 1000 inside 32 bits
+        const uint32_t load = (busy * 1000u) / period;
+        if (load > cpuPeakPermille) cpuPeakPermille = static_cast<uint16_t>((load > 9999u) ? 9999u : load);
+        cpuBusyAcc += busy;
+        cpuPeriodAcc += period;
+        if (++cpuBlockCount >= 128) {
+            cpuLoadPermille = static_cast<uint16_t>((static_cast<uint64_t>(cpuBusyAcc) * 1000u) / cpuPeriodAcc);
+            cpuBusyAcc = 0;
+            cpuPeriodAcc = 0;
+            cpuBlockCount = 0;
+        }
     }
 }
 
@@ -569,6 +593,16 @@ void Controller::processAudioLayer() {
         if (!aBD.active) continue;
 
         float* targetBuffer = audioLayer[i];
+
+        // TONE glide: ease the playback speed towards the new note once per block (0.73 ms
+        // steps are inaudible), so the per-sample loops below stay exactly as they were.
+        if (aBD.glideCoef > 0.0f) {
+            aBD.increment = aBD.glideTarget + ((aBD.increment - aBD.glideTarget) * aBD.glideCoef);
+            if (fabsf(aBD.increment - aBD.glideTarget) < 0.0001f) {
+                aBD.increment = aBD.glideTarget;
+                aBD.glideCoef = 0.0f;
+            }
+        }
 
         // 3. PROCESSING PATH RESOLUTION
         // Use fast path for unity pitch + forward direction; else use interpolated slow path.

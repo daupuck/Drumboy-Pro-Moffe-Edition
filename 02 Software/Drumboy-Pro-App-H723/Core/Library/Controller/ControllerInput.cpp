@@ -242,7 +242,8 @@ void Controller::keyboard_action() {
                             if (auditionSelected) {
                                 preview_start(layerNum);
                             } else if ((!layer.mute) && (layer.samplePlay)) {
-                                layer_playBeat(layerNum, 1.0f);
+                                // TONE layers: on the NOTE page the pad plays the selected beat's note.
+                                layer_playBeat(layerNum, 1.0f, note_auditionNote(layerNum));
                             }
                             if (recordActive) {
                                 if (!metronome.precountState) {
@@ -888,6 +889,9 @@ void Controller::keyboard_action() {
                                             if (layerSongPage == 1) {
                                                 // EUCLID page: CLEAR puts back the beats from before the page opened.
                                                 euclid_restore();
+                                            } else if (layerSongPage == 2) {
+                                                // NOTE page: CLEAR puts back the notes from before the page opened.
+                                                note_restore();
                                             } else if (layerLibrary[selectedLayerNum].bankLibrary[activeSongBank].lastActiveBeatNum != -1) {
                                                 layerSongResetKeyFlag = true;
                                                 startLongKeyTimer();
@@ -1852,8 +1856,14 @@ void Controller::encoder_update() {
             enc.function = encoderGlobalFunction[activeEncoderBank][i];
         } else {
             enc.mode = ENC_MODE_LOCAL;
-            // Layer Song has a second page (EUCLID) with its own knob map.
-            enc.function = ((menuSafe == LAYER_SONG_MENU) && (layerSongPage == 1)) ? kEncoderEuclidFunction[i] : encoderLocalFunction[menuSafe][i];
+            // Layer Song has two more pages (EUCLID, NOTE) with their own knob maps.
+            if ((menuSafe == LAYER_SONG_MENU) && (layerSongPage == 1)) {
+                enc.function = kEncoderEuclidFunction[i];
+            } else if ((menuSafe == LAYER_SONG_MENU) && (layerSongPage == 2)) {
+                enc.function = kEncoderNoteFunction[i];
+            } else {
+                enc.function = encoderLocalFunction[menuSafe][i];
+            }
         }
 
         // 2. COUNTER STATE RESET
@@ -2021,6 +2031,7 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
     if ((encoder[encoderNum_].function >= ENC_LFO_ACTIVE) && (encoder[encoderNum_].function <= ENC_LFO_DEPTH) && (selectedLfoNum == -1)) return;
     if ((encoder[encoderNum_].function >= ENC_INST_0_INST) && (encoder[encoderNum_].function <= ENC_SONG_SHIFT) && (selectedLayerNum == -1)) return;
     if ((encoder[encoderNum_].function >= ENC_EUCLID_STEPS) && (encoder[encoderNum_].function <= ENC_EUCLID_MODE) && (selectedLayerNum == -1)) return;
+    if ((encoder[encoderNum_].function >= ENC_NOTE_MODE) && (encoder[encoderNum_].function <= ENC_NOTE_TRANSPOSE) && (selectedLayerNum == -1)) return;
 
     // 2. PARAMETER INCREMENT DISPATCH
     switch (encoder[encoderNum_].function) {
@@ -2608,6 +2619,22 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
             song_change(encoder[encoderNum_].function, true);
             break;
 
+        case ENC_IO_CPU:
+            break;  // read-only
+
+        case ENC_IO_CPU_PEAK:
+            cpu_resetPeak();
+            break;
+
+        case ENC_NOTE_MODE:
+        case ENC_NOTE_NOTE:
+        case ENC_NOTE_ROOT:
+        case ENC_NOTE_SCALE:
+        case ENC_NOTE_GLIDE:
+        case ENC_NOTE_TRANSPOSE:
+            note_change(encoder[encoderNum_].function, true);
+            break;
+
         default:
             break;
     }
@@ -2630,6 +2657,7 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
     if ((encoder[encoderNum_].function >= ENC_LFO_ACTIVE) && (encoder[encoderNum_].function <= ENC_LFO_DEPTH) && (selectedLfoNum == -1)) return;
     if ((encoder[encoderNum_].function >= ENC_INST_0_INST) && (encoder[encoderNum_].function <= ENC_SONG_SHIFT) && (selectedLayerNum == -1)) return;
     if ((encoder[encoderNum_].function >= ENC_EUCLID_STEPS) && (encoder[encoderNum_].function <= ENC_EUCLID_MODE) && (selectedLayerNum == -1)) return;
+    if ((encoder[encoderNum_].function >= ENC_NOTE_MODE) && (encoder[encoderNum_].function <= ENC_NOTE_TRANSPOSE) && (selectedLayerNum == -1)) return;
 
     // 2. PARAMETER DECREMENT DISPATCH
     switch (encoder[encoderNum_].function) {
@@ -3185,6 +3213,22 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
         case ENC_RHYTHM_SONG_PART:
         case ENC_RHYTHM_SONG_REPEAT:
             song_change(encoder[encoderNum_].function, false);
+            break;
+
+        case ENC_IO_CPU:
+            break;  // read-only
+
+        case ENC_IO_CPU_PEAK:
+            cpu_resetPeak();
+            break;
+
+        case ENC_NOTE_MODE:
+        case ENC_NOTE_NOTE:
+        case ENC_NOTE_ROOT:
+        case ENC_NOTE_SCALE:
+        case ENC_NOTE_GLIDE:
+        case ENC_NOTE_TRANSPOSE:
+            note_change(encoder[encoderNum_].function, false);
             break;
 
         default:

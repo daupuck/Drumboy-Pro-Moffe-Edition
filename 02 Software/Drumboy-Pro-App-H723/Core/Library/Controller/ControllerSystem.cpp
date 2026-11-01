@@ -1595,6 +1595,25 @@ void Controller::metro_calculateVolumeTransition() {
 /* Io Functions --------------------------------------------------------------*/
 ////////////////////////////////////////////////////////////////////////////////
 
+void Controller::cpu_service() {
+    /// @brief Main loop: redraws the CPU meter in the IO menu four times per second (only when
+    /// a value changed, so the bit-banged LCD is not kept busy).
+
+    if (menu != IO_MENU) return;
+    const uint32_t now = HAL_GetTick();
+    if ((now - cpuDisplayTick) < 250) return;
+    cpuDisplayTick = now;
+    lcd_drawIo_CpuData();
+    lcd_drawIo_CpuPeakData();
+}
+
+void Controller::cpu_resetPeak() {
+    /// @brief Turning CPU PEAK starts a new peak measurement from now.
+
+    cpuPeakPermille = 0;
+    if (menu == IO_MENU) lcd_drawIo_CpuPeakData();
+}
+
 void Controller::io_select() {
     /// @brief Switches to I/O menu and prepares UI/encoder context for interface routing.
 

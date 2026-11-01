@@ -22,7 +22,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 const uint8_t kVersionMajor                         = 0x01;
-const uint8_t kVersionMinor                         = 0x08;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMinor                         = 0x09;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/
@@ -963,6 +963,14 @@ const char kHeaderSong[]                            = "SONG      ";
 const char kHeaderSongStep[]                        = "STEP      ";
 const char kHeaderSongPart[]                        = "PART      ";
 const char kHeaderSongRepeat[]                      = "REPEAT    ";
+const char kHeaderCpuLoad[]                         = "CPU LOAD  ";
+const char kHeaderCpuPeak[]                         = "CPU PEAK  ";
+const char kHeaderNoteMode[]                        = "MODE      ";
+const char kHeaderNoteNote[]                        = "NOTE      ";
+const char kHeaderNoteRoot[]                        = "ROOT      ";
+const char kHeaderNoteScale[]                       = "SCALE     ";
+const char kHeaderNoteGlide[]                       = "GLIDE     ";
+const char kHeaderNoteTranspose[]                   = "TRANSPOSE ";
 const char kHeaderVolume[]                          = "VOLUME    ";
 const char kHeaderWet[]                             = "WET       ";
 
@@ -1278,10 +1286,22 @@ typedef enum {
     ENC_RHYTHM_SONG_PART                            = 0x6D,  // part (song bank) of that step, or END
     ENC_RHYTHM_SONG_REPEAT                          = 0x6E,  // loops of that step
 
+    // Audio CPU meter (IO menu, knobs 5-6; read-only, turning PEAK resets it)
+    ENC_IO_CPU                                      = 0x6F,
+    ENC_IO_CPU_PEAK                                 = 0x70,
+
+    // Layer Song NOTE page (S + layer a third time): TONE layers
+    ENC_NOTE_MODE                                   = 0x71,  // DRUM / TONE
+    ENC_NOTE_NOTE                                   = 0x72,  // note of the selected beat
+    ENC_NOTE_ROOT                                   = 0x73,
+    ENC_NOTE_SCALE                                  = 0x74,
+    ENC_NOTE_GLIDE                                  = 0x75,
+    ENC_NOTE_TRANSPOSE                              = 0x76,  // every note of the bank, in scale steps
+
     // Must equal the number of rows before the trailing NONE row in kEncoderFuncDataLibrary,
     // which is indexed by EncoderFunc value. Never stored on SD (only the global map is
     // persisted, and it is range-checked against kMaxEncoderGlobalFunction).
-    ENC_FNC_NONE                                    = 0x6F
+    ENC_FNC_NONE                                    = 0x77
 } EncoderFunc;
 
 const EncoderFunc encoderLocalFunction[][8] = {
@@ -1300,7 +1320,7 @@ const EncoderFunc encoderLocalFunction[][8] = {
     // METRO_MENU = 0x06
     {ENC_METRO_ACTIVE, ENC_METRO_PRECOUNT, ENC_METRO_SAMPLE, ENC_METRO_VOLUME, ENC_METRO_PREVIEW, ENC_METRO_PREVIEW_LEVEL, ENC_FNC_NONE, ENC_FNC_NONE},
     // IO_MENU = 0x07
-    {ENC_IO_SYNCIN, ENC_IO_SYNCOUT, ENC_IO_MIDIIN, ENC_IO_MIDIOUT, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE},
+    {ENC_IO_SYNCIN, ENC_IO_SYNCOUT, ENC_IO_MIDIIN, ENC_IO_MIDIOUT, ENC_IO_CPU, ENC_IO_CPU_PEAK, ENC_FNC_NONE, ENC_FNC_NONE},
     // FILTER_0_MENU = 0x08
     {ENC_FILTER_0_ACTIVE, ENC_FILTER_0_TYPE, ENC_FILTER_0_SLOPE, ENC_FILTER_0_FREQ, ENC_FILTER_0_RESON, ENC_FILTER_0_DRIVE, ENC_FILTER_0_DRY, ENC_FILTER_0_WET},
     // FILTER_1_MENU = 0x09
@@ -1464,6 +1484,14 @@ constexpr EncoderFuncData kEncoderFuncDataLibrary[] = {
     {ENC_RHYTHM_SONG_STEP,    ENC_RES_S, "STEP      ", "RHYTHM", "   ", false},
     {ENC_RHYTHM_SONG_PART,    ENC_RES_S, "PART      ", "RHYTHM", "   ", false},
     {ENC_RHYTHM_SONG_REPEAT,  ENC_RES_S, "REPEAT    ", "RHYTHM", "  X", false},
+    {ENC_IO_CPU,              ENC_RES_S, "CPU LOAD  ", "SYSTEM", "  %", false},
+    {ENC_IO_CPU_PEAK,         ENC_RES_S, "CPU PEAK  ", "SYSTEM", "  %", false},
+    {ENC_NOTE_MODE,           ENC_RES_S, "MODE      ", "NOTE  ", "   ", false},
+    {ENC_NOTE_NOTE,           ENC_RES_M, "NOTE      ", "NOTE  ", "   ", false},
+    {ENC_NOTE_ROOT,           ENC_RES_S, "ROOT      ", "NOTE  ", "   ", false},
+    {ENC_NOTE_SCALE,          ENC_RES_S, "SCALE     ", "NOTE  ", "   ", false},
+    {ENC_NOTE_GLIDE,          ENC_RES_F, "GLIDE     ", "NOTE  ", "  %", false},
+    {ENC_NOTE_TRANSPOSE,      ENC_RES_S, "TRANSPOSE ", "NOTE  ", "   ", false},
 
     // Row for ENC_FNC_NONE itself, so lookups with function == ENC_FNC_NONE stay in bounds.
     {ENC_FNC_NONE,            ENC_RES_F, "----------", "      ", "   ", true}
@@ -1502,6 +1530,11 @@ const uint8_t kMaxEncoderLocalFunction              = ENC_RHYTHM_SONG_REPEAT;
 // Controller::layerSongPage == 1). Slots 2/3 hold the step strip, like the fill graph.
 const EncoderFunc kEncoderEuclidFunction[8]         = {ENC_EUCLID_STEPS, ENC_EUCLID_HITS, ENC_FNC_NONE, ENC_FNC_NONE,
                                                        ENC_EUCLID_ROTATE, ENC_EUCLID_GRID, ENC_EUCLID_LENGTH, ENC_EUCLID_MODE};
+
+// Knob map of the Layer Song NOTE page (Controller::layerSongPage == 2). Slots 2/3 hold the
+// note strip.
+const EncoderFunc kEncoderNoteFunction[8]           = {ENC_NOTE_MODE, ENC_NOTE_NOTE, ENC_FNC_NONE, ENC_FNC_NONE,
+                                                       ENC_NOTE_ROOT, ENC_NOTE_SCALE, ENC_NOTE_GLIDE, ENC_NOTE_TRANSPOSE};
 
 const uint8_t kMinEncoderResolution                 = 0;
 const uint8_t kMaxEncoderResolution                 = 8;
@@ -7031,6 +7064,7 @@ struct Beat {
 
     uint16_t data                                   = 0x0000;
     uint8_t fillTarget                              = NULL_FILL_TARGET;
+    int8_t note                                     = 0;  // TONE layers: scale degree from the root (ToneScale.h); uses the former padding byte
     uint16_t startInterval                          = 0;
     uint16_t endInterval                            = 0;
 
@@ -7054,7 +7088,12 @@ struct Beat {
         startInterval = 0;
         endInterval = 0;
         fillTarget = NULL_FILL_TARGET;
+        note = 0;
     }
+
+    void setNote(int8_t note_) noexcept { note = note_; }
+
+    int8_t getNote() const noexcept { return note; }
 
     // Active bit logic
     void setActive(bool active) noexcept {
@@ -7107,6 +7146,9 @@ struct Beat {
     uint16_t getData() const noexcept { return data; }
 };
 
+// The note lives in what used to be padding, so 3200 beats cost no extra RAM_D1.
+static_assert(sizeof(Beat) == 8, "Beat must stay 8 bytes (RAM_D1 is nearly full)");
+
 /*----------------------------------------------------------------------------*/
 
 struct Bank {
@@ -7152,6 +7194,7 @@ struct Bank {
         beat.setFillTarget(NULL_FILL_TARGET);
         beat.setFillTime(0);
         beat.setFillLevel(0);
+        beat.setNote(0);
     }
 
     void resetBeat(uint8_t beatNum_) {
@@ -7162,6 +7205,7 @@ struct Bank {
         beat.setStartInterval(0);
         beat.setEndInterval(0);
         beat.setFillType(0);
+        beat.setNote(0);
 
         if (oldTarget != NULL_FILL_TARGET) {
             if (ownerOfFillTarget(oldTarget) == beatNum_) {
@@ -7273,6 +7317,19 @@ const char kEuclidModeText[2][11]                   = {"   REPLACE", "     MERGE
 
 const char kSongModeText[3][5]                      = {"OFF", "LOOP", "ONCE"};
 
+// TONE layers: per-beat notes in a scale (Layer Song NOTE page, host-testable).
+#include "ToneScale.h"
+
+const char kToneModeText[2][11]                     = {"      DRUM", "      TONE"};
+
+// Audio blocks per second (44.1 kHz / 32 samples): the rate at which glide is applied.
+const float kAudioBlocksPerSecond                   = 44100.0f / I2S_BLOCK_SIZE;
+
+// Notes of a project live in a small file next to it (File_NNN.rwn), so the .rwf format and
+// size stay exactly as before and older firmware simply ignores them.
+const char kNoteFileEnd[]                           = ".rwn";
+const char kNoteFileRef[]                           = "RWNOTES1";
+
 // Where the chain lives in the project file's 1500-byte drumkit-style block. Both ranges are
 // unused by every other reader/writer: 175..179 lies between the reverb (..174) and the LFO
 // block (180..), and layer 1's reference slot ends with the sample name copy at +51..+83
@@ -7334,6 +7391,15 @@ struct Layer {
     bool styleFlag                                  = false;
     uint16_t styleInterval                          = 0;
     bool styleAction                                = false;
+
+    // TONE (Layer Song NOTE page): DRUM plays every beat at the layer's pitch as before; TONE
+    // plays each beat's note (scale degree) in ROOT/SCALE, optionally gliding between notes.
+    // Project data, saved in the .rwn file next to the project.
+    uint8_t toneMode                                = tone::kModeDrum;
+    uint8_t toneRoot                                = 0;
+    uint8_t toneScale                               = tone::kDefaultScale;
+    uint8_t toneGlide                               = 0;
+    float toneGlideCoef                             = 0.0f;  // derived from toneGlide (tone::glideBlockCoef)
 
     Bank bankLibrary[kBankLibrarySize];
 
@@ -7462,6 +7528,11 @@ struct BeatPlayData {
 
     float increment;
 
+    // TONE glide: once per audio block, increment moves towards glideTarget by glideCoef
+    // (0 = no glide). Zeroed with the rest of the struct, so drum beats never glide.
+    float glideTarget;
+    float glideCoef;
+
     uint8_t directionMode;
     uint8_t directionPhase;
 
@@ -7471,6 +7542,8 @@ struct BeatPlayData {
 struct LayerPlayData {
     BeatPlayData tempBeatPlayData;
     BeatPlayData activeBeatPlayData;
+
+    float toneLastIncrement                         = 0.0f;  // speed of the previous TONE note (glide start)
 
     bool beatStartFlag                              = false;
     bool beatEndFlag                                = false;

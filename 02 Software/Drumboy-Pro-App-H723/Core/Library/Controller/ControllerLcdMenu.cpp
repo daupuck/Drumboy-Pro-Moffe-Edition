@@ -1550,6 +1550,11 @@ void Controller::lcd_drawIoMenu() {
     lcd.drawText(kHeaderSyncOut, kMenuHeaderTextSize, kMenuHeaderX[1], kMenuHeaderY[1]);
     lcd.drawText(kHeaderMidiIn, kMenuHeaderTextSize, kMenuHeaderX[2], kMenuHeaderY[2]);
     lcd.drawText(kHeaderMidiOut, kMenuHeaderTextSize, kMenuHeaderX[3], kMenuHeaderY[3]);
+    lcd.drawText(kHeaderCpuLoad, kMenuHeaderTextSize, kMenuHeaderX[4], kMenuHeaderY[4]);
+    lcd.drawText(kHeaderCpuPeak, kMenuHeaderTextSize, kMenuHeaderX[5], kMenuHeaderY[5]);
+    lcd_setMenuSignState(CYAN);
+    lcd.drawText("  %", kMenuSignTextSize, kMenuSignBoxX[4], kMenuSignBoxY[4]);
+    lcd.drawText("  %", kMenuSignTextSize, kMenuSignBoxX[5], kMenuSignBoxY[5]);
 
     // 4. DATA DRAW
     // Draw current sync/MIDI values. Sign boxes 0 and 1 are managed by SyncInPpqnData/SyncOutPpqnData.
@@ -1557,6 +1562,47 @@ void Controller::lcd_drawIoMenu() {
     lcd_drawIo_SyncOutData();
     lcd_drawIo_MidiInData();
     lcd_drawIo_MidiOutData();
+    cpuShownLoad = 0xFFFF;  // force the CPU values to be drawn now
+    cpuShownPeak = 0xFFFF;
+    lcd_drawIo_CpuData();
+    lcd_drawIo_CpuPeakData();
+}
+
+namespace {
+
+// Per mille -> right-aligned "23.4" in a 10-character data field.
+void formatPermille(uint16_t permille, char* text, size_t size) {
+    if (permille > 9999) permille = 9999;
+    char value[12];
+    snprintf(value, sizeof(value), "%u.%u", static_cast<unsigned>(permille / 10), static_cast<unsigned>(permille % 10));
+    snprintf(text, size, "%10.10s", value);
+}
+
+}  // namespace
+
+void Controller::lcd_drawIo_CpuData() {
+    /// @brief Draws the average audio CPU load (knob 5, read-only).
+
+    const uint16_t value = cpuLoadPermille;
+    if (value == cpuShownLoad) return;
+    cpuShownLoad = value;
+    char text[kMenuDataTextSize + 1];
+    formatPermille(value, text, sizeof(text));
+    lcd_setMenuDataState(WHITE);
+    lcd.drawText(text, kMenuDataTextSize, kMenuDataX[4], kMenuDataY[4]);
+}
+
+void Controller::lcd_drawIo_CpuPeakData() {
+    /// @brief Draws the highest audio CPU load of a single block (knob 6; turning it resets).
+    /// Red from 80 %: above 100 % the audio ISR misses its deadline and the output clicks.
+
+    const uint16_t value = cpuPeakPermille;
+    if (value == cpuShownPeak) return;
+    cpuShownPeak = value;
+    char text[kMenuDataTextSize + 1];
+    formatPermille(value, text, sizeof(text));
+    lcd_setMenuDataState((value >= 800) ? RED : WHITE);
+    lcd.drawText(text, kMenuDataTextSize, kMenuDataX[5], kMenuDataY[5]);
 }
 
 void Controller::lcd_drawIo_SyncInData() {
@@ -3263,7 +3309,7 @@ void Controller::lcd_drawLayerSongMenu(uint8_t layerNum_) {
 }
 
 void Controller::lcd_drawLayerSong_BeatFillTypeData(uint8_t layerNum_) {
-    if (euclidPageActive()) return;  // the EUCLID page uses these slots
+    if (layerSongAltPageActive()) return;  // the EUCLID and NOTE pages use these slots
 
     /// @brief Draws beat-fill type value for selected beat.
 
@@ -3308,7 +3354,7 @@ void Controller::lcd_drawLayerSong_BeatFillTypeData(uint8_t layerNum_) {
 }
 
 void Controller::lcd_drawLayerSong_BeatFillPatternData(uint8_t layerNum_) {
-    if (euclidPageActive()) return;  // the EUCLID page uses these slots
+    if (layerSongAltPageActive()) return;  // the EUCLID and NOTE pages use these slots
 
     /// @brief Draws beat-fill pattern value for selected beat.
 
@@ -3326,7 +3372,7 @@ void Controller::lcd_drawLayerSong_BeatFillPatternData(uint8_t layerNum_) {
 }
 
 void Controller::lcd_drawLayerSong_BeatFillTimeData(uint8_t layerNum_) {
-    if (euclidPageActive()) return;  // the EUCLID page uses these slots
+    if (layerSongAltPageActive()) return;  // the EUCLID and NOTE pages use these slots
 
     /// @brief Draws beat-fill time-mode value for selected beat.
 
@@ -3353,7 +3399,7 @@ void Controller::lcd_drawLayerSong_BeatFillTimeData(uint8_t layerNum_) {
 }
 
 void Controller::lcd_drawLayerSong_BeatFillLevelData(uint8_t layerNum_) {
-    if (euclidPageActive()) return;  // the EUCLID page uses these slots
+    if (layerSongAltPageActive()) return;  // the EUCLID and NOTE pages use these slots
 
     /// @brief Draws beat-fill level mode for selected beat.
 
@@ -3377,7 +3423,7 @@ void Controller::lcd_drawLayerSong_BeatFillLevelData(uint8_t layerNum_) {
 }
 
 void Controller::lcd_drawLayerSong_MoveData(uint8_t layerNum_) {
-    if (euclidPageActive()) return;  // the EUCLID page uses these slots
+    if (layerSongAltPageActive()) return;  // the EUCLID and NOTE pages use these slots
 
     /// @brief Draws the selected beat's position under MOVE as bar.beat.sixteenth.
     /// A trailing "+" marks a beat that sits between sixteenths (e.g. recorded live or
@@ -3408,7 +3454,7 @@ void Controller::lcd_drawLayerSong_MoveData(uint8_t layerNum_) {
 }
 
 void Controller::lcd_drawLayerSong_ShiftData(uint8_t layerNum_) {
-    if (euclidPageActive()) return;  // the EUCLID page uses these slots
+    if (layerSongAltPageActive()) return;  // the EUCLID and NOTE pages use these slots
 
     /// @brief Draws the step size used by MOVE and SHIFT ALL (the Rhythm menu quantize).
 
@@ -3582,8 +3628,150 @@ void Controller::lcd_updateEuclidPlayhead() {
     }
 }
 
+/* Lcd Layer Song NOTE Page Functions ----------------------------------------*/
+
+void Controller::lcd_drawLayerSongNoteMenu(uint8_t layerNum_) {
+    /// @brief Draws the NOTE page of the Layer Song menu: headers, values and note strip.
+
+    // 1. ICON + LAYER NUMBER (same as the edit page)
+    lcd_drawMenuIcon(LAYER_SONG_MENU);
+    lcd_setMenuHeaderState(CYAN);
+    lcd.drawText(kDataMenuNum + layerNum_, 1, kMenuNumX, kMenuNumY);
+
+    // 2. HEADERS
+    lcd_setMenuHeaderState(CYAN);
+    lcd.drawText(kHeaderNoteMode, kMenuHeaderTextSize, kMenuHeaderX[0], kMenuHeaderY[0]);
+    lcd.drawText(kHeaderNoteNote, kMenuHeaderTextSize, kMenuHeaderX[1], kMenuHeaderY[1]);
+    lcd.drawText(kHeaderNoteRoot, kMenuHeaderTextSize, kMenuHeaderX[4], kMenuHeaderY[4]);
+    lcd.drawText(kHeaderNoteScale, kMenuHeaderTextSize, kMenuHeaderX[5], kMenuHeaderY[5]);
+    lcd.drawText(kHeaderNoteGlide, kMenuHeaderTextSize, kMenuHeaderX[6], kMenuHeaderY[6]);
+    lcd.drawText(kHeaderNoteTranspose, kMenuHeaderTextSize, kMenuHeaderX[7], kMenuHeaderY[7]);
+
+    // 3. SIGNS
+    lcd_setMenuSignState(CYAN);
+    const uint8_t slots[6] = {0, 1, 4, 5, 6, 7};
+    for (uint8_t i = 0; i < 6; i++) lcd.drawText((slots[i] == 6) ? "  %" : "   ", kMenuSignTextSize, kMenuSignBoxX[slots[i]], kMenuSignBoxY[slots[i]]);
+
+    // 4. VALUES + STRIP
+    for (uint8_t i = 0; i < 6; i++) lcd_drawNoteData(slots[i]);
+    lcd_drawNoteStrip();
+}
+
+void Controller::lcd_drawNoteData(uint8_t slot_) {
+    /// @brief Draws one NOTE page value (slot = knob position 0..7).
+
+    if (!notePageActive() || (selectedLayerNum == -1)) return;
+    const Layer& layer = layerLibrary[selectedLayerNum];
+    const Bank& bank = layer.bankLibrary[activeSongBank];
+    char text[kMenuDataTextSize + 1];
+    char value[12];
+    RGB16Color color = WHITE;
+
+    switch (slot_) {
+        case 0:
+            snprintf(text, sizeof(text), "%s", kToneModeText[(layer.toneMode == tone::kModeTone) ? 1 : 0]);
+            break;
+        case 1:
+            if ((selectedBeatNum >= 0) && (selectedBeatNum <= bank.lastActiveBeatNum)) {
+                tone::noteName(tone::semitones(bank.beatLibrary[selectedBeatNum].getNote(), layer.toneScale, layer.toneRoot), value, sizeof(value));
+                snprintf(text, sizeof(text), "%10.10s", value);
+            } else {
+                snprintf(text, sizeof(text), "%s", kDataDashR);
+            }
+            if (layer.toneMode != tone::kModeTone) color = GRAY_50;  // edited, but not heard as a DRUM layer
+            break;
+        case 4:
+            snprintf(text, sizeof(text), "%10.10s", tone::kNoteNames[layer.toneRoot % tone::kRootCount]);
+            break;
+        case 5:
+            snprintf(text, sizeof(text), "%10.10s", tone::kScales[tone::safeScale(layer.toneScale)].name);
+            break;
+        case 6:
+            snprintf(text, sizeof(text), "%s", kNumberDataLibrary[layer.toneGlide].nameLongR);
+            break;
+        case 7:
+            snprintf(value, sizeof(value), (noteTransposeTotal > 0) ? "+%d" : "%d", noteTransposeTotal);
+            snprintf(text, sizeof(text), "%10.10s", value);
+            break;
+        default:
+            return;
+    }
+    lcd_setMenuDataState(color);
+    lcd.drawText(text, kMenuDataTextSize, kMenuDataX[slot_], kMenuDataY[slot_]);
+}
+
+namespace {
+
+// Note strip geometry inside the fill-graph area (x 516..796, y 32..87): a small piano roll,
+// time left to right, pitch bottom to top, the root on the middle line.
+constexpr uint16_t kNoteRollTopY = kBeatGraphStartY + 13;
+constexpr uint16_t kNoteRollBottomY = kBeatGraphEndY - 11;
+constexpr uint16_t kNoteRollMidY = (kNoteRollTopY + kNoteRollBottomY) / 2;
+constexpr uint16_t kNoteMarkWidth = 4;
+
+}  // namespace
+
+void Controller::lcd_drawNoteStrip() {
+    /// @brief Draws the note strip: title, root line and one mark per beat at its pitch.
+
+    if (!notePageActive() || (selectedLayerNum == -1)) return;
+    const Layer& layer = layerLibrary[selectedLayerNum];
+    const Bank& bank = layer.bankLibrary[activeSongBank];
+    const bool toneOn = (layer.toneMode == tone::kModeTone);
+
+    lcd.setBackColor(BLACK);
+    lcd.clearRect(kBeatGraphStartX, kBeatGraphStartY, kBeatGraphWidth + 1, kBeatGraphHeight + 1);
+
+    // Title: key and scale, or a reminder that a DRUM layer ignores the notes.
+    char title[32];
+    snprintf(title, sizeof(title), "NOTES  %s %s", tone::kNoteNames[layer.toneRoot % tone::kRootCount], tone::kScales[tone::safeScale(layer.toneScale)].name);
+    lcd.setFont(FONT_05x07);
+    lcd.setAlignment(LEFT);
+    lcd.setForeColor(GRAY_75);
+    lcd.drawText(title, strlen(title), kBeatGraphStartX, kBeatGraphStartY + 2);
+    if (!toneOn) {
+        lcd.setAlignment(RIGHT);
+        lcd.setForeColor(GRAY_50);
+        lcd.drawText("DRUM: MODE TO TONE", 18, kBeatGraphEndX, kBeatGraphStartY + 2);
+    }
+
+    // Root line (the sample's pitch in this key) for orientation.
+    lcd.setForeColor(GRAY_25);
+    lcd.drawHLine(kBeatGraphStartX, kNoteRollMidY, kBeatGraphWidth);
+
+    // One mark per beat; half a pixel per semitone keeps +-30 semitones inside the strip.
+    if (songInterval > 0) {
+        for (int16_t i = 0; i <= bank.lastActiveBeatNum; i++) {
+            const Beat& beat = bank.beatLibrary[i];
+            if (!beat.getActive()) continue;
+            const int semis = tone::semitones(beat.getNote(), layer.toneScale, layer.toneRoot);
+            int y = static_cast<int>(kNoteRollMidY) - (semis / 2);
+            if (y < static_cast<int>(kNoteRollTopY)) y = kNoteRollTopY;
+            if (y > static_cast<int>(kNoteRollBottomY) - 2) y = kNoteRollBottomY - 2;
+            const uint32_t x = kBeatGraphStartX + ((static_cast<uint32_t>(beat.getStartInterval()) * (kBeatGraphWidth - kNoteMarkWidth)) / songInterval);
+            const bool selected = (i == selectedBeatNum);
+            lcd.setForeColor(selected ? CYAN : (toneOn ? WHITE : GRAY_50));
+            lcd.fillRect(static_cast<uint16_t>(x), static_cast<uint16_t>(y), kNoteMarkWidth, selected ? 3 : 2);
+        }
+    }
+
+    // CLEAR undoes the note edits made since the page opened (as on the EUCLID page).
+    lcd.setFont(FONT_05x07);
+    lcd.setAlignment(RIGHT);
+    lcd.setForeColor(GRAY_50);
+    lcd.drawText("CLEAR: UNDO", 11, kBeatGraphEndX, kBeatGraphEndY - 6);
+}
+
+void Controller::lcd_redrawNotePage() {
+    /// @brief After a selection or note change: refreshes the NOTE value and the strip.
+
+    if (!notePageActive()) return;
+    lcd_drawNoteData(1);
+    lcd_drawNoteStrip();
+}
+
 void Controller::lcd_drawLayerSong_BeatFillGraphData(uint8_t layerNum_) {
-    if (euclidPageActive()) return;  // the EUCLID page uses these slots
+    if (layerSongAltPageActive()) return;  // the EUCLID and NOTE pages use these slots
 
     /// @brief Draws beat-fill graph for selected beat and handles clear/reset states.
 

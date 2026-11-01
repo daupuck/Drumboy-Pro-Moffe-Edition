@@ -28,6 +28,7 @@ rolled back to the factory firmware the same way.
 | | Feature | In one sentence |
 |---|---|---|
 | 🥁 | [**Euclidean rhythms**](MOFFE-EDITION.md#4-euclidean-rhythms--euclid-page-in-layer-song-v106) | Pick steps and hits, turn a knob, hear the pattern change live. |
+| 🎹 | [**Melody layers**](MOFFE-EDITION.md#6-melody-layers--note-page-in-layer-song-v109) | Turn any layer into an instrument: give each beat a note, pick a key and scale, add glide. Your kick just became an 808 bassline. |
 | 🎼 | [**Song mode**](MOFFE-EDITION.md#5-song-mode--arrange-parts-into-a-song-v107) | Chain the 5 song banks into intro → verse → chorus, with repeats, looped or played once. |
 | 🎯 | [**Precise beat placement**](MOFFE-EDITION.md#1-place-beats-precisely--layer-song-menu-v103) | Move a single beat, shift a whole layer, or add one beat exactly where you want it. |
 | 🎧 | [**Sample preview**](MOFFE-EDITION.md#3-sample-preview--layer-instrument-menu-v105) | Hear a sample *before* you load it. Your ears will thank you. |
@@ -55,8 +56,8 @@ a minute, and future you will be very grateful in the unlikely event it's needed
 ### Step 2 — Download the right file
 
 1. Open **[Releases → latest](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest)**.
-2. Scroll down to **Assets** and click **`Drumboy_Pro_Fw_Moffe_01_08.bin`** (the numbers are the
-   version: `01_08` = v1.08).
+2. Scroll down to **Assets** and click **`Drumboy_Pro_Fw_Moffe_01_09.bin`** (the numbers are the
+   version: `01_09` = v1.09).
 
 What the files in Assets are:
 
@@ -73,9 +74,9 @@ What the files in Assets are:
 
 Open the matching `.sha256` file in a text editor and compare its long number with the output of:
 
-- **Windows:** `certutil -hashfile Drumboy_Pro_Fw_Moffe_01_08.bin SHA256`
-- **macOS:** `shasum -a 256 Drumboy_Pro_Fw_Moffe_01_08.bin`
-- **Linux:** `sha256sum -c Drumboy_Pro_Fw_Moffe_01_08.bin.sha256`
+- **Windows:** `certutil -hashfile Drumboy_Pro_Fw_Moffe_01_09.bin SHA256`
+- **macOS:** `shasum -a 256 Drumboy_Pro_Fw_Moffe_01_09.bin`
+- **Linux:** `sha256sum -c Drumboy_Pro_Fw_Moffe_01_09.bin.sha256`
 
 If they differ, download it again. The bootloader also checks a CRC before it writes anything, so
 a damaged file is refused rather than installed.
@@ -88,14 +89,14 @@ folders, **not** inside them.
 
 ```
 SD card
-├── Drumboy_Pro_Fw_Moffe_01_08.bin   ← here
+├── Drumboy_Pro_Fw_Moffe_01_09.bin   ← here
 ├── Sample/
 └── System/
 ```
 
 - **Keep the exact file name.** The bootloader only looks for names that start with
   `Drumboy_Pro_Fw` and are at most 32 characters long. It is very literal-minded. If your
-  browser saved it as `Drumboy_Pro_Fw_Moffe_01_08 (1).bin`, rename it back.
+  browser saved it as `Drumboy_Pro_Fw_Moffe_01_09 (1).bin`, rename it back.
 - **Make it the only `Drumboy_Pro_Fw…bin` file in the root.** The bootloader installs the first
   one it finds.
 - Don't change anything else on the card. Eject the card safely before you pull it out.
@@ -104,7 +105,7 @@ SD card
 
 Put the card back in the Drumboy Pro and switch it on. You should see:
 
-1. **UPDATING FIRMWARE** with the version (e.g. **V1.08**) and a line that fills up.
+1. **UPDATING FIRMWARE** with the version (e.g. **V1.09**) and a line that fills up.
 2. **FIRMWARE UPDATED** for a few seconds.
 3. The normal start-up, now with **sunglasses and MOFFE EDITION** on the logo. If you see the
    sunglasses, it worked. The sunglasses don't lie.

@@ -112,7 +112,9 @@ Logic that doesn't need hardware lives in small headers without HAL dependencies
 tested by `02 Software/Tests/test_layer_song_edit.cpp`, and `Global/SampleFormat.h` (WAV PCM
 conversion used by the sample loader and the preview), tested by `test_sample_format.cpp`, and
 `Global/EuclidPattern.h` (Euclidean rhythms for the Layer Song EUCLID page), tested by
-`test_euclid.cpp`, and `Global/SongChain.h` (song mode chain), tested by `test_song_chain.cpp`. CI compiles and runs every
+`test_euclid.cpp`, `Global/SongChain.h` (song mode chain), tested by `test_song_chain.cpp`, and
+`Global/ToneScale.h` (TONE layers: scales, pitch, note names, glide), tested by
+`test_tone_scale.cpp`. CI compiles and runs every
 `02 Software/Tests/test_*.cpp` with `-Wall -Wextra -Werror`.
 
 ```sh
@@ -149,7 +151,7 @@ keep the Controller method as thin glue (snapshot → pure function → write ba
    (projects), `System/Drumkit/` and `System/Preset/` hold the user's own data.
 2. **Verify the package** you are about to install:
    ```sh
-   python3 "02 Software/Firmware/make_fw_package.py" --verify build/firmware/Drumboy_Pro_Fw_Moffe_01_08.bin
+   python3 "02 Software/Firmware/make_fw_package.py" --verify build/firmware/Drumboy_Pro_Fw_Moffe_01_09.bin
    ```
 3. **Copy only the package** to the **root** of the card. Do not touch anything else.
    Make sure there is only one `Drumboy_Pro_Fw*.bin` in the root.
