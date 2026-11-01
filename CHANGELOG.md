@@ -3,6 +3,28 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v1.05
+
+**Sample preview in the Layer Instrument menu — hear a sample before you load it**
+
+- When the **INST** or **SAMPLE** knob stops for 150 ms, the selected sample plays once. Turning
+  again stops it and starts the next. The loaded sample and the layer are not touched until you
+  press **ADD** as before.
+- The selected layer's **pad** replays the preview while the selected sample differs from the
+  loaded one (outside recording; otherwise the pad plays the layer as before).
+- **PREVIEW** appears where **LOADING** does while it plays.
+- **Metronome menu, knob 5 PREVIEW** (on/off) and **knob 6 PREV LEVEL** (0–100). Saved in the
+  system preset; defaults ON / 70.
+- The preview is dry (no pitch/EQ/effects of the layer), mono, and goes through master
+  mute/volume/limiter. It streams from the SD card, so even long samples start at once and the
+  menus stay responsive.
+
+Under the hood: own 960 KB SDRAM buffer in a previously unused gap (the 15 sample sectors are
+untouched); the SD file is opened per chunk so FatFs' two-file limit is never held; the WAV
+conversion is now shared by the loader and the preview (`Global/SampleFormat.h`, host-tested).
+`System.rwp` grows from 21 to 23 data bytes inside the existing 48-byte file; older firmware
+still reads it, and files from older firmware load with the preview defaults.
+
 ## v1.04 — Moffe Edition
 
 - **Boot screen:** pixel sunglasses slide down onto the logo's eyes, then **MOFFE** appears in

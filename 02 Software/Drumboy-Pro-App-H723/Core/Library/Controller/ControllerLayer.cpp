@@ -3,6 +3,19 @@
 
 #include "Controller.h"
 
+#include "SampleFormat.h"
+
+namespace {
+
+// Raw SD read buffer (RAM_D1), shared by the sample loader and the sample preview. Both run
+// only from the main loop and the loader stops the preview first, so they never overlap.
+// 24576 = 4 x 6144; every chunk size used is a multiple of 6144, which divides evenly by every
+// possible frame size (1..32 bytes), so a chunk never ends mid-frame.
+constexpr uint32_t kSdRawBufferSize = 24576;
+alignas(32) uint8_t sdRawBuffer[kSdRawBufferSize];
+
+}  // namespace
+
 ////////////////////////////////////////////////////////////////////////////////
 /* Song Functions ------------------------------------------------------------*/
 ////////////////////////////////////////////////////////////////////////////////
@@ -1075,7 +1088,9 @@ void Controller::layerInst_setSampleLoaded(uint8_t layerNum_) {
     /// Handles metadata copy, sector allocation, PCM conversion, normalization, and UI refresh.
 
     // 1. FATFS PRE-CLEANUP
-    // Force-close any previous file handle to start from clean FatFs state.
+    // Stop any sample preview first: it shares the SD read buffer with this loader.
+    // Then force-close any previous file handle to start from clean FatFs state.
+    preview_stop();
     f_close(&sd.file);
     Layer& layer = layerLibrary[layerNum_];
     const int16_t prevSampleLoaded = layer.sampleLoaded;
@@ -1120,32 +1135,16 @@ void Controller::layerInst_setSampleLoaded(uint8_t layerNum_) {
             // {1,2,3,4}), so a chunk boundary never lands mid-sample. Any multiple of 6144
             // inherits that same guarantee, so 4x keeps the property while quadrupling read
             // throughput.
-            const uint32_t rawArraySize = 24576;
-            static uint8_t rawArray[rawArraySize];
+            const uint32_t rawArraySize = kSdRawBufferSize;
+            uint8_t* rawArray = sdRawBuffer;  // shared with the sample preview (never used concurrently)
 
-            // Determine Format Coefficients
-            uint32_t sRate = layer.wavLoadedData.fmt_chunk.sampleRate;
-            uint8_t coefSamplerate = (sRate >= 176400) ? 4 : (sRate >= 88200 ? 2 : 1);
-            uint8_t coefChannel = (layer.wavLoadedData.fmt_chunk.nbrChannels == 2) ? 2 : 1;
-            uint8_t coefBps = (layer.wavLoadedData.fmt_chunk.bitPerSample / 8);
-            uint32_t offsetSize = coefSamplerate * coefChannel * coefBps;
-
-            // Determine Upsampling Factor (targeting standard 44.1kHz)
-            uint16_t writeCount = 1;
-            if (sRate < 44100 && sRate > 0) {
-                if (sRate == 8000)
-                    writeCount = 6;
-                else if (sRate == 11025)
-                    writeCount = 4;
-                else if (sRate == 16000)
-                    writeCount = 3;
-                else if (sRate == 22050)
-                    writeCount = 2;
-                else if (sRate == 24000)
-                    writeCount = 2;
-                else
-                    writeCount = (44100 / sRate);
-            }
+            // Determine Format Coefficients and Upsampling Factor (targeting 44.1kHz).
+            // Shared with the sample preview; see Global/SampleFormat.h.
+            const sampleformat::Plan formatPlan = sampleformat::plan(layer.wavLoadedData.fmt_chunk.sampleRate,
+                                                                     layer.wavLoadedData.fmt_chunk.nbrChannels,
+                                                                     layer.wavLoadedData.fmt_chunk.bitPerSample);
+            const uint32_t offsetSize = formatPlan.offsetSize;
+            const uint16_t writeCount = formatPlan.writeCount;
 
             // Normalization & Tracking Vars
             uint32_t sdramDataCounter = 0;
@@ -1230,22 +1229,8 @@ void Controller::layerInst_setSampleLoaded(uint8_t layerNum_) {
                             }
                             uint32_t readSamples = sd.bytesread / offsetSize;
                             for (uint32_t j = 0; j < readSamples; j++) {
-                                float val = 0.0f;
-                                uint32_t idx = j * offsetSize;
-
-                                // Multiformat PCM to Float Conversion
-                                if (layer.wavLoadedData.fmt_chunk.bitPerSample == 8) {
-                                    val = ((float)((uint8_t)rawArray[idx] - 128)) / 128.0f;
-                                } else if (layer.wavLoadedData.fmt_chunk.bitPerSample == 16) {
-                                    int16_t s16 = (int16_t)(rawArray[idx] | (rawArray[idx + 1] << 8));
-                                    val = (float)s16 / 32768.0f;
-                                } else if (layer.wavLoadedData.fmt_chunk.bitPerSample == 24) {
-                                    int32_t s24 = (rawArray[idx] | (rawArray[idx + 1] << 8) | (rawArray[idx + 2] << 16));
-                                    if (s24 & 0x800000) s24 |= 0xFF000000;
-                                    val = (float)s24 / 8388607.0f;
-                                } else if (layer.wavLoadedData.fmt_chunk.bitPerSample == 32) {
-                                    memcpy(&val, &rawArray[idx], 4);
-                                }
+                                // Multiformat PCM to Float Conversion (Global/SampleFormat.h)
+                                const float val = sampleformat::toFloat(&rawArray[j * offsetSize], formatPlan.bitsPerSample);
                                 if (val < minFloat) minFloat = val;
                                 if (val > maxFloat) maxFloat = val;
 
@@ -3159,6 +3144,175 @@ void Controller::layerSong_triggerBank(uint8_t bankNum_) {
             bankShiftFlag = false;
             targetSongBank = bankNum_;
             lcd_drawSongBankTab(bankNum_, false);
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/* Sample Preview Functions --------------------------------------------------*/
+////////////////////////////////////////////////////////////////////////////////
+
+// Lets the user hear the *selected* sample in the Layer Inst menu before loading it with ADD.
+// The file is streamed from SD into RAM_PREVIEW_ADDRESS in kPreviewChunkBytes steps from the
+// main loop (preview_service), and the audio ISR (processAudioSend) plays whatever has been
+// written so far. Nothing here touches the layers' sample sectors or loaded samples.
+
+namespace {
+
+// Opened and closed for every chunk: FatFs is configured with _FS_LOCK = 2 (two open files at
+// once), and other SD operations may need both, so the preview never holds a file open between
+// main-loop steps. Static (not on the stack) because a FIL carries a 4 KB sector buffer.
+FIL previewChunkFile;
+
+}  // namespace
+
+void Controller::preview_request(uint8_t layerNum_) {
+    /// @brief Debounced preview: stop the current one now, start this layer's selected sample
+    /// once the knob has rested for kPreviewDebounceMs (handled in preview_service).
+
+    if (!previewActive) return;
+    preview_stop();
+    previewRequestPending = true;
+    previewRequestTick = HAL_GetTick();
+    previewRequestLayer = static_cast<int8_t>(layerNum_);
+}
+
+void Controller::preview_stop() {
+    /// @brief Stops any preview: cancels a pending request and the streaming, and lets the
+    /// audio ISR fade the sound out (one 32-sample block) before the buffer can be reused.
+
+    previewRequestPending = false;
+    if (previewPlay.streaming) preview_finishStreaming();
+
+    if (previewPlay.playing) {
+        previewPlay.stopRequest = true;
+        const uint32_t start = HAL_GetTick();
+        while (previewPlay.playing && ((HAL_GetTick() - start) <= kPreviewStopTimeoutMs)) {
+        }
+        // If the audio stream is not running, nothing would clear the flags.
+        previewPlay.playing = false;
+        previewPlay.stopRequest = false;
+    }
+    preview_showIndicator(false);
+}
+
+void Controller::preview_finishStreaming() {
+    /// @brief Marks the stream complete; the ISR plays to the last written sample and stops.
+
+    previewPlay.streaming = false;
+}
+
+bool Controller::preview_start(uint8_t layerNum_) {
+    /// @brief Starts previewing the selected (not necessarily loaded) sample of a layer.
+    /// Reads the first chunk right away so sound starts within one main-loop step, then keeps
+    /// streaming from preview_service(). Returns false if there is nothing valid to play.
+
+    preview_stop();
+    if ((!previewActive) || (layerNum_ >= kLayerLibrarySize)) return false;
+
+    // 1. VALIDATE SELECTION (the WAV header was parsed by layerInst_setSampleSelected)
+    Layer& layer = layerLibrary[layerNum_];
+    if ((layer.sampleSelected == -1) || layer.sampleSelectedReadError || layer.sampleSelectedTypeError) return false;
+    if (layer.sampleSelectedData.sampleByteSize == 0) return false;
+
+    const WavData& wav = layer.wavSelectedData;
+    previewPlan = sampleformat::plan(wav.fmt_chunk.sampleRate, wav.fmt_chunk.nbrChannels, wav.fmt_chunk.bitPerSample);
+    if ((previewPlan.offsetSize == 0) || ((kPreviewChunkBytes % previewPlan.offsetSize) != 0)) return false;
+
+    // 2. STREAM STATE
+    static_assert(sizeof(previewFileName) == sizeof(layer.sampleSelectedData.fileName), "file name buffer size");
+    memcpy(previewFileName, layer.sampleSelectedData.fileName, sizeof(previewFileName));
+    previewFileName[sizeof(previewFileName) - 1] = '\0';
+    previewDataStart = wav.data_chunk.chunkStartByte + 8;
+    previewBytesTotal = layer.sampleSelectedData.sampleByteSize;
+    previewBytesRead = 0;
+    previewOutCount = 0;
+    previewLayer = static_cast<int8_t>(layerNum_);
+
+    previewPlay.counter = 0;
+    previewPlay.filled = 0;
+    previewPlay.gain = kNumberDataLibrary[previewLevel].powMultiplier;
+    previewPlay.stopRequest = false;
+    previewPlay.streaming = true;
+
+    // 3. FIRST CHUNK, THEN START PLAYBACK
+    if (!preview_streamChunk()) {
+        preview_finishStreaming();
+        return false;
+    }
+    __DMB();
+    previewPlay.playing = true;
+    preview_showIndicator(true);
+    return true;
+}
+
+bool Controller::preview_streamChunk() {
+    /// @brief Reads up to kPreviewChunkBytes of PCM, converts it like the loader does and
+    /// appends it to the preview buffer. Returns false on a read error.
+
+    if (!previewPlay.streaming) return false;
+
+    const uint32_t remaining = previewBytesTotal - previewBytesRead;
+    uint32_t toRead = (remaining < kPreviewChunkBytes) ? remaining : kPreviewChunkBytes;
+    toRead -= toRead % previewPlan.offsetSize;  // whole frames only
+
+    bool ok = false;
+    UINT bytesRead = 0;
+    if ((toRead > 0) && (previewOutCount < kSampleSize)) {
+        if (f_open(&previewChunkFile, previewFileName, FA_READ) == FR_OK) {
+            ok = (f_lseek(&previewChunkFile, previewDataStart + previewBytesRead) == FR_OK) &&
+                 (f_read(&previewChunkFile, sdRawBuffer, toRead, &bytesRead) == FR_OK) && (bytesRead > 0);
+            f_close(&previewChunkFile);
+        }
+    }
+
+    if (ok) {
+        // Convert and write the data first, then publish the new fill level to the ISR.
+        float* out = reinterpret_cast<float*>(RAM_PREVIEW_ADDRESS);
+        const uint32_t frames = bytesRead / previewPlan.offsetSize;
+        for (uint32_t i = 0; i < frames; i++) {
+            const float val = sampleformat::toFloat(&sdRawBuffer[i * previewPlan.offsetSize], previewPlan.bitsPerSample);
+            for (uint8_t k = 0; (k < previewPlan.writeCount) && (previewOutCount < kSampleSize); k++) {
+                out[previewOutCount++] = val;
+            }
+        }
+        previewBytesRead += bytesRead;
+        __DMB();
+        previewPlay.filled = previewOutCount;
+    }
+
+    if ((!ok) || (previewBytesRead >= previewBytesTotal) || (previewOutCount >= kSampleSize)) preview_finishStreaming();
+    return ok;
+}
+
+void Controller::preview_service() {
+    /// @brief Main-loop step: start a debounced preview when due, stream one chunk, and clear
+    /// the on-screen indicator when playback has ended.
+
+    if (previewRequestPending && ((HAL_GetTick() - previewRequestTick) >= kPreviewDebounceMs)) {
+        previewRequestPending = false;
+        if (previewRequestLayer >= 0) preview_start(static_cast<uint8_t>(previewRequestLayer));
+    }
+    if (previewPlay.streaming) preview_streamChunk();
+    if (previewIndicator && (!previewPlay.playing) && (!previewPlay.streaming)) preview_showIndicator(false);
+}
+
+void Controller::preview_showIndicator(bool show_) {
+    /// @brief Shows/hides "PREVIEW" where "LOADING" appears in the Layer Inst menu.
+
+    const bool visible = ((menu == LAYER_INST_0_MENU) || (menu == LAYER_INST_1_MENU) || (menu == LAYER_INST_2_MENU)) &&
+                         (previewLayer == selectedLayerNum);
+    if (show_) {
+        if (visible) {
+            lcd_setMenuNumState(CYAN);
+            lcd.drawText("    PREVIEW", 11, kMenuSignBoxX[1], kMenuSignBoxY[1]);
+            previewIndicator = true;
+        }
+    } else if (previewIndicator) {
+        previewIndicator = false;
+        if (visible) {
+            lcd.setBackColor(BLACK);
+            lcd.clearRect(kMenuSignBoxX[1] - 70, kMenuSignBoxY[1], 70, kMenuSignBoxHeight);
         }
     }
 }

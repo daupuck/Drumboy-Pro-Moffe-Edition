@@ -55,8 +55,12 @@ and checked against the code in this repo.
 - **FTZ + default-NaN** are set at startup; DSP code must not rely on denormals.
 - Audio is `float` internally; int ↔ float conversion happens only in `processAudioReceive` /
   `processAudioSend`. Hot helpers in `Global.h` are `ALWAYSINLINE`.
-- Sample data streams from the 16 MB SDRAM at `0xC0000000`; Delay/Chorus use dedicated SDRAM
-  ring buffers. `RAM_D1` (320 KB) is ~90 % used — large new buffers should go to SDRAM.
+- Sample data streams from the 16 MB SDRAM at `0xC0000000` (15 sample sectors); Delay/Chorus use
+  dedicated SDRAM ring buffers, and the Layer Inst sample preview has its own buffer at
+  `RAM_PREVIEW_ADDRESS` (`0xC0EA6000`, the former gap before the images). `RAM_D1` (320 KB) is
+  ~91 % used — large new buffers should go to SDRAM.
+- FatFs allows **two open files at once** (`_FS_LOCK = 2`). Background work (like the sample
+  preview) must not hold a file open between main-loop steps; open, read, close per step.
 - The I2S clock is PLL3 in fractional mode (44.099 kHz); don't touch PLL3 or the I2S config
   without measuring pitch.
 
@@ -105,7 +109,8 @@ cmake --build --preset firmware
 Logic that doesn't need hardware lives in small headers without HAL dependencies, so the
 **same code** that runs on the device can be tested on a PC. Example:
 `Drumboy-Pro-App-H723/Core/Library/Global/LayerSongEdit.h` (Layer Song MOVE / SHIFT ALL / ADD),
-tested by `02 Software/Tests/test_layer_song_edit.cpp`. CI compiles and runs every
+tested by `02 Software/Tests/test_layer_song_edit.cpp`, and `Global/SampleFormat.h` (WAV PCM
+conversion used by the sample loader and the preview), tested by `test_sample_format.cpp`. CI compiles and runs every
 `02 Software/Tests/test_*.cpp` with `-Wall -Wextra -Werror`.
 
 ```sh

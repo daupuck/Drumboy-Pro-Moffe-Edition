@@ -232,7 +232,18 @@ void Controller::keyboard_action() {
                             ledLayerSelectData = 0x03 << (selectedEncoderBank * 2);
                         } else {
                             Layer& layer = layerLibrary[layerNum];
-                            if ((!layer.mute) && (layer.samplePlay)) layer_playBeat(layerNum, 1.0f);
+                            // Layer Inst menu: the selected layer's pad auditions the *selected*
+                            // sample while it differs from the loaded one. Not while recording,
+                            // which writes beats that play the loaded sound.
+                            const bool inInstMenu = (menu == LAYER_INST_0_MENU) || (menu == LAYER_INST_1_MENU) || (menu == LAYER_INST_2_MENU);
+                            const bool auditionSelected = inInstMenu && previewActive && (!recordActive) && (layerNum == selectedLayerNum) &&
+                                                          (layer.sampleSelected != -1) &&
+                                                          (strcmp(layer.sampleSelectedData.fileName, layer.sampleLoadedData.fileName) != 0);
+                            if (auditionSelected) {
+                                preview_start(layerNum);
+                            } else if ((!layer.mute) && (layer.samplePlay)) {
+                                layer_playBeat(layerNum, 1.0f);
+                            }
                             if (recordActive) {
                                 if (!metronome.precountState) {
                                     layerSong_setBeat(layerNum, activeSongBank, playInterval, 0, 0, 0, 0, true);
@@ -2129,6 +2140,14 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
             if (metronome.volume < kMaxMetroVolume) metro_setVolume(metronome.volume + 1);
             break;
 
+        case ENC_METRO_PREVIEW:
+            metro_setPreviewActive(!previewActive);
+            break;
+
+        case ENC_METRO_PREVIEW_LEVEL:
+            if (previewLevel < kMaxPreviewLevel) metro_setPreviewLevel(previewLevel + 1);
+            break;
+
             // Filter 0 functions
 
         case ENC_FILTER_0_ACTIVE:
@@ -2455,6 +2474,7 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
         case ENC_INST_2_INST:
             if (instLibrarySize > 0)
                 (layerLibrary[selectedLayerNum].instSelected < (instLibrarySize - 1)) ? layerInst_setInstSelected(selectedLayerNum, layerLibrary[selectedLayerNum].instSelected + 1) : layerInst_setInstSelected(selectedLayerNum, -1);
+            preview_request(selectedLayerNum);  // audition the instrument's first sample once the knob rests
             break;
 
         case ENC_INST_0_SAMPLE:
@@ -2462,6 +2482,7 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
         case ENC_INST_2_SAMPLE:
             if ((layerLibrary[selectedLayerNum].instSelected != -1) && (sampleLibrarySize[layerLibrary[selectedLayerNum].instSelected] > 0))
                 (layerLibrary[selectedLayerNum].sampleSelected < (sampleLibrarySize[layerLibrary[selectedLayerNum].instSelected] - 1)) ? layerInst_setSampleSelected(selectedLayerNum, layerLibrary[selectedLayerNum].sampleSelected + 1) : layerInst_setSampleSelected(selectedLayerNum, 0);
+            preview_request(selectedLayerNum);  // audition once the knob rests
             break;
 
         case ENC_INST_0_LEVEL:
@@ -2709,6 +2730,14 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
         case ENC_METRO_VOLUME:
             if (metronome.volume > kMinMetroVolume)
                 metro_setVolume(metronome.volume - 1);
+            break;
+
+        case ENC_METRO_PREVIEW:
+            metro_setPreviewActive(!previewActive);
+            break;
+
+        case ENC_METRO_PREVIEW_LEVEL:
+            if (previewLevel > kMinPreviewLevel) metro_setPreviewLevel(previewLevel - 1);
             break;
 
             // Filter 0 functions
@@ -3007,6 +3036,7 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
         case ENC_INST_2_INST:
             if (instLibrarySize > 0)
                 (layerLibrary[selectedLayerNum].instSelected > -1) ? layerInst_setInstSelected(selectedLayerNum, layerLibrary[selectedLayerNum].instSelected - 1) : layerInst_setInstSelected(selectedLayerNum, instLibrarySize - 1);
+            preview_request(selectedLayerNum);  // audition the instrument's first sample once the knob rests
             break;
 
         case ENC_INST_0_SAMPLE:
@@ -3014,6 +3044,7 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
         case ENC_INST_2_SAMPLE:
             if ((layerLibrary[selectedLayerNum].instSelected != -1) && (sampleLibrarySize[layerLibrary[selectedLayerNum].instSelected] > 0))
                 (layerLibrary[selectedLayerNum].sampleSelected > 0) ? layerInst_setSampleSelected(selectedLayerNum, layerLibrary[selectedLayerNum].sampleSelected - 1) : layerInst_setSampleSelected(selectedLayerNum, sampleLibrarySize[layerLibrary[selectedLayerNum].instSelected] - 1);
+            preview_request(selectedLayerNum);  // audition once the knob rests
             break;
 
         case ENC_INST_0_LEVEL:
