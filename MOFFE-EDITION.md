@@ -1,17 +1,26 @@
 # Drumboy Pro – Moffe Edition
 
-Moffe Edition is a community-extended version of the Drumboy Pro firmware by Randomwaves
-(based on the factory firmware v1.01). This page collects everything that is new compared with
-the factory firmware: what each feature does and how to use it on the device.
+Moffe Edition is **unofficial community firmware** for the Drumboy Pro, based on the open-source
+[Randomwaves/Drumboy-Pro](https://github.com/Randomwaves/Drumboy-Pro) (factory firmware v1.01). It
+is not affiliated with or endorsed by Randomwaves. This page collects everything that is new
+compared with the factory firmware: what each feature does and how to use it on the device.
 
-- **Current version:** v1.08
-- **User manual (Randomwaves):** [02 Software/drumboy-pro-user-manual.pdf](<02 Software/drumboy-pro-user-manual.pdf>) –
-  page numbers below refer to it.
+- **Current version:** v1.08 — download from the repository's [Releases](../../releases)
+- **User manual:** published by Randomwaves at [randomwaves.io](https://www.randomwaves.io) (it
+  describes the factory firmware); page numbers below refer to it.
 - **Technical details per version:** [CHANGELOG.md](CHANGELOG.md)
 - **Build, test and install:** [02 Software/DEVELOPMENT.md](<02 Software/DEVELOPMENT.md>)
 
-> **Status (1 November 2026):** everything is built, unit-tested and verified by CI, but has not
-> yet been tested on a physical Drumboy Pro. Back up your SD card before installing.
+> [!WARNING]
+> **Use at your own risk.** This firmware is provided "as is", without warranty of any kind (see
+> [LICENSE](LICENSE)). Back up your whole SD card before installing, keep the factory firmware for
+> rolling back, and only flash the bootloader over SWD if you know what you are doing. Modifying
+> the firmware may affect your warranty with Randomwaves. Report problems in this repository's
+> [Issues](../../issues), not to Randomwaves.
+
+> **Status (1 November 2026):** every version is built, unit-tested and verified by CI. v1.07 has
+> been run on a Drumboy Pro by the maintainer, with song mode confirmed working; the other features
+> are in hardware testing. Each release says what has been tested on hardware.
 
 ## Knob numbering
 
@@ -190,19 +199,25 @@ loop.
 
 ## Install and roll back
 
-1. Back up the whole SD card. `System/File`, `System/Drumkit` and `System/Preset` contain your
+1. Download `Drumboy_Pro_Fw_Moffe_01_08.bin` from [Releases](../../releases) and check it
+   against the `.sha256` file next to it (optional but recommended).
+2. Back up the whole SD card. `System/File`, `System/Drumkit` and `System/Preset` contain your
    own data.
-2. Copy the package `Drumboy_Pro_Fw_01_08.bin` to the **root** of the card. Do not rename the
-   file, and do not change anything else on the card.
-3. Insert the card and power on. The screen shows *UPDATING FIRMWARE V1.08*, then
+3. Copy the package to the **root** of the card. **Do not rename it** — the bootloader only finds
+   names starting with `Drumboy_Pro_Fw` and up to 32 characters long — and do not change anything
+   else on the card. Make sure it is the **only** `Drumboy_Pro_Fw*.bin` file in the root — the
+   bootloader installs the first one it finds.
+4. Insert the card and power on. The screen shows *UPDATING FIRMWARE V1.08*, then
    *FIRMWARE UPDATED*.
 
 **Roll back:** copy an older package to the root the same way. The factory version is
 `02 Software/Firmware/Drumboy_Pro_Fw_01_01.bin`. The bootloader accepts any version.
 
-Build the package with `cmake --build --preset firmware` (it ends up in `build/firmware/`), or
-download it from the GitHub Actions run of any commit. See
-[DEVELOPMENT.md](<02 Software/DEVELOPMENT.md>).
+Moffe Edition packages have `Moffe` in their file name, so they can never be confused with an
+official Randomwaves update (`Drumboy_Pro_Fw_MM_mm.bin`); the bootloader accepts both.
+
+To build the package yourself: `cmake --build --preset firmware` (it ends up in
+`build/firmware/`). See [DEVELOPMENT.md](<02 Software/DEVELOPMENT.md>).
 
 ## For developers
 

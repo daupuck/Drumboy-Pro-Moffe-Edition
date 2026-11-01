@@ -1,0 +1,16 @@
+name: Feature idea
+description: Suggest a new feature or improvement for the Moffe Edition firmware
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like to do on the Drumboy Pro?
+      description: Describe the musical goal or workflow, not only the implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: how
+    attributes:
+      label: How could it work on the device?
+      description: Which menu, keys or knobs would you expect to use? Which knobs are free there?

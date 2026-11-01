@@ -12,12 +12,12 @@ Controller::updateFirmware):
     32      4     CRC-32 of payload (zlib / ISO-3309)
     36      n     payload = raw application image linked at 0x08020000
 
-Copy the resulting Drumboy_Pro_Fw_MM_mm.bin to the root of the SD card and power on.
+Copy the resulting Drumboy_Pro_Fw_Moffe_MM_mm.bin to the root of the SD card and power on.
 
 Examples:
     make_fw_package.py Drumboy-Pro-App-H723.bin --version 1.02
     make_fw_package.py Drumboy-Pro-App-H723.bin --version-header .../Global/Global.h --out-dir build/firmware
-    make_fw_package.py --verify Drumboy_Pro_Fw_01_02.bin
+    make_fw_package.py --verify Drumboy_Pro_Fw_Moffe_01_08.bin
 
 This replaces nothing: Drumboy-Pro-Firmware-Builder.cpp still works and produces the
 same bytes. This script adds the safety checks the bootloader performs, so a package
@@ -25,6 +25,7 @@ that would be rejected (or brick the update) is refused up front.
 """
 
 import argparse
+import fnmatch
 import re
 import struct
 import sys
@@ -128,9 +129,24 @@ def verify(package: bytes) -> tuple[int, int, int, int]:
     return major, minor, size, crc
 
 
+# "Moffe" in the name keeps these packages apart from official Randomwaves updates
+# (Drumboy_Pro_Fw_MM_mm.bin). The name must still match the bootloader's search pattern.
+PACKAGE_PREFIX = "Drumboy_Pro_Fw_Moffe_"
+BOOTLOADER_PATTERN = "Drumboy_Pro_Fw?*.bin"  # f_findfirst pattern in Drumboy-Pro-Boot-H723
+# The bootloader's FatFs is built with _MAX_LFN = 32 (Boot FATFS/Target/ffconf.h). A longer name
+# is only visible as its 8.3 short name (e.g. DRUMBO~1.BIN), which does not match the pattern,
+# so the update would be silently ignored.
+BOOTLOADER_MAX_LFN = 32
+
+
 def package_name(major: int, minor: int) -> str:
-    # Must match the bootloader's search pattern "Drumboy_Pro_Fw?*.bin".
-    return f"Drumboy_Pro_Fw_{major:02d}_{minor:02d}.bin"
+    name = f"{PACKAGE_PREFIX}{major:02d}_{minor:02d}.bin"
+    if not fnmatch.fnmatchcase(name, BOOTLOADER_PATTERN):
+        raise PackageError(f"{name} would not be found by the bootloader ({BOOTLOADER_PATTERN})")
+    if len(name) > BOOTLOADER_MAX_LFN:
+        raise PackageError(f"{name} is {len(name)} characters; the bootloader only sees names up to "
+                           f"{BOOTLOADER_MAX_LFN} (longer ones appear as 8.3 short names and are ignored)")
+    return name
 
 
 def main(argv=None) -> int:

@@ -20,5 +20,9 @@ Release/
 # Python
 __pycache__/
 
+# Randomwaves' user manual is "all rights reserved" and not part of this repository; keep a
+# local copy here if you like, it will not be committed.
+drumboy-pro-user-manual.pdf
+
 # Rhino
 *.3dmbak

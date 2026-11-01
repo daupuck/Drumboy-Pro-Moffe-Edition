@@ -8,6 +8,14 @@ SD-card package is named after it). Rolling back = installing an older package.
 - **EUCLID page:** the step strip now shows **CLEAR: UNDO** at the bottom right, so it is
   visible that the CLEAR key restores the beats the layer had when the page opened. (The
   device font has no `=`, hence the colon.)
+- **Package name:** SD packages are now called `Drumboy_Pro_Fw_Moffe_MM_mm.bin`, so they can't be
+  confused with official Randomwaves updates. The bootloader (factory or Moffe) accepts both;
+  `make_fw_package.py` checks the name against the bootloader's search pattern and its 32-character
+  long-file-name limit.
+- **Repository prepared for public sharing:** clear "unofficial, use at your own risk" notices,
+  credits and a `NOTICE` file for third-party licenses, a release workflow (tag → draft release
+  with package, bootloader and SHA-256 checksums), issue templates and `CONTRIBUTING.md`. The
+  Randomwaves user manual is no longer included (it is not MIT-licensed); it is linked instead.
 
 ## v1.07
 

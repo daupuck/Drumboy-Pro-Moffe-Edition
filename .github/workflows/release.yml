@@ -1,0 +1,135 @@
+name: Release
+
+# Push a tag like v1.08 to build that exact commit and create a DRAFT GitHub release with the
+# SD-card package, the bootloader binary and SHA-256 checksums. The draft is not visible to users
+# until the maintainer reviews the notes (e.g. adds what was tested on hardware) and publishes it.
+#
+#   git tag v1.08 && git push origin v1.08
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write   # create the release
+
+env:
+  # Keep in sync with firmware.yml and cmake/arm-none-eabi.cmake.
+  ARM_GCC_VERSION: 13.3.rel1
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check that the tag matches the firmware version
+        id: version
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          version=$(python3 - <<'EOF'
+          import importlib.util, pathlib
+          spec = importlib.util.spec_from_file_location("pkg", "02 Software/Firmware/make_fw_package.py")
+          pkg = importlib.util.module_from_spec(spec); spec.loader.exec_module(pkg)
+          major, minor = pkg.version_from_header(pathlib.Path("02 Software/Drumboy-Pro-App-H723/Core/Library/Global/Global.h"))
+          print(f"{major}.{minor:02d}")
+          EOF
+          )
+          echo "Tag ${tag}, firmware v${version}"
+          if [ "${tag}" != "v${version}" ]; then
+            echo "::error::Tag ${tag} does not match the firmware version v${version} (kVersionMajor/kVersionMinor in Global.h)"
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Arm GNU Toolchain
+        id: cache-arm
+        uses: actions/cache@v4
+        with:
+          path: ~/arm-gnu-toolchain
+          key: arm-gnu-toolchain-${{ env.ARM_GCC_VERSION }}-x86_64
+
+      - name: Install Arm GNU Toolchain ${{ env.ARM_GCC_VERSION }}
+        if: steps.cache-arm.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          url="https://developer.arm.com/-/media/Files/downloads/gnu/${ARM_GCC_VERSION}/binrel/arm-gnu-toolchain-${ARM_GCC_VERSION}-x86_64-arm-none-eabi.tar.xz"
+          mkdir -p ~/arm-gnu-toolchain
+          curl -fsSL "$url" | tar -xJ --strip-components=1 -C ~/arm-gnu-toolchain
+
+      - name: Install Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Host unit tests
+        shell: bash
+        run: |
+          for t in "02 Software/Tests"/test_*.cpp; do
+            name=$(basename "$t" .cpp)
+            g++ -std=c++17 -Wall -Wextra -Werror -I"02 Software/Drumboy-Pro-App-H723/Core/Library/Global" "$t" -o "/tmp/$name"
+            "/tmp/$name"
+          done
+
+      - name: Build
+        shell: bash
+        run: |
+          export ARM_TOOLCHAIN_DIR="$HOME/arm-gnu-toolchain"
+          cmake --preset firmware
+          cmake --build --preset firmware
+
+      - name: Collect, verify and checksum the release files
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp build/firmware/Drumboy_Pro_Fw_Moffe_*.bin dist/
+          cp build/Drumboy-Pro-Boot-H723.bin dist/Drumboy-Pro-Moffe-Bootloader-${GITHUB_REF_NAME}.bin
+          for pkg in dist/Drumboy_Pro_Fw_Moffe_*.bin; do
+            python3 "02 Software/Firmware/make_fw_package.py" --verify "$pkg"
+          done
+          (cd dist && for f in *.bin; do sha256sum "$f" > "$f.sha256"; done)
+          ls -l dist
+
+      - name: Write release notes
+        shell: bash
+        run: |
+          version="${{ steps.version.outputs.version }}"
+          {
+            echo "**Unofficial community firmware for the Randomwaves Drumboy Pro** — not affiliated with or endorsed by Randomwaves."
+            echo
+            echo "> [!WARNING]"
+            echo "> **Use at your own risk.** Provided \"as is\", without warranty of any kind (see LICENSE). Back up your whole SD card first and keep the factory firmware for rolling back. Report problems in this repository's Issues, not to Randomwaves."
+            echo
+            echo "**Hardware testing:** _maintainer: say what was tested on a device before publishing this draft._"
+            echo
+            echo "## What's new in v${version}"
+            awk -v ver="## v${version}" '
+              index($0, ver) == 1 { on = 1; next }
+              on && /^## / { exit }
+              on { print }
+            ' CHANGELOG.md
+            echo
+            echo "## Install"
+            echo "1. Back up the whole SD card."
+            echo "2. Copy \`Drumboy_Pro_Fw_Moffe_*.bin\` to the **root** of the card (do not rename it; it must be the only \`Drumboy_Pro_Fw*.bin\` there)."
+            echo "3. Power on: *UPDATING FIRMWARE V${version}* → *FIRMWARE UPDATED*."
+            echo
+            echo "Roll back by installing an older package the same way; the factory v1.01 package is in \`02 Software/Firmware/\`."
+            echo "Full guide and feature overview: [MOFFE-EDITION.md](../../blob/${GITHUB_REF_NAME}/MOFFE-EDITION.md)."
+            echo
+            echo "## Files"
+            echo "- \`Drumboy_Pro_Fw_Moffe_*.bin\` — SD-card update package (this is what most users need)."
+            echo "- \`Drumboy-Pro-Moffe-Bootloader-*.bin\` — **advanced users only**: bootloader for flashing over SWD/ST-Link at 0x08000000. Not needed for SD updates."
+            echo "- \`*.sha256\` — checksums (\`sha256sum -c <file>.sha256\`)."
+          } > release-notes.md
+          cat release-notes.md
+
+      - name: Create draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --draft \
+            --title "Moffe Edition ${GITHUB_REF_NAME}" \
+            --notes-file release-notes.md \
+            --verify-tag

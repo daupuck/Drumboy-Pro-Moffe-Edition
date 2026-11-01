@@ -1,14 +1,37 @@
-# Drumboy Pro
+# Drumboy Pro – Moffe Edition
 
-📖 **[Developer Wiki](https://www.randomwaves.io/drumboy-pro/drumboy-pro-wiki.html)** — full hardware specs, schematics walkthrough, firmware architecture, DSP internals, and memory map.
+**Unofficial community firmware for the Randomwaves Drumboy Pro**, based on the open-source
+[Randomwaves/Drumboy-Pro](https://github.com/Randomwaves/Drumboy-Pro) project.
 
-📘 **[User Manual (PDF)](<02 Software/drumboy-pro-user-manual.pdf>)** — Randomwaves' manual for the factory firmware.
+> [!IMPORTANT]
+> This is **not an official Randomwaves release** and is **not affiliated with or endorsed by
+> Randomwaves**. "Drumboy Pro" is Randomwaves' product name, used here only to say which device this
+> firmware is for. Please report problems with this firmware in this repository's
+> [Issues](../../issues), **not** to Randomwaves.
 
-✨ **[Moffe Edition — new features](MOFFE-EDITION.md)** — what this extended firmware adds (Layer Song beat placement, Euclidean rhythms, song mode, sample preview, boot screen, fixes). Version history: [CHANGELOG.md](CHANGELOG.md).
+> [!WARNING]
+> **Use at your own risk.** This firmware is provided "as is", without warranty of any kind (see
+> [LICENSE](LICENSE)). Installing it is your own decision and responsibility. Before you install:
+> **back up your whole SD card** — it holds your projects, drumkits and settings — and keep the
+> factory firmware for rolling back (see [Install and roll back](MOFFE-EDITION.md#install-and-roll-back)).
+> Flashing the **bootloader** over SWD is for experienced users only. Modifying the firmware may
+> affect your warranty with Randomwaves.
+
+✨ **[What the Moffe Edition adds](MOFFE-EDITION.md)** — Euclidean rhythms, song mode, precise beat
+placement, sample preview, safer firmware updates and many fixes. Version history:
+[CHANGELOG.md](CHANGELOG.md). Downloads: [Releases](../../releases).
+
+📖 **[Developer Wiki](https://www.randomwaves.io/drumboy-pro/drumboy-pro-wiki.html)** (Randomwaves) — full hardware specs, schematics walkthrough, firmware architecture, DSP internals, and memory map.
+
+📘 **User manual** — published by Randomwaves at [randomwaves.io](https://www.randomwaves.io). It describes the factory firmware; [MOFFE-EDITION.md](MOFFE-EDITION.md) describes what is different here.
+
+---
+
+*The rest of this page describes the Drumboy Pro hardware and firmware as published by Randomwaves.*
 
 **An open-source hardware groovebox** — sequencer, sampler, and DSP effects engine built around an STM32H723 (Cortex-M7 @ 550 MHz), with a 540×960 touch-free color display, 42 keys, 8 rotary encoders, and full MIDI/Sync I/O.
 
-This repository holds the complete hardware design (KiCad) and firmware (STM32CubeIDE / C++) for Drumboy Pro, released by [Randomwaves](https://randomwaves.io) as an open hardware/software project.
+This repository holds the complete hardware design (KiCad) and firmware (STM32CubeIDE / C++) for Drumboy Pro, released by [Randomwaves](https://randomwaves.io) as an open hardware/software project, together with the Moffe Edition firmware changes.
 
 ![Drumboy Pro](<01 Hardware/Drawing/Drumboy Pro.png>)
 
@@ -55,17 +78,18 @@ The MCU sits at the center of six subsystems: an NT35510 display driven over a 1
   Sd Card/                  Reference SD card contents (samples, presets, drumkits, system data)
   Tests/                    Host unit tests (run in CI)
   DEVELOPMENT.md            Build, test and SD-card update workflow
-  drumboy-pro-user-manual.pdf  User manual (Randomwaves)
 
 MOFFE-EDITION.md, CHANGELOG.md              What the Moffe Edition adds, version history
+CONTRIBUTING.md, NOTICE                     How to contribute; third-party licenses
 
 CMakeLists.txt, CMakePresets.json, cmake/   Command-line build (same settings as the IDE)
 .github/workflows/firmware.yml              CI: builds and verifies every push and pull request
+.github/workflows/release.yml               Builds and publishes a release for every version tag
 ```
 
 ### Firmware projects
 
-Firmware is split into two independently-built projects that share one flash device — a bad application build can never brick the update path. Both live in this repository (they were originally published as [Randomwaves-Team/Drumboy-Pro-Boot-H723](https://github.com/Randomwaves-Team/Drumboy-Pro-Boot-H723) and [Randomwaves-Team/Drumboy-Pro-App-H723](https://github.com/Randomwaves-Team/Drumboy-Pro-App-H723)):
+Firmware is split into two independently-built projects that share one flash device — a bad application build can never brick the update path. Both live in this repository, as in the upstream [Randomwaves/Drumboy-Pro](https://github.com/Randomwaves/Drumboy-Pro):
 
 | Project | Responsibility |
 |---|---|
@@ -100,16 +124,23 @@ cmake --preset firmware
 cmake --build --preset firmware
 ```
 
-This produces `build/Drumboy-Pro-Boot-H723.bin`, `build/Drumboy-Pro-App-H723.bin` and the SD-card update package `build/firmware/Drumboy_Pro_Fw_MM_mm.bin` (version taken from `kVersionMajor`/`kVersionMinor` in the app's `Global.h`).
+This produces `build/Drumboy-Pro-Boot-H723.bin`, `build/Drumboy-Pro-App-H723.bin` and the SD-card update package `build/firmware/Drumboy_Pro_Fw_Moffe_MM_mm.bin` (version taken from `kVersionMajor`/`kVersionMinor` in the app's `Global.h`; the `Moffe` in the name keeps it apart from official Randomwaves packages).
 
-See **[02 Software/DEVELOPMENT.md](<02 Software/DEVELOPMENT.md>)** for the full workflow: making changes safely, testing a build from the SD card, and rolling back.
+See **[02 Software/DEVELOPMENT.md](<02 Software/DEVELOPMENT.md>)** for the full workflow: making changes safely, testing a build from the SD card, and rolling back. Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## License
+## License and credits
 
-Released under the [MIT License](LICENSE).
+- Released under the [MIT License](LICENSE). The original Drumboy Pro hardware and firmware are
+  © Randomwaves; the Moffe Edition changes are © daupuck. Both are covered by the same MIT license.
+- Third-party components (STM32 HAL, CMSIS, FatFs, KiCad libraries) keep their own licenses — see
+  [NOTICE](NOTICE).
+- Sample library, fonts, drawings and the factory firmware binaries are as published by Randomwaves in
+  [Randomwaves/Drumboy-Pro](https://github.com/Randomwaves/Drumboy-Pro).
+- Thanks to Randomwaves for designing the Drumboy Pro and releasing it as open hardware and software.
 
-## Community
+## Community and support
 
-- 💬 [Discord community](https://discord.gg/5atevNH6UU) — join the discussion
-- 🌐 [randomwaves.io](https://www.randomwaves.io)
-- ✉️ [hello@randomwaves.io](mailto:hello@randomwaves.io)
+- **Moffe Edition** (this firmware): use this repository's [Issues](../../issues).
+- **Original Drumboy Pro** (hardware, factory firmware): Randomwaves —
+  🌐 [randomwaves.io](https://www.randomwaves.io) · 💬 [Discord](https://discord.gg/5atevNH6UU) ·
+  ✉️ hello@randomwaves.io. Please don't contact Randomwaves about problems with this modified firmware.

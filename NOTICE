@@ -1,0 +1,42 @@
+Drumboy Pro – Moffe Edition
+===========================
+
+Unofficial community firmware based on Drumboy Pro by Randomwaves
+(https://github.com/Randomwaves/Drumboy-Pro). Not affiliated with or endorsed by Randomwaves.
+
+Drumboy Pro hardware design and firmware
+  Copyright (c) 2026 Randomwaves
+  Moffe Edition modifications Copyright (c) 2026 daupuck
+  License: MIT (see LICENSE)
+
+Third-party components included in this repository keep their own licenses:
+
+STM32H7xx HAL driver (STMicroelectronics)
+  02 Software/Drumboy-Pro-*-H723/Drivers/STM32H7xx_HAL_Driver/
+  License: BSD-3-Clause — see the LICENSE.txt in that folder
+
+CMSIS core (Arm Limited)
+  02 Software/Drumboy-Pro-*-H723/Drivers/CMSIS/
+  License: Apache-2.0 — see the LICENSE.txt in that folder
+
+CMSIS STM32H7xx device headers (STMicroelectronics)
+  02 Software/Drumboy-Pro-*-H723/Drivers/CMSIS/Device/ST/STM32H7xx/
+  License: Apache-2.0 — see the LICENSE.txt in that folder
+
+FatFs R0.12c (ChaN)
+  02 Software/Drumboy-Pro-*-H723/Middlewares/Third_Party/FatFs/
+  Copyright (C) 2017, ChaN. License: FatFs license (1-clause BSD style) — see the header of ff.c
+
+Kailh switch KiCad library
+  01 Hardware/Main/Library/Kailh Switch/
+  License: CC BY-SA 4.0 — see the LICENSE.md in that folder
+
+Other KiCad symbols, footprints and 3D models under 01 Hardware/*/Library/ are vendored from
+their component manufacturers and the KiCad libraries, as published by Randomwaves.
+
+The sample library (02 Software/Sd Card/), fonts and drawings (01 Hardware/Drawing/) and the
+factory firmware binaries (02 Software/Firmware/Drumboy_Pro_Fw_01_01.bin,
+Drumboy-Pro-App-H723.bin) are included as published by Randomwaves in Randomwaves/Drumboy-Pro.
+
+The Drumboy Pro user manual is published by Randomwaves (https://www.randomwaves.io) and is
+not part of this repository.

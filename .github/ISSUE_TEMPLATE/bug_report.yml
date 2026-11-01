@@ -1,0 +1,49 @@
+name: Bug report
+description: Something in the Moffe Edition firmware does not work as described
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! This repository is the **unofficial Moffe Edition** firmware.
+        For problems with the original Drumboy Pro hardware or factory firmware, please contact Randomwaves instead.
+  - type: input
+    id: firmware
+    attributes:
+      label: Firmware version
+      description: Shown as "UPDATING FIRMWARE Vx.xx" during the update, or the package file name you installed.
+      placeholder: v1.08 (Drumboy_Pro_Fw_Moffe_01_08.bin)
+    validations:
+      required: true
+  - type: dropdown
+    id: bootloader
+    attributes:
+      label: Bootloader
+      options:
+        - Factory bootloader (only SD-card updates, never flashed over SWD)
+        - Moffe Edition bootloader (flashed over SWD/ST-Link)
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Menu, keys and knobs used, whether the sequencer was playing or recording, sync/MIDI setup.
+      placeholder: |
+        1. Open Layer Song (S + layer 3), then the EUCLID page
+        2. Turn HITS while playing
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Photos of the screen, project/drumkit files (if relevant), SD card size and format.
