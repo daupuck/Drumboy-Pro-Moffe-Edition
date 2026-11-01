@@ -354,6 +354,119 @@ void Controller::lcd_drawLogo(bool animate_) {
     }
 }
 
+void Controller::lcd_restoreLogoRows(int16_t firstRow_, int16_t lastRow_) {
+    /// @brief Redraws rows firstRow_..lastRow_ (inclusive) of the boot logo from SDRAM.
+    /// The logo is stored row-major, so a row range is a contiguous slice of the pixel data.
+
+    if (firstRow_ < 0) firstRow_ = 0;
+    if (lastRow_ >= static_cast<int16_t>(kImageLogoHeight)) lastRow_ = kImageLogoHeight - 1;
+    if (lastRow_ < firstRow_) return;
+
+    const RGB16Color* indexPtr = (const RGB16Color*)(RAM_IMAGE_LOGO_PALETTE_ADDRESS);
+    const uint8_t* dataPtr = (const uint8_t*)(RAM_IMAGE_LOGO_DATA_ADDRESS) + (firstRow_ * kImageLogoWidth);
+    lcd.drawRGB16Image(indexPtr, dataPtr, kImageLogoPalette, kImageLogoX, kImageLogoY + firstRow_, kImageLogoWidth, (lastRow_ - firstRow_) + 1);
+}
+
+void Controller::lcd_drawEditionShades(int16_t offset_) {
+    /// @brief Draws the edition pixel sunglasses over the logo's eyes, shifted vertically by
+    /// offset_ logo rows (0 = resting on the eyes). Only fillRect, in logo coordinates.
+
+    const int16_t x = kImageLogoX;
+    const int16_t y = kImageLogoY + offset_;
+
+    // 1. FRAME: top bar with an accent rim.
+    lcd.setForeColor(BLACK);
+    lcd.fillRect(x + 30, y + 96, 112, 6);
+    lcd.setForeColor(kEditionAccentColor);
+    lcd.fillRect(x + 30, y + 96, 112, 2);
+
+    // 2. LENSES: stepped bottoms (pixel-art shades) with two white glints each.
+    const int16_t lensX[2] = {34, 101};
+    for (uint8_t i = 0; i < 2; i++) {
+        const int16_t lx = x + lensX[i];
+        lcd.setForeColor(BLACK);
+        lcd.fillRect(lx, y + 102, 37, 12);
+        lcd.fillRect(lx + 3, y + 114, 31, 4);
+        lcd.fillRect(lx + 7, y + 118, 23, 3);
+        lcd.setForeColor(WHITE);
+        lcd.fillRect(lx + 5, y + 104, 4, 4);
+        lcd.fillRect(lx + 9, y + 108, 4, 4);
+    }
+}
+
+void Controller::lcd_drawEdition(bool animate_) {
+    /// @brief Draws the edition branding on the boot screen: sunglasses on the logo, the edition
+    /// name in large accent letters and the "EDITION" label. Call right after lcd_drawLogo().
+    /// Animated: the shades slide down onto the eyes, the name appears letter by letter and the
+    /// label fades in (about 0.95 s in total, inside the existing post-logo pause).
+
+    // 1. SUNGLASSES
+    if (animate_) {
+        const uint8_t frames = sizeof(kEditionShadesDrop) / sizeof(kEditionShadesDrop[0]);
+        int16_t previous = 0;
+        for (uint8_t f = 0; f < frames; f++) {
+            const int16_t offset = kEditionShadesDrop[f];
+            // Restore the logo where the previous frame drew, then draw the new frame.
+            if (f > 0) lcd_restoreLogoRows(kEditionShadesTop + previous, kEditionShadesBottom + previous);
+            lcd_drawEditionShades(offset);
+            previous = offset;
+            HAL_Delay(kEditionShadesFrameMs);
+        }
+    } else {
+        lcd_drawEditionShades(0);
+    }
+
+    // 2. NAME: large accent letters, one by one when animated.
+    lcd.setFont(FONT_14x18);
+    lcd.setSpacing(kEditionNameSpacing);
+    lcd.setForeColor(kEditionAccentColor);
+    lcd.setBackColor(BLACK);
+    const uint16_t nameLength = strlen(kEditionName);
+    if (animate_) {
+        lcd.setAlignment(LEFT);
+        const uint16_t width = lcd.getTextScaledWidth(nameLength, kEditionNameScale);
+        const uint16_t cell = (kFontWidth_14x18 + kEditionNameSpacing) * kEditionNameScale;
+        const uint16_t xStart = kEditionCenterX - (width / 2);
+        for (uint16_t i = 0; i < nameLength; i++) {
+            lcd.drawTextScaled(&kEditionName[i], 1, xStart + (i * cell), kEditionNameY, kEditionNameScale);
+            HAL_Delay(kEditionLetterMs);
+        }
+    } else {
+        lcd.setAlignment(CENTER);
+        lcd.drawTextScaled(kEditionName, nameLength, kEditionCenterX, kEditionNameY, kEditionNameScale);
+    }
+
+    // 3. LABEL: small, wide-spaced, fading in through three grey levels.
+    lcd.setFont(FONT_14x18);
+    lcd.setSpacing(kEditionLabelSpacing);
+    lcd.setAlignment(CENTER);
+    const uint16_t labelLength = strlen(kEditionLabel);
+    if (animate_) {
+        const RGB16Color steps[3] = {GRAY_25, GRAY_50, GRAY_75};
+        for (uint8_t s = 0; s < 3; s++) {
+            lcd.setForeColor(steps[s]);
+            lcd.drawText(kEditionLabel, labelLength, kEditionCenterX, kEditionLabelY);
+            HAL_Delay(kEditionLabelFadeMs);
+        }
+    } else {
+        lcd.setForeColor(GRAY_75);
+        lcd.drawText(kEditionLabel, labelLength, kEditionCenterX, kEditionLabelY);
+    }
+
+    // 4. RESTORE DEFAULT FONT STATE (setFont resets spacing).
+    lcd.setFont(FONT_07x09);
+    lcd.setAlignment(LEFT);
+}
+
+void Controller::lcd_clearEdition() {
+    /// @brief Clears the edition name and label (the shades go with the logo fade-out).
+
+    lcd.setBackColor(BLACK);
+    const uint16_t top = kEditionNameY;
+    const uint16_t bottom = kEditionLabelY + kFontHeight_14x18;
+    lcd.clearRect(kEditionCenterX - 240, top, 480, bottom - top);
+}
+
 void Controller::lcd_clearLogo(bool animate_) {
     /// @brief Clears startup logo with optional fade-out animation.
 
