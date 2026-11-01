@@ -26,6 +26,44 @@ that failed while programming so the next boot retries it. A device still runnin
 package and may hang on a black screen. Recovery is the same — copy the package to the card
 again and power-cycle.
 
+## How the firmware runs (what matters when adding features)
+
+Summarised from the [developer wiki](https://www.randomwaves.io/drumboy-pro/drumboy-pro-wiki.html)
+and checked against the code in this repo.
+
+**Execution contexts**
+
+| Context | Runs | Budget / constraint |
+|---|---|---|
+| I2S3 DMA half/complete callbacks (`main.cpp`) → `processAudioBlock()` | every 32 stereo samples at 44.1 kHz | **≈ 0.73 ms per call** (≈ 400 000 CPU cycles at 550 MHz) for the whole chain: receive → metronome → 10 layers → EQ → 2 filters → 2 effects → reverb → send. Never block here. |
+| TIM15 → `interruptPlay()` | sequencer tick (BPM-derived) | triggers beats, samples LFOs (sample-and-hold at trigger), sends MIDI/sync |
+| Other timers | TIM4 MIDI clock, TIM5 UI transitions, TIM6/TIM7 preset autosave debounce, TIM8 LED meters, TIM12–14 long-press, TIM16 text overlay, TIM17 SD hot-plug, TIM23 sync pulse, TIM24 limit alert | keep handlers short; most just raise flags |
+| GPIO EXTI | keypads (MCP23017 INT), 8 encoders, function button, sync-in pulse | |
+| Main loop `controller.update()` | `keyboard_action → encoder_action → led_action → lcd_update`, plus deferred SD saves | the only place for slow work (SD, large redraws) |
+
+**Practical consequences**
+
+- The LCD is a **bit-banged 16-bit GPIO bus**: drawing is slow and CPU-bound. Encoder `xxx_set*()`
+  methods update the model *and* redraw in the same call, so a new parameter that redraws a lot
+  makes the knob feel sluggish. Draw only the region that changed.
+- SD access (FatFs over SDMMC2) belongs in the main loop. Interrupts only set flags
+  (see the preset autosave: TIM6/TIM7 → dirty flag → `saveSystemPreset()` in the loop).
+- **D-cache is off**, I-cache is on. DMA buffers need no cache maintenance today; if you enable
+  the D-cache, every DMA buffer (I2S, I2C, SD) needs it.
+- BDMA (I2C3/I2C4) can only reach **RAM_D3**: declare such buffers with
+  `__attribute__((section(".RAM_D3")))`.
+- **FTZ + default-NaN** are set at startup; DSP code must not rely on denormals.
+- Audio is `float` internally; int ↔ float conversion happens only in `processAudioReceive` /
+  `processAudioSend`. Hot helpers in `Global.h` are `ALWAYSINLINE`.
+- Sample data streams from the 16 MB SDRAM at `0xC0000000`; Delay/Chorus use dedicated SDRAM
+  ring buffers. `RAM_D1` (320 KB) is ~90 % used — large new buffers should go to SDRAM.
+- The I2S clock is PLL3 in fractional mode (44.099 kHz); don't touch PLL3 or the I2S config
+  without measuring pitch.
+
+**SD-card package limits.** The factory bootloader (still on most devices) rejects payloads of
+917 504 bytes or more and drops the tail of a payload whose size is not a multiple of 4.
+`make_fw_package.py` enforces both, so a package it accepts installs on old and new bootloaders.
+
 ## Tools
 
 | Tool | Version | Notes |
