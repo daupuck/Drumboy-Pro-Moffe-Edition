@@ -4,7 +4,7 @@ Moffe Edition is a community-extended version of the Drumboy Pro firmware by Ran
 (based on the factory firmware v1.01). This page collects everything that is new compared with
 the factory firmware: what each feature does and how to use it on the device.
 
-- **Current version:** v1.07
+- **Current version:** v1.08
 - **User manual (Randomwaves):** [02 Software/drumboy-pro-user-manual.pdf](<02 Software/drumboy-pro-user-manual.pdf>) –
   page numbers below refer to it.
 - **Technical details per version:** [CHANGELOG.md](CHANGELOG.md)
@@ -102,7 +102,7 @@ Do the same to go back.
 | **6 GRID** | Length of each step, from 1:32 to 1:4 |
 | **7 LENGTH** | **REPEAT** repeats the pattern over the whole song, **ONCE** lays it down once |
 | **8 MODE** | **REPLACE** replaces the layer's beats; **MERGE** adds the hits on top of the beats you already have, which keep their fills |
-| **CLEAR** | Restores the beats the layer had when you opened the page |
+| **CLEAR** | Restores the beats the layer had when you opened the page (the page shows **CLEAR: UNDO** as a reminder) |
 
 - **You hear changes immediately.** The pattern is written to the layer on every turn, so you can
   shape it while the sequencer plays.
@@ -186,14 +186,15 @@ loop.
 | v1.05 | Sample preview in the Layer Instrument menu |
 | v1.06 | Layer Song EUCLID page: Euclidean rhythms |
 | v1.07 | Song mode: chain the 5 song banks into a song |
+| v1.08 | EUCLID page shows the CLEAR: UNDO hint |
 
 ## Install and roll back
 
 1. Back up the whole SD card. `System/File`, `System/Drumkit` and `System/Preset` contain your
    own data.
-2. Copy the package `Drumboy_Pro_Fw_01_07.bin` to the **root** of the card. Do not rename the
+2. Copy the package `Drumboy_Pro_Fw_01_08.bin` to the **root** of the card. Do not rename the
    file, and do not change anything else on the card.
-3. Insert the card and power on. The screen shows *UPDATING FIRMWARE V1.07*, then
+3. Insert the card and power on. The screen shows *UPDATING FIRMWARE V1.08*, then
    *FIRMWARE UPDATED*.
 
 **Roll back:** copy an older package to the root the same way. The factory version is

@@ -3547,6 +3547,13 @@ void Controller::lcd_drawEuclidStrip() {
             lcd.fillRect(x0 + (i * pitch), kEuclidCellY + kEuclidCellHeight + 3, 2, 3);
         }
     }
+
+    // Hint: CLEAR restores the beats from before the page opened (the key is not shown
+    // anywhere else on this page). Bottom right, below the ticks; the font has no '='.
+    lcd.setFont(FONT_05x07);
+    lcd.setAlignment(RIGHT);
+    lcd.setForeColor(GRAY_50);
+    lcd.drawText("CLEAR: UNDO", 11, kBeatGraphEndX, kBeatGraphEndY - 6);
 }
 
 void Controller::lcd_updateEuclidPlayhead() {
