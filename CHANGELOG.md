@@ -3,6 +3,54 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v1.09
+
+**Melody layers (TONE) — play your samples as notes**
+
+- **New NOTE page in Layer Song.** **S + layer** cycles **edit → EUCLID → NOTE → edit**.
+  Knobs: **1 MODE** (DRUM / TONE), **2 NOTE** (the selected beat's note, e.g. `D#4`),
+  **5 ROOT** (C–B), **6 SCALE** (chromatic, major, minor, dorian, phrygian, lydian, mixolydian,
+  harmonic minor, pentatonic major/minor, blues), **7 GLIDE** (0–100), **8 TRANSPOSE** (every
+  note of the bank, in scale steps; the melody moves as a whole and stops when its highest or
+  lowest note reaches the edge of the range, so the intervals are never lost).
+- **DRUM** layers play exactly as before. A **TONE** layer plays each beat at its own note.
+  Notes snap to the scale, so a wrong note is impossible.
+- Notes are stored as steps of the scale. Changing ROOT or SCALE later keeps the melody in key
+  instead of leaving notes outside it. Two octaves either side of the root.
+- The sample is taken to be a **C** (shown as C4) at the layer's PITCH; use PITCH to tune it.
+- The strip shows a small piano roll of the bank (time → right, pitch ↑), with the selected
+  beat in cyan. **LEFT/RIGHT** select a beat; turning **NOTE** plays it (while stopped). The
+  layer's pad plays the selected beat's note. **CLEAR** undoes the note edits made since the
+  page opened.
+- **GLIDE** slides each note from the previous pitch (5 ms to 0.5 s): from a quick 303-style
+  slide to a slow swoop.
+- Notes travel with their beats: MOVE, SHIFT ALL, EUCLID MERGE, quantize and song copy/paste
+  keep them; an ADD tap gives the new beat the note of the beat before it.
+- **MIDI out:** TONE layers send the beat's own note (the sample's pitch is MIDI 60 = C4) and
+  release the previous note first, so external synths get a clean monophonic line. Drum layers
+  send what they always sent.
+- **Saved with the project** in a small `File_NNN.rwn` next to `File_NNN.rwf`. The `.rwf`
+  format and size are unchanged; older firmware ignores the new file and plays the layer as a
+  drum. Projects without notes get no `.rwn`. NEW FILE and CLEAR FILE reset it. Not part of
+  drumkits.
+- Limits: one voice per layer (a new note retriggers the sample with the usual short
+  crossfade); as on any sampler, higher notes play the sample faster and therefore shorter.
+  Pads outside the NOTE page and MIDI in play the root.
+
+**Audio CPU meter**
+
+- **IO menu, knob 5 CPU LOAD** (average over about 0.1 s) and **knob 6 CPU PEAK** (the busiest
+  single audio block since start-up; turn the knob to reset it; red from 80 %). Above 100 % the
+  audio interrupt misses its deadline and the output clicks. It measures the audio interrupt
+  against the real time between two blocks, including other interrupts that delay it.
+
+Under the hood: pitch, scales, note names and glide are pure functions in
+`Global/ToneScale.h`, host-tested (`test_tone_scale.cpp`, 8200 checks). The note uses a padding
+byte of `Beat` (guarded by `static_assert(sizeof(Beat) == 8)`), so 3200 notes cost no RAM;
+RAM_D1 grows by 656 B (91.3 → 91.5 %), flash by 11.5 KB. Glide is applied once per audio block,
+outside the per-sample loops (`processAudioLayer` +64 B); the meter adds two cycle-counter
+reads per block (`processAudioBlock` +164 B). No new compiler warnings.
+
 ## v1.08
 
 - **EUCLID page:** the step strip now shows **CLEAR: UNDO** at the bottom right, so it is

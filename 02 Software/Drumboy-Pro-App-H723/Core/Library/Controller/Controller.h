@@ -95,6 +95,18 @@ class Controller {
     volatile uint32_t i2sOvrCount = 0;                                  // I2S3 rx overruns; nonzero means word alignment may have shifted
     volatile uint32_t i2sUdrCount = 0;                                  // I2S3 tx underruns; nonzero means the audio isr missed its deadline
 
+    // Audio CPU meter (IO menu knobs 5-6). processAudioBlock() times itself with the DWT cycle
+    // counter against the real time between two blocks; values are per mille of that budget.
+    uint32_t cpuLastStart = 0;
+    uint32_t cpuBusyAcc = 0;
+    uint32_t cpuPeriodAcc = 0;
+    uint16_t cpuBlockCount = 0;
+    volatile uint16_t cpuLoadPermille = 0;   // average over the last ~93 ms (128 blocks)
+    volatile uint16_t cpuPeakPermille = 0;   // highest single block since boot / last reset
+    uint32_t cpuDisplayTick = 0;
+    uint16_t cpuShownLoad = 0xFFFF;
+    uint16_t cpuShownPeak = 0xFFFF;
+
     /* Audio Buffers (I2s Block Processing) ---------------------- */
 
     float audioReceive[I2S_BLOCK_SIZE];                                 // Incoming audio from Line-In
@@ -240,6 +252,21 @@ class Controller {
     bool euclidTruncated = false;
     bool euclidPattern[kMaxEuclidSteps] = {};
     int16_t euclidPlayStep = -1;
+
+    // Layer Song NOTE page (page 2 of LAYER_SONG_MENU). noteBase holds the bank's notes from
+    // when the page opened, so CLEAR can undo; noteTransposeTotal is what TRANSPOSE shows.
+    int8_t noteBase[kBeatLibrarySize] = {};
+    uint16_t noteBaseStart[kBeatLibrarySize] = {};  // restored by position, so a moved beat cannot take another's note
+    uint8_t noteBaseCount = 0;
+    int8_t noteBaseLayer = -1;
+    int8_t noteBaseBank = -1;
+    int8_t noteTransposeTotal = 0;
+
+    // MIDI out for TONE layers: the note of the beat that is starting (written where the beat
+    // is triggered) and the note currently held on the MIDI output (0xFF = none), so the right
+    // Note Off is sent before the next note.
+    volatile uint8_t toneMidiNote[kLayerLibrarySize] = {};
+    uint8_t toneMidiSounding[kLayerLibrarySize] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
     // Song mode (Rhythm menu knobs 5-8). The chain is project data (saved in the .rwf file);
     // position/running flags are shared with the sequencer ISR (interruptPlay), which advances
@@ -975,7 +1002,7 @@ class Controller {
 
     /* Layer Functions ------------------------------------------- */
 
-    void layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_);
+    void layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_ = 0);  // note_: scale degree, used by TONE layers
 
     /* Layer Inst Functions -------------------------------------- */
 
@@ -1059,6 +1086,34 @@ class Controller {
     void lcd_drawEuclidStrip();
     void lcd_drawEuclidCell(uint8_t step_, bool playing_);
     void lcd_updateEuclidPlayhead();
+
+    /* Layer Song NOTE Page / TONE Layers --------------------- */
+
+    bool notePageActive() const { return (menu == LAYER_SONG_MENU) && (layerSongPage == 2); }
+    bool layerSongAltPageActive() const { return (menu == LAYER_SONG_MENU) && (layerSongPage != 0); }  // EUCLID or NOTE
+    void note_captureBase();
+    void note_restore();
+    void note_change(EncoderFunc function_, bool up_);
+    void note_audition();
+    int8_t note_auditionNote(uint8_t layerNum_);
+    void tone_setGlide(uint8_t layerNum_, uint8_t glide_);
+    void tone_resetLayer(uint8_t layerNum_);
+    void tone_resetAll();
+    void lcd_drawLayerSongNoteMenu(uint8_t layerNum_);
+    void lcd_drawNoteData(uint8_t slot_);
+    void lcd_drawNoteStrip();
+    void lcd_redrawNotePage();
+    void noteFileName(uint8_t fileNum_, char* name_, size_t size_);
+    SdResult sd_saveNotes(uint8_t fileNum_);
+    void sd_loadNotes(uint8_t fileNum_);
+    void sd_deleteNotes(uint8_t fileNum_);
+
+    /* Audio CPU Meter -------------------------------------- */
+
+    void cpu_service();  // main loop: refreshes the IO menu readout a few times per second
+    void cpu_resetPeak();
+    void lcd_drawIo_CpuData();
+    void lcd_drawIo_CpuPeakData();
 
     /* Song Mode --------------------------------------------- */
 

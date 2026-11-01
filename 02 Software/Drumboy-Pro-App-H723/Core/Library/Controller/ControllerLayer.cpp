@@ -128,7 +128,7 @@ void Controller::updatePlayTimerPeriod() {
 /* Layer Functions -----------------------------------------------------------*/
 ////////////////////////////////////////////////////////////////////////////////
 
-void Controller::layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_) {
+void Controller::layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_) {
     /// @brief Prepares and triggers layer beat playback with LFO/style-dependent modulation.
 
     // 1. CONTEXT LOAD
@@ -283,6 +283,25 @@ void Controller::layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_) {
                     tBD.resolutionCoef = kLayerResolutionDataLibrary[kMaxLayerResolution].data;
                     tBD.counterStart = 0;
                     tBD.counterEnd = tBD.counterMax;
+                }
+
+                // TONE layers: play the beat's note in the layer's root/scale on top of PITCH
+                // (and its LFO). With GLIDE, start at the previous note's speed and let the
+                // audio ISR slide to the new one. Drum layers are untouched.
+                tBD.glideTarget = 0.0f;
+                tBD.glideCoef = 0.0f;
+                if (layer.toneMode == tone::kModeTone) {
+                    const int semis = tone::semitones(note_, layer.toneScale, layer.toneRoot);
+                    const float target = tone::clampIncrement(tBD.increment * tone::ratio(semis));
+                    if ((layer.toneGlide > 0) && (lD.toneLastIncrement > 0.0f) && (lD.toneLastIncrement != target)) {
+                        tBD.increment = lD.toneLastIncrement;
+                        tBD.glideTarget = target;
+                        tBD.glideCoef = layer.toneGlideCoef;
+                    } else {
+                        tBD.increment = target;
+                    }
+                    lD.toneLastIncrement = target;
+                    toneMidiNote[layerNum_] = tone::midiNote(semis);
                 }
 
                 // configure fade logic based on direction
@@ -1994,17 +2013,18 @@ void Controller::layerSong_select(uint8_t layerNum_, uint8_t bankNum_) {
         ledLayerSelectFlag = true;
         ledLayerSelectData = 0x01 << selectedLayerNum;
     } else {
-        // 6. PAGE TOGGLE: S + the layer already shown switches edit <-> EUCLID page.
+        // 6. PAGE CYCLE: S + the layer already shown goes edit -> EUCLID -> NOTE -> edit.
         layerSong_togglePage();
     }
 }
 
 void Controller::layerSong_togglePage() {
-    /// @brief Switches the Layer Song menu between the edit page and the EUCLID page.
-    /// Opening EUCLID captures the layer's beats as the base (for MERGE and CLEAR = restore).
+    /// @brief Cycles the Layer Song menu: edit page -> EUCLID page -> NOTE page -> edit page.
+    /// Opening EUCLID captures the layer's beats as the base (for MERGE and CLEAR = restore);
+    /// opening NOTE captures the notes (for CLEAR = undo).
 
     if (selectedLayerNum == -1) return;
-    layerSongPage = (layerSongPage == 0) ? 1 : 0;
+    layerSongPage = (layerSongPage + 1) % 3;
     euclidPlayStep = -1;
 
     // 1. CLEAR THE SLOTS AND THE GRAPH AREA (as a menu transition does).
@@ -2025,6 +2045,14 @@ void Controller::layerSong_togglePage() {
         euclid_computePattern();
         euclidTruncated = false;
         lcd_drawLayerSongEuclidMenu(selectedLayerNum);
+    } else if (layerSongPage == 2) {
+        // EUCLID may have rebuilt the bank, so pick the first beat again.
+        Bank& bank = layerLibrary[selectedLayerNum].bankLibrary[activeSongBank];
+        if ((selectedBeatNum < 0) || (selectedBeatNum > bank.lastActiveBeatNum)) selectedBeatNum = (bank.lastActiveBeatNum != -1) ? 0 : -1;
+        if (selectedBeatNum >= 0) lcd_drawBeat(selectedLayerNum, activeSongBank, selectedBeatNum, true);
+        note_captureBase();
+        noteTransposeTotal = 0;
+        lcd_drawLayerSongNoteMenu(selectedLayerNum);
     } else {
         Bank& bank = layerLibrary[selectedLayerNum].bankLibrary[activeSongBank];
         selectedBeatNum = (bank.lastActiveBeatNum != -1) ? 0 : -1;
@@ -2140,6 +2168,197 @@ void Controller::euclid_change(EncoderFunc function_, bool up_) {
         lcd_drawEuclidData(4);
     }
     euclid_apply();
+}
+
+/* Layer Song NOTE Page / TONE Layers ------------------------------------------*/
+
+// A beat's note is a scale degree (ToneScale.h). Notes are edited here and played by
+// layer_playBeat(); they never touch the audio ISR except through the playback speed.
+
+void Controller::note_captureBase() {
+    /// @brief Remembers the notes of the selected layer's active bank (CLEAR on the NOTE page
+    /// puts them back).
+
+    if (selectedLayerNum == -1) return;
+    const Bank& bank = layerLibrary[selectedLayerNum].bankLibrary[activeSongBank];
+    noteBaseCount = 0;
+    for (int16_t i = 0; i <= bank.lastActiveBeatNum; i++) {
+        const Beat& beat = bank.beatLibrary[i];
+        if (!beat.getActive()) continue;
+        noteBaseStart[noteBaseCount] = beat.getStartInterval();
+        noteBase[noteBaseCount] = beat.getNote();
+        noteBaseCount++;
+    }
+    noteBaseLayer = selectedLayerNum;
+    noteBaseBank = activeSongBank;
+}
+
+void Controller::note_restore() {
+    /// @brief CLEAR on the NOTE page: every beat that still exists gets its note from when the
+    /// page opened back (matched by position, so moved or new beats keep theirs).
+
+    if ((selectedLayerNum == -1) || (noteBaseLayer != selectedLayerNum) || (noteBaseBank != activeSongBank)) return;
+    Bank& bank = layerLibrary[selectedLayerNum].bankLibrary[activeSongBank];
+    for (int16_t i = 0; i <= bank.lastActiveBeatNum; i++) {
+        Beat& beat = bank.beatLibrary[i];
+        if (!beat.getActive()) continue;
+        for (uint8_t k = 0; k < noteBaseCount; k++) {
+            if (noteBaseStart[k] == beat.getStartInterval()) {
+                beat.setNote(noteBase[k]);
+                break;
+            }
+        }
+    }
+    noteTransposeTotal = 0;
+    lcd_drawNoteData(7);
+    lcd_redrawNotePage();
+}
+
+int8_t Controller::note_auditionNote(uint8_t layerNum_) {
+    /// @brief Note a manual pad press plays: the selected beat's note while that layer is open
+    /// on the NOTE page, otherwise the root.
+
+    if (!notePageActive() || (layerNum_ != selectedLayerNum)) return 0;
+    const Bank& bank = layerLibrary[layerNum_].bankLibrary[activeSongBank];
+    if ((selectedBeatNum < 0) || (selectedBeatNum > bank.lastActiveBeatNum)) return 0;
+    return bank.beatLibrary[selectedBeatNum].getNote();
+}
+
+void Controller::note_audition() {
+    /// @brief Plays the selected beat's note once after an edit, so you hear what you set.
+    /// Only while the transport is stopped (the sequencer is playing the layer otherwise).
+
+    if ((selectedLayerNum == -1) || playActive) return;
+    Layer& layer = layerLibrary[selectedLayerNum];
+    if ((layer.toneMode != tone::kModeTone) || layer.mute || !layer.samplePlay) return;
+    layer_playBeat(selectedLayerNum, 1.0f, note_auditionNote(selectedLayerNum));
+}
+
+void Controller::tone_setGlide(uint8_t layerNum_, uint8_t glide_) {
+    /// @brief Sets GLIDE (0..100) and its precomputed per-block coefficient.
+
+    Layer& layer = layerLibrary[layerNum_];
+    layer.toneGlide = (glide_ > tone::kMaxGlide) ? tone::kMaxGlide : glide_;
+    layer.toneGlideCoef = tone::glideBlockCoef(layer.toneGlide, kAudioBlocksPerSecond);
+}
+
+void Controller::tone_resetLayer(uint8_t layerNum_) {
+    /// @brief Back to a plain DRUM layer with default ROOT/SCALE/GLIDE (notes live in the beats
+    /// and are reset with them). A note still held on the MIDI output is released.
+
+    Layer& layer = layerLibrary[layerNum_];
+    layer.toneMode = tone::kModeDrum;
+    layer.toneRoot = 0;
+    layer.toneScale = tone::kDefaultScale;
+    tone_setGlide(layerNum_, 0);
+    layerPlayData[layerNum_].toneLastIncrement = 0.0f;
+    if (toneMidiSounding[layerNum_] != 0xFF) {
+        uint8_t off[3] = {(uint8_t)(0x80 + io.midi.txChannel), toneMidiSounding[layerNum_], 0x64};
+        enqueueMidiTx(off, 3);
+        toneMidiSounding[layerNum_] = 0xFF;
+    }
+}
+
+void Controller::tone_resetAll() {
+    for (uint8_t i = 0; i < kLayerLibrarySize; i++) tone_resetLayer(i);
+}
+
+void Controller::note_change(EncoderFunc function_, bool up_) {
+    /// @brief Handles a NOTE page knob.
+
+    if (selectedLayerNum == -1) return;
+    Layer& layer = layerLibrary[selectedLayerNum];
+    Bank& bank = layer.bankLibrary[activeSongBank];
+    const bool beatValid = (selectedBeatNum >= 0) && (selectedBeatNum <= bank.lastActiveBeatNum);
+
+    switch (function_) {
+        case ENC_NOTE_MODE: {
+            const uint8_t mode = up_ ? tone::kModeTone : tone::kModeDrum;
+            if (mode == layer.toneMode) return;
+            if (mode == tone::kModeDrum) {
+                const uint8_t root = layer.toneRoot, scale = layer.toneScale, glide = layer.toneGlide;
+                tone_resetLayer(selectedLayerNum);  // releases a held MIDI note
+                layer.toneRoot = root;              // ...but keeps the settings for next time
+                layer.toneScale = scale;
+                tone_setGlide(selectedLayerNum, glide);
+            }
+            layer.toneMode = mode;
+            layerPlayData[selectedLayerNum].toneLastIncrement = 0.0f;
+            lcd_drawNoteData(0);
+            lcd_redrawNotePage();
+            note_audition();
+            return;
+        }
+
+        case ENC_NOTE_NOTE: {
+            if (!beatValid) return;
+            Beat& beat = bank.beatLibrary[selectedBeatNum];
+            const int8_t current = tone::clampDegree(beat.getNote(), layer.toneScale);
+            const int8_t next = tone::clampDegree(current + (up_ ? 1 : -1), layer.toneScale);
+            if (next == beat.getNote()) return;
+            beat.setNote(next);  // one byte: read atomically by the sequencer ISR
+            break;
+        }
+
+        case ENC_NOTE_ROOT:
+            layer.toneRoot = up_ ? static_cast<uint8_t>((layer.toneRoot + 1) % tone::kRootCount)
+                                 : static_cast<uint8_t>((layer.toneRoot + tone::kRootCount - 1) % tone::kRootCount);
+            lcd_drawNoteData(4);
+            break;
+
+        case ENC_NOTE_SCALE:
+            // Notes are kept as they are; a degree outside a smaller scale's range is clamped
+            // when played, so browsing scales never loses a melody.
+            if (up_ && (layer.toneScale < tone::kScaleCount - 1)) {
+                layer.toneScale++;
+            } else if (!up_ && (layer.toneScale > 0)) {
+                layer.toneScale--;
+            } else {
+                return;
+            }
+            lcd_drawNoteData(5);
+            break;
+
+        case ENC_NOTE_GLIDE:
+            if (up_ && (layer.toneGlide < tone::kMaxGlide)) {
+                tone_setGlide(selectedLayerNum, layer.toneGlide + 1);
+            } else if (!up_ && (layer.toneGlide > 0)) {
+                tone_setGlide(selectedLayerNum, layer.toneGlide - 1);
+            } else {
+                return;
+            }
+            lcd_drawNoteData(6);
+            return;
+
+        case ENC_NOTE_TRANSPOSE: {
+            if (bank.lastActiveBeatNum == -1) return;
+            const int delta = up_ ? 1 : -1;
+
+            // Move the melody as a whole (ToneScale.h): at the edge of the range it stops
+            // instead of squashing notes together.
+            int8_t notes[kBeatLibrarySize];
+            uint8_t count = 0;
+            for (int16_t i = 0; i <= bank.lastActiveBeatNum; i++) {
+                if (bank.beatLibrary[i].getActive()) notes[count++] = bank.beatLibrary[i].getNote();
+            }
+            if (!tone::transposeAll(notes, count, delta, layer.toneScale)) return;
+            count = 0;
+            for (int16_t i = 0; i <= bank.lastActiveBeatNum; i++) {
+                if (bank.beatLibrary[i].getActive()) bank.beatLibrary[i].setNote(notes[count++]);
+            }
+
+            if ((noteTransposeTotal + delta >= -99) && (noteTransposeTotal + delta <= 99)) noteTransposeTotal += delta;
+            lcd_drawNoteData(7);
+            break;
+        }
+
+        default:
+            return;
+    }
+
+    // NOTE, ROOT, SCALE and TRANSPOSE change the note names and the strip.
+    lcd_redrawNotePage();
+    note_audition();
 }
 
 void Controller::layerSong_reset(uint8_t layerNum_, uint8_t bankNum_) {
@@ -2289,7 +2508,8 @@ void Controller::layerSong_beatRight() {
         lcd_drawBeat(selectedLayerNum, activeSongBank, selectedBeatNum, true);
 
         // 3. UI DATA REFRESH
-        // Redraw beat fill parameter widgets for selected beat.
+        // Redraw beat fill parameter widgets for selected beat (or the NOTE page).
+        lcd_redrawNotePage();
         lcd_drawLayerSong_BeatFillTypeData(selectedLayerNum);
         lcd_drawLayerSong_BeatFillPatternData(selectedLayerNum);
         lcd_drawLayerSong_BeatFillTimeData(selectedLayerNum);
@@ -2326,7 +2546,8 @@ void Controller::layerSong_beatLeft() {
         lcd_drawBeat(selectedLayerNum, activeSongBank, selectedBeatNum, true);
 
         // 3. UI DATA REFRESH
-        // Redraw beat fill parameter widgets for selected beat.
+        // Redraw beat fill parameter widgets for selected beat (or the NOTE page).
+        lcd_redrawNotePage();
         lcd_drawLayerSong_BeatFillTypeData(selectedLayerNum);
         lcd_drawLayerSong_BeatFillPatternData(selectedLayerNum);
         lcd_drawLayerSong_BeatFillTimeData(selectedLayerNum);
@@ -2656,6 +2877,7 @@ uint8_t Controller::layerSong_snapshotBank(uint8_t layerNum_, uint8_t bankTab_, 
         beats_[count].fillPattern = beat.getFillPattern();
         beats_[count].fillTime = beat.getFillTime();
         beats_[count].fillLevel = beat.getFillLevel();
+        beats_[count].note = beat.getNote();
         count++;
     }
     return count;
@@ -2685,6 +2907,7 @@ int8_t Controller::layerSong_rebuildBank(uint8_t layerNum_, uint8_t bankTab_, Be
         for (uint8_t i = 0; i < count_; i++) {
             const uint16_t endInterval = (i + 1 < count_) ? beats_[i + 1].startInterval : songInterval;
             bank.setBeat(i, beats_[i].startInterval, endInterval);
+            bank.beatLibrary[i].setNote(beats_[i].note);
         }
         for (uint8_t i = 0; i < count_; i++) {
             bank.setBeatFill(i, beats_[i].fillType, beats_[i].fillPattern, beats_[i].fillTime, beats_[i].fillLevel);
@@ -2702,6 +2925,7 @@ void Controller::layerSong_redrawEdited() {
 
     if ((menu != LAYER_SONG_MENU) || (selectedLayerNum == -1)) return;
     lcd_drawSong(selectedLayerNum, activeSongBank);
+    lcd_redrawNotePage();
     lcd_drawLayerSong_BeatFillTypeData(selectedLayerNum);  // also refreshes MOVE position
     lcd_drawLayerSong_BeatFillPatternData(selectedLayerNum);
     lcd_drawLayerSong_BeatFillTimeData(selectedLayerNum);
@@ -2781,6 +3005,8 @@ void Controller::layerSong_insertBeat() {
     beats[sorted].fillPattern = 0;
     beats[sorted].fillTime = 0;
     beats[sorted].fillLevel = 0;
+    // The new beat continues the line: it takes the note of the beat it was inserted after.
+    beats[sorted].note = ((sel >= 0) && (sel < static_cast<int8_t>(sorted))) ? beats[sel].note : 0;
 
     selectedBeatNum = layerSong_rebuildBank(selectedLayerNum, activeSongBank, beats, sorted + 1, sorted);
     layerSong_redrawEdited();
@@ -3274,6 +3500,7 @@ void Controller::layerSong_selectBank(uint8_t bankNum_) {
                 lcd_drawSong(i, activeSongBank);
                 layerSong_calculatePlayBeatNum(i, activeSongBank, playInterval);
             }
+            lcd_redrawNotePage();
         }
     }
 }

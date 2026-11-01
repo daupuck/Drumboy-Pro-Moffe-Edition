@@ -1165,6 +1165,9 @@ SdResult Controller::sd_loadFile(uint8_t fileNum_) {
         }
         f_close(&sd.file);
 
+        // 6.5 TONE SETTINGS + NOTES (.rwn next to the project; absent = plain DRUM layers)
+        sd_loadNotes(fileNum_);
+
         // 7. POST-LOAD VALIDATION
         // Raise alert if any instrument/sample reference cannot be resolved.
         uint8_t missingSample = 0;
@@ -1466,6 +1469,9 @@ SdResult Controller::sd_saveFile(uint8_t fileNum_) {
         }
         // f_close flushes the last cached sector; a failure here means the file is incomplete.
         if (f_close(&sd.file) != FR_OK) result = SD_ERROR;
+
+        // TONE settings and notes go to the .rwn file next to it; losing them is a save error.
+        if ((result == SD_OK) && (sd_saveNotes(fileNum_) != SD_OK)) result = SD_ERROR;
     }
 
     // 6. INPUT RESTORATION
@@ -1558,12 +1564,155 @@ SdResult Controller::sd_clearFile(uint8_t fileNum_) {
         }
         // f_close flushes the last cached sector; a failure here means the file is incomplete.
         if (f_close(&sd.file) != FR_OK) result = SD_ERROR;
+
+        // An empty slot has no notes either.
+        sd_deleteNotes(fileNum_);
     }
 
     // 6. INPUT RESTORATION
     // Re-enable keyboard interrupts before returning to caller.
     keyboard_enable();
     return result;
+}
+
+/* Note Files (TONE layers) ---------------------------------------------------*/
+
+// System/File/File_NNN.rwn, next to File_NNN.rwf:
+//   "RWNOTES1"
+//   10 x [mode, root, scale, glide]
+//   10 layers x 5 banks x { count, count x [start interval hi, lo, note] }  (only notes != root)
+//   "EOF"
+// Notes are matched to beats by start interval on load (positions are unique within a bank),
+// so the file never depends on slot order. Older firmware never opens it.
+
+void Controller::noteFileName(uint8_t fileNum_, char* name_, size_t size_) {
+    snprintf(name_, size_, "%s%03u%s", kFileStart, static_cast<unsigned>(fileNum_ + 1), kNoteFileEnd);
+}
+
+void Controller::sd_deleteNotes(uint8_t fileNum_) {
+    char name[50];
+    noteFileName(fileNum_, name, sizeof(name));
+    f_unlink(name);  // FR_NO_FILE is fine: there was nothing to delete
+}
+
+SdResult Controller::sd_saveNotes(uint8_t fileNum_) {
+    /// @brief Writes the TONE settings and notes of the project. A project that uses neither
+    /// gets no note file (a stale one is removed), so drum-only projects look exactly as before.
+
+    bool needed = false;
+    for (uint8_t l = 0; (l < kLayerLibrarySize) && !needed; l++) {
+        const Layer& layer = layerLibrary[l];
+        if ((layer.toneMode != tone::kModeDrum) || (layer.toneRoot != 0) || (layer.toneScale != tone::kDefaultScale) || (layer.toneGlide != 0)) needed = true;
+        for (uint8_t b = 0; (b < kBankLibrarySize) && !needed; b++) {
+            const Bank& bank = layer.bankLibrary[b];
+            for (int16_t k = 0; k <= bank.lastActiveBeatNum; k++) {
+                if (bank.beatLibrary[k].getActive() && (bank.beatLibrary[k].getNote() != 0)) {
+                    needed = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    char name[50];
+    noteFileName(fileNum_, name, sizeof(name));
+    if (!needed) {
+        f_unlink(name);
+        return SD_OK;
+    }
+
+    if (f_open(&sd.file, name, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) return SD_ERROR;
+    uint32_t errorCount = 0;
+
+    if (sd_write(kNoteFileRef, strlen(kNoteFileRef)) != FR_OK) errorCount += 1;
+
+    uint8_t settings[kLayerLibrarySize * 4];
+    for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+        const Layer& layer = layerLibrary[l];
+        settings[(l * 4) + 0] = layer.toneMode;
+        settings[(l * 4) + 1] = layer.toneRoot;
+        settings[(l * 4) + 2] = layer.toneScale;
+        settings[(l * 4) + 3] = layer.toneGlide;
+    }
+    if (sd_write(settings, sizeof(settings)) != FR_OK) errorCount += 1;
+
+    uint8_t record[1 + (kBeatLibrarySize * 3)];
+    for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+        for (uint8_t b = 0; b < kBankLibrarySize; b++) {
+            const Bank& bank = layerLibrary[l].bankLibrary[b];
+            uint8_t count = 0;
+            for (int16_t k = 0; (k <= bank.lastActiveBeatNum) && (count < kBeatLibrarySize); k++) {
+                const Beat& beat = bank.beatLibrary[k];
+                if (!beat.getActive() || (beat.getNote() == 0)) continue;
+                const uint16_t start = beat.getStartInterval();
+                record[1 + (count * 3) + 0] = static_cast<uint8_t>(start >> 8);
+                record[1 + (count * 3) + 1] = static_cast<uint8_t>(start & 0xFF);
+                record[1 + (count * 3) + 2] = static_cast<uint8_t>(beat.getNote());
+                count++;
+            }
+            record[0] = count;
+            if (sd_write(record, 1 + (count * 3)) != FR_OK) errorCount += 1;
+        }
+    }
+
+    if (sd_write("EOF", 3) != FR_OK) errorCount += 1;
+    if (f_close(&sd.file) != FR_OK) errorCount += 1;
+    return (errorCount == 0) ? SD_OK : SD_ERROR;
+}
+
+void Controller::sd_loadNotes(uint8_t fileNum_) {
+    /// @brief Restores TONE settings and notes after the project's beats are loaded. No file
+    /// (drum-only project, or one saved by older firmware) means plain DRUM layers.
+
+    tone_resetAll();
+
+    char name[50];
+    noteFileName(fileNum_, name, sizeof(name));
+    if (f_open(&sd.file, name, FA_READ) != FR_OK) return;
+
+    char ref[sizeof(kNoteFileRef)] = {};
+    uint8_t settings[kLayerLibrarySize * 4];
+    if ((sd_read(ref, strlen(kNoteFileRef)) == FR_OK) && (strncmp(ref, kNoteFileRef, strlen(kNoteFileRef)) == 0) &&
+        (sd_read(settings, sizeof(settings)) == FR_OK)) {
+        // Settings, range-checked so a damaged file can never index outside a table.
+        for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+            Layer& layer = layerLibrary[l];
+            layer.toneMode = (settings[(l * 4) + 0] == tone::kModeTone) ? tone::kModeTone : tone::kModeDrum;
+            layer.toneRoot = (settings[(l * 4) + 1] < tone::kRootCount) ? settings[(l * 4) + 1] : 0;
+            layer.toneScale = tone::safeScale(settings[(l * 4) + 2]);
+            tone_setGlide(l, settings[(l * 4) + 3]);
+        }
+
+        // Notes, matched to beats by position.
+        bool ok = true;
+        for (uint8_t l = 0; (l < kLayerLibrarySize) && ok; l++) {
+            for (uint8_t b = 0; (b < kBankLibrarySize) && ok; b++) {
+                Bank& bank = layerLibrary[l].bankLibrary[b];
+                uint8_t count = 0;
+                if ((sd_read(&count, 1) != FR_OK) || (count > kBeatLibrarySize)) {
+                    ok = false;
+                    break;
+                }
+                for (uint8_t e = 0; e < count; e++) {
+                    uint8_t entry[3];
+                    if (sd_read(entry, 3) != FR_OK) {
+                        ok = false;
+                        break;
+                    }
+                    const uint16_t start = static_cast<uint16_t>((entry[0] << 8) | entry[1]);
+                    const int8_t note = tone::clampDegree(static_cast<int8_t>(entry[2]), 0);  // widest range (chromatic)
+                    for (int16_t k = 0; k <= bank.lastActiveBeatNum; k++) {
+                        Beat& beat = bank.beatLibrary[k];
+                        if (beat.getActive() && (beat.getStartInterval() == start)) {
+                            beat.setNote(note);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    f_close(&sd.file);
 }
 
 SdResult Controller::sd_checkDrumkit(uint8_t kitNum_) {

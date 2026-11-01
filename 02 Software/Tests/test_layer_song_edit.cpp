@@ -27,7 +27,7 @@ static int checks = 0;
 
 static std::vector<BeatSnapshot> beatsAt(std::initializer_list<uint16_t> starts) {
     std::vector<BeatSnapshot> v;
-    for (uint16_t s : starts) v.push_back(BeatSnapshot{s, 0, 0, 0, 0});
+    for (uint16_t s : starts) v.push_back(BeatSnapshot{s, 0, 0, 0, 0, 0});
     return v;
 }
 

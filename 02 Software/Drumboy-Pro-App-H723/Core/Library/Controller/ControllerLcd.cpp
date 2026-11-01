@@ -992,6 +992,9 @@ void Controller::lcd_drawSongBankShift() {
                 lcd_drawSong(i, j);
             }
         }
+
+        // 4. NOTE PAGE: show the notes of the bank that now plays.
+        lcd_redrawNotePage();
     }
 }
 

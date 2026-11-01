@@ -380,6 +380,9 @@ void Controller::update() {
         // Song mode: show where the chain is after the sequencer moved on.
         song_service();
 
+        // IO menu: refresh the audio CPU meter.
+        cpu_service();
+
         // 3. OUTPUT & UI REFRESH
         // Refresh LED outputs and LCD frame content.
         led_action();
@@ -521,6 +524,38 @@ void Controller::update() {
         // 12. OUTBOUND MIDI TRANSMISSION
         // Enqueue pending MIDI note events for each layer into the TX ring buffer.
         for (uint8_t i = 0; i < kLayerLibrarySize; i++) {
+            if (layerLibrary[i].toneMode == tone::kModeTone) {
+                // TONE layer: send the beat's own note. A new beat retriggers without its own
+                // Note Off, so the held note is released first: external synths get a clean
+                // monophonic line.
+                if ((io.midi.txNotes) && (io.midi.txTriggerNoteOn[i])) {
+                    if (toneMidiSounding[i] != 0xFF) {
+                        uint8_t off[3] = {(uint8_t)(0x80 + io.midi.txChannel), toneMidiSounding[i], 0x64};
+                        if (enqueueMidiTx(off, 3)) toneMidiSounding[i] = 0xFF;
+                    }
+                    if (toneMidiSounding[i] == 0xFF) {
+                        const uint8_t note = toneMidiNote[i];
+                        uint8_t msg[3] = {(uint8_t)(0x90 + io.midi.txChannel), note, 0x64};
+                        if (enqueueMidiTx(msg, 3)) {
+                            io.midi.txTriggerNoteOn[i] = false;
+                            toneMidiSounding[i] = note;
+                        }
+                    }
+                }
+                if ((io.midi.txNotes) && (io.midi.txTriggerNoteOff[i]) && (!io.midi.txTriggerNoteOn[i])) {
+                    if (toneMidiSounding[i] != 0xFF) {
+                        uint8_t msg[3] = {(uint8_t)(0x80 + io.midi.txChannel), toneMidiSounding[i], 0x64};
+                        if (enqueueMidiTx(msg, 3)) {
+                            io.midi.txTriggerNoteOff[i] = false;
+                            toneMidiSounding[i] = 0xFF;
+                        }
+                    } else {
+                        io.midi.txTriggerNoteOff[i] = false;
+                    }
+                }
+                continue;
+            }
+
             // Send Note On (0x90)
             if ((io.midi.txNotes) && (io.midi.txTriggerNoteOn[i])) {
                 uint8_t msg[3] = {(uint8_t)(0x90 + io.midi.txChannel), io.midi.txData[i], 0x64};

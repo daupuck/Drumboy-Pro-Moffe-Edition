@@ -5,7 +5,7 @@ Moffe Edition is **unofficial community firmware** for the Drumboy Pro, based on
 is not affiliated with or endorsed by Randomwaves. This page collects everything that is new
 compared with the factory firmware: what each feature does and how to use it on the device.
 
-- **Current version:** v1.08 — download from the
+- **Current version:** v1.09 — download from the
   [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest);
   how to install: [README → Install](README.md#install)
 - **User manual:** published by Randomwaves at [randomwaves.io](https://www.randomwaves.io) (it
@@ -22,7 +22,10 @@ compared with the factory firmware: what each feature does and how to use it on 
 
 > **Status (1 November 2026):** every version is built, unit-tested and verified by CI. v1.07 has
 > been run on a Drumboy Pro by the maintainer, with song mode confirmed working; the other features
-> are in hardware testing. Each release says what has been tested on hardware.
+> are in hardware testing. In v1.09 the melody layers (notes, GLIDE, TRANSPOSE) and the CPU meter
+> have been tested on a device: CPU PEAK about 42 % with all 10 layers playing, two of them TONE,
+> and chorus, delay, reverb and both filters on. Saving and reloading notes is still to be
+> confirmed. Each release says what has been tested on hardware.
 
 ## Knob numbering
 
@@ -98,7 +101,8 @@ A Euclidean pattern spreads a number of **hits** as evenly as possible over a nu
 (tresillo), E(5,8) = `x.xx.xx.` (cinquillo) and E(4,16) = four even hits.
 
 **Open the page:** press **S + layer key** as usual, then **S + the same layer key once more**.
-Do the same to go back.
+Pressing it again moves on to the [NOTE page](#6-melody-layers--note-page-in-layer-song-v109),
+and once more back to the edit page.
 
 ```
  Top:     [1 STEPS]   [2 HITS]   [ step strip: ■··■··■· ]
@@ -160,9 +164,62 @@ loop.
   not affected. NEW FILE resets the chain.
 - All parts share the song length (BAR × MEASURE). Use REPEAT for longer sections.
 
+## 6. Melody layers – NOTE page in Layer Song (v1.09)
+
+Any layer can now be a **DRUM** layer (as before) or a **TONE** layer that plays every beat at its
+own note. Your kick becomes an 808 bassline, a vocal chop a melody, a pad sample a chord riff.
+
+**Open the page:** **S + layer key**, then **S + the same layer key** twice more (edit → EUCLID →
+NOTE). Once more goes back to the edit page.
+
+```
+ Top:     [1 MODE]   [2 NOTE]    [ note strip: a small piano roll ]
+ Bottom:  [5 ROOT]   [6 SCALE]   [7 GLIDE]   [8 TRANSPOSE]
+```
+
+| Control | What it does |
+|---|---|
+| **1 MODE** | **DRUM**: the layer plays as before and ignores the notes. **TONE**: every beat plays at its note. |
+| **2 NOTE** | The note of the selected beat, e.g. `D#4`. Only notes of the scale are offered, two octaves either side of the root. |
+| **5 ROOT** | The key: C to B. |
+| **6 SCALE** | Chromatic, major, minor, dorian, phrygian, lydian, mixolydian, harmonic minor, pentatonic major, pentatonic minor, blues. |
+| **7 GLIDE** | 0 = off. Higher values slide from the previous note into the next one, from a quick 303-style slide up to half a second. |
+| **8 TRANSPOSE** | Moves every note of the bank one scale step up or down, keeping the melody intact. It stops when the highest or lowest note reaches the edge of the range. The value shows how far you have moved since the page opened. |
+| **LEFT / RIGHT** | Select the beat whose note you edit (SHIFT + LEFT/RIGHT still moves it). |
+| **Layer key** | Plays the selected beat's note. |
+| **CLEAR** | Undoes the note edits made since the page opened (**CLEAR: UNDO**). |
+
+**Workflow:** put beats on the layer (record, ADD, EUCLID…), open the NOTE page, set MODE to TONE,
+pick ROOT and SCALE, then step through the beats with LEFT/RIGHT and turn NOTE. While the
+sequencer is stopped, every turn plays the note so you hear what you set.
+
+- **Always in key.** Notes are stored as steps of the scale, so changing ROOT or SCALE later
+  re-harmonises the whole melody instead of leaving notes outside the key.
+- **Tuning:** the sample is taken to be a **C** (shown as C4) at the layer's PITCH. If your
+  sample is in another key, tune it with PITCH in the Layer Instrument menu.
+- **The strip** shows every beat of the bank at its pitch (the line in the middle is the root);
+  the selected beat is cyan.
+- **Notes stay with their beats:** MOVE, SHIFT ALL, quantize, EUCLID MERGE and song copy/paste
+  keep them. A short ADD press gives the new beat the note of the beat before it, so a line is
+  quick to continue.
+- **MIDI out:** a TONE layer sends each beat's own note (the sample's pitch is MIDI note 60) and
+  releases the previous note first, so the Drumboy Pro can play a bassline on an external synth.
+- **Saved with the project** in a small extra file (`File_NNN.rwn`) next to the project file.
+  Projects from older firmware open with all layers as DRUM; older firmware ignores the new file.
+  NEW FILE resets everything; drumkits don't store notes.
+- **Good to know:** one note at a time per layer (use several layers for chords). As on any
+  sampler, higher notes play the sample faster, so they are also shorter. Pads outside the NOTE
+  page and MIDI in play the root.
+
 ---
 
 ## Improvements and fixes
+
+### Audio CPU meter (v1.09)
+- **IO menu, knob 5 CPU LOAD:** how busy the audio engine is, averaged over about 0.1 s.
+- **Knob 6 CPU PEAK:** the busiest moment since start-up (turn the knob to reset). It turns red
+  from 80 %; above 100 % the audio misses its deadline and you hear clicks.
+- Useful to see how much room there is before adding effects, or, later, synth layers.
 
 ### Safer firmware updates (v1.02)
 - The bootloader no longer starts a broken app after a failed update. It shows
@@ -198,6 +255,7 @@ loop.
 | v1.06 | Layer Song EUCLID page: Euclidean rhythms |
 | v1.07 | Song mode: chain the 5 song banks into a song |
 | v1.08 | EUCLID page shows the CLEAR: UNDO hint |
+| v1.09 | Melody layers (TONE) on the NOTE page; audio CPU meter in the IO menu |
 
 ## Install and roll back
 
@@ -205,10 +263,10 @@ The step-by-step guide (which file to download, where to put it, what the screen
 to do if something goes wrong) is in the **[README → Install](README.md#install)**. In short:
 
 1. Back up the whole SD card.
-2. Download `Drumboy_Pro_Fw_Moffe_01_08.bin` from the
+2. Download `Drumboy_Pro_Fw_Moffe_01_09.bin` from the
    [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest).
 3. Copy it, with its exact name, to the root of the card as the only `Drumboy_Pro_Fw…bin` there.
-4. Power on: *UPDATING FIRMWARE V1.08* → *FIRMWARE UPDATED* → sunglasses.
+4. Power on: *UPDATING FIRMWARE V1.09* → *FIRMWARE UPDATED* → sunglasses.
 
 **Roll back:** install `Drumboy_Pro_Fw_01_01.bin` (factory, in the release Assets and in
 `02 Software/Firmware/`) the same way. The bootloader accepts any version, older or newer.

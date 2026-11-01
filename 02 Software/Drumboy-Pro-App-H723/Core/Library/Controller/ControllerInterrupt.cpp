@@ -117,7 +117,7 @@ void Controller::interruptPlay() {
                                         break;  // MUTED: 0% velocity
                                 }
                             }
-                            if (fillVolMultiplier > 0.0f) layer_playBeat(layer.number, fillVolMultiplier);
+                            if (fillVolMultiplier > 0.0f) layer_playBeat(layer.number, fillVolMultiplier, beat.getNote());
 
                             // Advance to the next beat index
                             (playBeatNum < bank.lastActiveBeatNum) ? bank.playBeatNum += 1 : bank.playBeatNum = 0;
@@ -133,7 +133,7 @@ void Controller::interruptPlay() {
                         if (beatMicro.getInterval() == playInterval) {
                             if ((!layer.mute) && (layer.samplePlay) && ((playBeatMicroNum == 0) || ((playBeatMicroNum != 0) && (layer.fill)))) {
                                 fillVolMultiplier = kNumberDataLibrary[beatMicro.getLevel()].powMultiplier;
-                                if (fillVolMultiplier > 0.0f) layer_playBeat(layer.number, fillVolMultiplier);
+                                if (fillVolMultiplier > 0.0f) layer_playBeat(layer.number, fillVolMultiplier, beat.getNote());
                             }
 
                             // Advance micro-step index within the fill

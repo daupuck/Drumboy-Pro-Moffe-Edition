@@ -516,6 +516,7 @@ void Controller::file_newAction() {
     // Reset rhythm, EQ, filters, effects, and reverb blocks.
     rhythm_reset();
     songChain = songchain::defaultChain();  // song mode OFF, empty chain
+    tone_resetAll();                        // every layer a plain DRUM layer again
     songEditStep = 0;
     song_rewind();
     eq_reset();
