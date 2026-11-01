@@ -1372,6 +1372,37 @@ void Controller::metro_setVolume(uint8_t volume_) {
     }
 }
 
+void Controller::metro_setPreviewActive(bool active_) {
+    /// @brief Turns the Layer Inst sample preview on/off (Metronome menu, knob 5).
+
+    previewActive = active_;
+    if (!previewActive) preview_stop();
+
+    if (menu == METRO_MENU) lcd_drawMetro_PreviewData();
+
+    if (systemPresetSaveActive) {
+        stopSystemPresetTimer();
+        startSystemPresetTimer();
+    }
+}
+
+void Controller::metro_setPreviewLevel(uint8_t level_) {
+    /// @brief Sets the sample preview level (Metronome menu, knob 6); applies immediately,
+    /// also to a preview that is playing.
+
+    if ((level_ >= kMinPreviewLevel) && (level_ <= kMaxPreviewLevel)) {
+        previewLevel = level_;
+        previewPlay.gain = kNumberDataLibrary[previewLevel].powMultiplier;
+
+        if (menu == METRO_MENU) lcd_drawMetro_PreviewLevelData();
+
+        if (systemPresetSaveActive) {
+            stopSystemPresetTimer();
+            startSystemPresetTimer();
+        }
+    }
+}
+
 void Controller::metro_volumeTransition(float volumeFloat_) {
     /// @brief Queues metronome volume ramp target and activates transition engine.
 

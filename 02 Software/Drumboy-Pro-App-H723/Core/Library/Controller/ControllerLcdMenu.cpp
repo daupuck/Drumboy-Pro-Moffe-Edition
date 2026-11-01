@@ -1378,6 +1378,8 @@ void Controller::lcd_drawMetroMenu() {
     lcd.drawText(kHeaderPrecount, kMenuHeaderTextSize, kMenuHeaderX[1], kMenuHeaderY[1]);
     lcd.drawText(kHeaderSample, kMenuHeaderTextSize, kMenuHeaderX[2], kMenuHeaderY[2]);
     lcd.drawText(kHeaderVolume, kMenuHeaderTextSize, kMenuHeaderX[3], kMenuHeaderY[3]);
+    lcd.drawText(kHeaderPreview, kMenuHeaderTextSize, kMenuHeaderX[4], kMenuHeaderY[4]);
+    lcd.drawText(kHeaderPreviewLevel, kMenuHeaderTextSize, kMenuHeaderX[5], kMenuHeaderY[5]);
 
     // 4. SIGN/UNIT DRAW
     // Draw unit/sign text for each parameter slot.
@@ -1386,6 +1388,8 @@ void Controller::lcd_drawMetroMenu() {
     lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[1], kMenuSignBoxY[1]);
     lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[2], kMenuSignBoxY[2]);
     lcd.drawText("  %", kMenuSignTextSize, kMenuSignBoxX[3], kMenuSignBoxY[3]);
+    lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[4], kMenuSignBoxY[4]);
+    lcd.drawText("  %", kMenuSignTextSize, kMenuSignBoxX[5], kMenuSignBoxY[5]);
 
     // 5. DATA DRAW
     // Draw metronome parameter values.
@@ -1393,6 +1397,22 @@ void Controller::lcd_drawMetroMenu() {
     lcd_drawMetro_PrecountData();
     lcd_drawMetro_SampleData();
     lcd_drawMetro_VolumeData();
+    lcd_drawMetro_PreviewData();
+    lcd_drawMetro_PreviewLevelData();
+}
+
+void Controller::lcd_drawMetro_PreviewData() {
+    /// @brief Draws the sample preview on/off value (knob 5).
+
+    lcd_setMenuDataState(WHITE);
+    lcd.drawText(previewActive ? kDataOn : kDataOff, kMenuDataTextSize, kMenuDataX[4], kMenuDataY[4]);
+}
+
+void Controller::lcd_drawMetro_PreviewLevelData() {
+    /// @brief Draws the sample preview level (knob 6).
+
+    lcd_setMenuDataState(WHITE);
+    lcd.drawText(kNumberDataLibrary[previewLevel].nameLongR, kMenuDataTextSize, kMenuDataX[5], kMenuDataY[5]);
 }
 
 void Controller::lcd_drawMetro_ActiveData() {

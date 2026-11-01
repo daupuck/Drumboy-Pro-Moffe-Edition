@@ -1092,6 +1092,28 @@ void Controller::processAudioSend(uint32_t* outputBuffer) {
         }
     }
 
+    // Accumulate the sample preview (Layer Inst audition): dry, mono, before master
+    // mute/volume/limiter. Plays only samples the main loop has already written (filled);
+    // while streaming it simply waits. A stop request fades out across this block.
+    if (previewPlay.playing) {
+        const float* preview = reinterpret_cast<const float*>(RAM_PREVIEW_ADDRESS);
+        const uint32_t filled = previewPlay.filled;
+        const float gain = previewPlay.gain;
+        const bool stopping = previewPlay.stopRequest;
+        uint32_t counter = previewPlay.counter;
+        for (uint16_t i = 0; (i < I2S_BLOCK_SIZE) && (counter < filled); i++) {
+            const float fade = stopping ? (1.0f - (static_cast<float>(i + 1) / I2S_BLOCK_SIZE)) : 1.0f;
+            const float audio = preview[counter++] * gain * fade;
+            audioSend_L[i] += audio;
+            audioSend_R[i] += audio;
+        }
+        previewPlay.counter = counter;
+        if (stopping || ((counter >= filled) && !previewPlay.streaming)) {
+            previewPlay.playing = false;
+            previewPlay.stopRequest = false;
+        }
+    }
+
     // 2. MASTER MUTE CHECK
     // Output silence and return when master mute is enabled.
     if (mixer.masterMute) {

@@ -6,6 +6,7 @@
 #include "Dac.h"
 #include "Global.h"
 #include "Lcd.h"
+#include "SampleFormat.h"
 #include "fatfs.h"
 #include "main.h"
 #include "sdmmc.h"
@@ -208,6 +209,24 @@ class Controller {
 
     bool layerBeatKeyFlag;
     volatile bool layerSongAddPending;  // ADD pressed in Layer Song; inserts one beat on release unless used as shift / long press (cleared from the long-key ISR)
+
+    // Sample preview (Layer Inst menu audition). Settings live in the Metronome menu and are
+    // saved in the system preset; streaming state is main-loop only, previewPlay is shared
+    // with the audio ISR.
+    bool previewActive = kInitialPreviewActive;
+    uint8_t previewLevel = kInitialPreviewLevel;
+    PreviewPlayData previewPlay;
+    bool previewRequestPending = false;
+    uint32_t previewRequestTick = 0;
+    int8_t previewRequestLayer = -1;
+    int8_t previewLayer = -1;
+    bool previewIndicator = false;
+    char previewFileName[(kFileNameSize * 2) + 10] = {};
+    uint32_t previewDataStart = 0;    // file offset of the PCM data
+    uint32_t previewBytesTotal = 0;   // PCM bytes to read
+    uint32_t previewBytesRead = 0;
+    uint32_t previewOutCount = 0;     // samples written to RAM_PREVIEW_ADDRESS
+    sampleformat::Plan previewPlan = {};
     bool layerFillCopyKeyFlag;
     bool layerFillPasteKeyFlag;
 
@@ -1002,6 +1021,20 @@ class Controller {
     void layerSong_setSelectedBeatFillLevel(uint8_t fillLevel_);
     void layerSong_generateBeat(uint8_t type);
     void layerSong_shiftSelectedBeat(bool direction_);
+
+    /* Sample Preview --------------------------------------- */
+
+    void preview_request(uint8_t layerNum_);   // debounced: starts after the knob rests
+    bool preview_start(uint8_t layerNum_);     // immediate
+    void preview_stop();                       // fade out, cancel streaming, free the SD buffer
+    void preview_service();                    // main loop: debounce + stream one chunk
+    bool preview_streamChunk();
+    void preview_finishStreaming();
+    void preview_showIndicator(bool show_);
+    void metro_setPreviewActive(bool active_);
+    void metro_setPreviewLevel(uint8_t level_);
+    void lcd_drawMetro_PreviewData();
+    void lcd_drawMetro_PreviewLevelData();
     void layerSong_moveSelectedBeat(bool direction_);
     void layerSong_shiftAllBeats(bool direction_);
     void layerSong_insertBeat();

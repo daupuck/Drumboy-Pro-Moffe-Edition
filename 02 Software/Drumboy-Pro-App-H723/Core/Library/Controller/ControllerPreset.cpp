@@ -22,7 +22,12 @@ void Controller::loadSystemPreset() {
                 if (f_lseek(&sd.file, 25) == FR_OK) {
                     // 3. DATA RETRIEVAL
                     // Load persisted system preset payload into RAM buffer.
-                    if (sd_read(dataSystemPreset, kSystemPresetDataSize) == FR_OK) {
+                    // The first 21 bytes are required (format up to v1.04); the preview bytes
+                    // [21..22] are optional so a shorter file from older firmware still loads.
+                    const UINT kLegacySystemPresetDataSize = 21;
+                    UINT systemPresetBytes = 0;
+                    if ((f_read(&sd.file, dataSystemPreset, kSystemPresetDataSize, &systemPresetBytes) == FR_OK) &&
+                        (systemPresetBytes >= kLegacySystemPresetDataSize)) {
                         // 4. MIXER/AMPLIFIER PARAMETER APPLY
                         // Apply persisted mixer and amplifier values through setter APIs.
                         mixer_setMasterVolume(dataSystemPreset[0]);
@@ -55,6 +60,19 @@ void Controller::loadSystemPreset() {
                         io_setSyncInPpqn((dataSystemPreset[20] >> 4) & 0x0F);
                         io_setSyncOutPpqn(dataSystemPreset[20] & 0x0F);
                         io_setMidiOutChannel(dataSystemPreset[19] & 0x0F);
+
+                        // 7. SAMPLE PREVIEW (v1.05+). Files written by older firmware hold
+                        // unrelated bytes here, so anything out of range falls back to defaults.
+                        if (systemPresetBytes >= kSystemPresetDataSize) {
+                            const uint8_t previewByte = dataSystemPreset[21];
+                            const uint8_t levelByte = dataSystemPreset[22];
+                            previewActive = (previewByte <= 1) ? (previewByte == 1) : kInitialPreviewActive;
+                            previewLevel = (levelByte <= kMaxPreviewLevel) ? levelByte : kInitialPreviewLevel;
+                        } else {
+                            previewActive = kInitialPreviewActive;
+                            previewLevel = kInitialPreviewLevel;
+                        }
+                        previewPlay.gain = kNumberDataLibrary[previewLevel].powMultiplier;
 
                         // Enable persistence engine for future change tracking.
                         systemPresetSaveActive = true;
@@ -110,6 +128,10 @@ void Controller::saveSystemPreset() {
             dataSystemPreset[18] = (uint8_t)((io.midiIn << 4) | io.midiInChannel);
             dataSystemPreset[19] = (uint8_t)((io.midiOut << 4) | io.midiOutChannel);
             dataSystemPreset[20] = (uint8_t)((io.syncInPpqn << 4) | io.syncOutPpqn);
+
+            // Sample preview (v1.05+)
+            dataSystemPreset[21] = (uint8_t)previewActive;
+            dataSystemPreset[22] = previewLevel;
 
             // 4. SD CARD WRITE
             // Seek payload offset and write serialized preset data.

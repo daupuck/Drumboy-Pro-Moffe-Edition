@@ -22,7 +22,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 const uint8_t kVersionMajor                         = 0x01;
-const uint8_t kVersionMinor                         = 0x04;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMinor                         = 0x05;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/
@@ -363,6 +363,29 @@ const uint32_t kChorusByteSize                      = kChorusSize * 4;
 
 #define RAM_CHORUS_0                                RAM_CHORUS_ADDRESS
 #define RAM_CHORUS_1                                RAM_CHORUS_ADDRESS + (1 * kChorusByteSize)
+
+/* Sample preview (Layer Inst menu audition) ------------------------------------
+   One full-length sample buffer in the unused SDRAM gap between the chorus buffers
+   (end 0xC0EA6000) and the images (0xC0FB9640). Separate from the 15 sample sectors, so a
+   preview never touches what the layers play. */
+#define RAM_PREVIEW_ADDRESS                         0xC0EA6000                  // 960.000 bytes (kSampleSize floats)
+
+static_assert(RAM_PREVIEW_ADDRESS >= RAM_CHORUS_ADDRESS + (2 * kChorusByteSize), "preview buffer overlaps the chorus buffers");
+static_assert(RAM_PREVIEW_ADDRESS + kSampleByteSize <= 0xC0FB9640, "preview buffer overlaps the image area");
+
+const uint16_t kPreviewDebounceMs                   = 150;    // knob must rest this long before a preview starts
+const uint32_t kPreviewChunkBytes                   = 6144;   // SD bytes per main-loop step (multiple of every frame size)
+const uint32_t kPreviewStopTimeoutMs                = 3;      // wait for the audio ISR to fade the preview out
+
+// Shared between the main loop (writer) and the audio ISR (reader).
+struct PreviewPlayData {
+    volatile bool playing                           = false;  // ISR mixes the buffer while true
+    volatile bool streaming                         = false;  // main loop is still filling the buffer
+    volatile bool stopRequest                       = false;  // ISR fades out within one block, then stops
+    volatile uint32_t counter                       = 0;      // next sample the ISR plays
+    volatile uint32_t filled                        = 0;      // samples written so far (published after the data)
+    volatile float gain                             = 1.0f;
+};
 
 #define RAM_IMAGE_LOGO_ADDRESS                      0xC0FB9640                  // 170px * 170px
 #define RAM_IMAGE_LOGO_PALETTE_ADDRESS              0xC0FB9640                  // 128 bytes
@@ -928,6 +951,8 @@ const char kHeaderType[]                            = "TYPE      ";
 const char kHeaderVelocity[]                        = "VELOCITY  ";
 const char kHeaderMove[]                            = "MOVE      ";
 const char kHeaderShiftAll[]                        = "SHIFT ALL ";
+const char kHeaderPreview[]                         = "PREVIEW   ";
+const char kHeaderPreviewLevel[]                    = "PREV LEVEL";
 const char kHeaderVolume[]                          = "VOLUME    ";
 const char kHeaderWet[]                             = "WET       ";
 
@@ -1226,10 +1251,13 @@ typedef enum {
     ENC_SONG_MOVE                                   = 0x61,  // move selected beat by one quantize step
     ENC_SONG_SHIFT                                  = 0x62,  // rotate all beats of the bank by one step
 
+    ENC_METRO_PREVIEW                               = 0x63,  // sample preview on/off (Metronome menu, knob 5)
+    ENC_METRO_PREVIEW_LEVEL                         = 0x64,  // sample preview level   (Metronome menu, knob 6)
+
     // Must equal the number of rows before the trailing NONE row in kEncoderFuncDataLibrary,
     // which is indexed by EncoderFunc value. Never stored on SD (only the global map is
     // persisted, and it is range-checked against kMaxEncoderGlobalFunction).
-    ENC_FNC_NONE                                    = 0x63
+    ENC_FNC_NONE                                    = 0x65
 } EncoderFunc;
 
 const EncoderFunc encoderLocalFunction[][8] = {
@@ -1246,7 +1274,7 @@ const EncoderFunc encoderLocalFunction[][8] = {
     // RHYTHM_MENU = 0x05
     {ENC_RHYTHM_TEMPO, ENC_RHYTHM_MEASURE, ENC_RHYTHM_BAR, ENC_RHYTHM_QUANTIZE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE},
     // METRO_MENU = 0x06
-    {ENC_METRO_ACTIVE, ENC_METRO_PRECOUNT, ENC_METRO_SAMPLE, ENC_METRO_VOLUME, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE},
+    {ENC_METRO_ACTIVE, ENC_METRO_PRECOUNT, ENC_METRO_SAMPLE, ENC_METRO_VOLUME, ENC_METRO_PREVIEW, ENC_METRO_PREVIEW_LEVEL, ENC_FNC_NONE, ENC_FNC_NONE},
     // IO_MENU = 0x07
     {ENC_IO_SYNCIN, ENC_IO_SYNCOUT, ENC_IO_MIDIIN, ENC_IO_MIDIOUT, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE},
     // FILTER_0_MENU = 0x08
@@ -1400,6 +1428,8 @@ constexpr EncoderFuncData kEncoderFuncDataLibrary[] = {
     {ENC_SONG_VELOCITY,       ENC_RES_M, "VELOCITY  ", "SONG  ", "   ", false},
     {ENC_SONG_MOVE,           ENC_RES_M, "MOVE      ", "SONG  ", "   ", false},
     {ENC_SONG_SHIFT,          ENC_RES_M, "SHIFT ALL ", "SONG  ", "   ", false},
+    {ENC_METRO_PREVIEW,       ENC_RES_S, "PREVIEW   ", "METRO ", "   ", false},
+    {ENC_METRO_PREVIEW_LEVEL, ENC_RES_F, "PREV LEVEL", "METRO ", "  %", false},
 
     // Row for ENC_FNC_NONE itself, so lookups with function == ENC_FNC_NONE stay in bounds.
     {ENC_FNC_NONE,            ENC_RES_F, "----------", "      ", "   ", true}
@@ -1432,7 +1462,7 @@ const uint8_t kMinEncoderGlobalFunction             = 0;
 const uint8_t kMaxEncoderGlobalFunction             = 68;
 
 const uint8_t kMinEncoderLocalFunction              = 0;
-const uint8_t kMaxEncoderLocalFunction              = ENC_SONG_SHIFT;
+const uint8_t kMaxEncoderLocalFunction              = ENC_METRO_PREVIEW_LEVEL;
 
 const uint8_t kMinEncoderResolution                 = 0;
 const uint8_t kMaxEncoderResolution                 = 8;
@@ -1809,7 +1839,10 @@ const char kDataSong[kSongByteSize + 1]             = "lb                       
 const char kSystemPresetRef[]                       = "RW_DRUMBOYPRO_PRESET_SYS ";
 const char kSystemPresetFilename[]                  = "System/Preset/System.rwp";
 
-const uint8_t kSystemPresetDataSize                 = 21;
+// 21 bytes up to v1.04; v1.05 adds [21] preview on/off and [22] preview level. System.rwp is
+// 48 bytes (25 header + data); bytes 46..47 held leftovers of an old "EOF" marker that nothing
+// reads, so the 23 bytes still fit the existing file. Older firmware reads only the first 21.
+const uint8_t kSystemPresetDataSize                 = 23;
 
 const char kEncoderPresetRef[]                      = "RW_DRUMBOYPRO_PRESET_ENC ";
 const char kEncoderPresetFilename[]                 = "System/Preset/Encoder.rwp";
@@ -2161,6 +2194,11 @@ const bool kInitialMetroActive                      = true;
 const bool kInitialMetroPrecount                    = true;
 const uint8_t kInitialMetroSample                   = 0;
 const uint8_t kInitialMetroVolume                   = 75;
+
+const bool kInitialPreviewActive                    = true;
+const uint8_t kMinPreviewLevel                      = 0;
+const uint8_t kMaxPreviewLevel                      = 100;
+const uint8_t kInitialPreviewLevel                  = 70;
 
 const MixerInMode kInitialMetronomeMixerInMode      = MIXER_IN_REVERB;
 
