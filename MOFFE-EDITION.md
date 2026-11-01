@@ -22,8 +22,10 @@ compared with the factory firmware: what each feature does and how to use it on 
 
 > **Status (1 November 2026):** every version is built, unit-tested and verified by CI. v1.07 has
 > been run on a Drumboy Pro by the maintainer, with song mode confirmed working; the other features
-> are in hardware testing. The melody layers and CPU meter of v1.09 are new and not yet tested on
-> a device. Each release says what has been tested on hardware.
+> are in hardware testing. In v1.09 the melody layers (notes, GLIDE, TRANSPOSE) and the CPU meter
+> have been tested on a device: CPU PEAK about 42 % with all 10 layers playing, two of them TONE,
+> and chorus, delay, reverb and both filters on. Saving and reloading notes is still to be
+> confirmed. Each release says what has been tested on hardware.
 
 ## Knob numbering
 
