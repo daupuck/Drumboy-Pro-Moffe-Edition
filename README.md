@@ -4,7 +4,7 @@
 
 📘 **[User Manual (PDF)](<02 Software/drumboy-pro-user-manual.pdf>)** — Randomwaves' manual for the factory firmware.
 
-✨ **[Moffe Edition — nye funksjoner](MOFFE-EDITION.md)** — what this modded firmware adds (Layer Song beat placement, Euclidean rhythms, sample preview, boot screen, fixes), in Norwegian. Version history: [CHANGELOG.md](CHANGELOG.md).
+✨ **[Moffe Edition — new features](MOFFE-EDITION.md)** — what this extended firmware adds (Layer Song beat placement, Euclidean rhythms, sample preview, boot screen, fixes). Version history: [CHANGELOG.md](CHANGELOG.md).
 
 **An open-source hardware groovebox** — sequencer, sampler, and DSP effects engine built around an STM32H723 (Cortex-M7 @ 550 MHz), with a 540×960 touch-free color display, 42 keys, 8 rotary encoders, and full MIDI/Sync I/O.
 
