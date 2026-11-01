@@ -207,6 +207,7 @@ class Controller {
     bool layerSongResetKeyFlag, layerSongResetActionFlag;
 
     bool layerBeatKeyFlag;
+    volatile bool layerSongAddPending;  // ADD pressed in Layer Song; inserts one beat on release unless used as shift / long press (cleared from the long-key ISR)
     bool layerFillCopyKeyFlag;
     bool layerFillPasteKeyFlag;
 
@@ -649,6 +650,8 @@ class Controller {
     void lcd_drawLayerSong_BeatFillTimeData(uint8_t layerNum_);
     void lcd_drawLayerSong_BeatFillLevelData(uint8_t layerNum_);
     void lcd_drawLayerSong_BeatFillGraphData(uint8_t layerNum_);
+    void lcd_drawLayerSong_MoveData(uint8_t layerNum_);
+    void lcd_drawLayerSong_ShiftData(uint8_t layerNum_);
     // Layer tab functions
     void lcd_drawLayerTab(uint8_t layerNum_);
     void lcd_drawLayerBox(uint8_t layerNum_);
@@ -995,6 +998,12 @@ class Controller {
     void layerSong_setSelectedBeatFillLevel(uint8_t fillLevel_);
     void layerSong_generateBeat(uint8_t type);
     void layerSong_shiftSelectedBeat(bool direction_);
+    void layerSong_moveSelectedBeat(bool direction_);
+    void layerSong_shiftAllBeats(bool direction_);
+    void layerSong_insertBeat();
+    void layerSong_redrawEdited();
+    int8_t layerSong_rebuildBank(uint8_t layerNum_, uint8_t bankTab_, BeatSnapshot* beats_, uint8_t count_, int8_t track_);
+    uint8_t layerSong_snapshotBank(uint8_t layerNum_, uint8_t bankTab_, BeatSnapshot* beats_);
     void layerSong_resetSelectedBeat();
     void layerSong_resetBeats(uint8_t layerNum_, uint8_t bankNum_, uint16_t startInterval_);
     void layerSong_resetAllBeats(uint8_t layerNum_, uint8_t bankNum_);

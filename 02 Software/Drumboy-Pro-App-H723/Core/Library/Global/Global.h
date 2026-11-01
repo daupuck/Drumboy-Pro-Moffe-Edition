@@ -22,7 +22,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 const uint8_t kVersionMajor                         = 0x01;
-const uint8_t kVersionMinor                         = 0x02;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMinor                         = 0x03;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/
@@ -906,6 +906,8 @@ const char kHeaderTempo[]                           = "TEMPO     ";
 const char kHeaderTime[]                            = "TIME      ";
 const char kHeaderType[]                            = "TYPE      ";
 const char kHeaderVelocity[]                        = "VELOCITY  ";
+const char kHeaderMove[]                            = "MOVE      ";
+const char kHeaderShiftAll[]                        = "SHIFT ALL ";
 const char kHeaderVolume[]                          = "VOLUME    ";
 const char kHeaderWet[]                             = "WET       ";
 
@@ -1201,8 +1203,13 @@ typedef enum {
     ENC_SONG_PATTERN                                = 0x5E,
     ENC_SONG_TIMING                                 = 0x5F,
     ENC_SONG_VELOCITY                               = 0x60,
+    ENC_SONG_MOVE                                   = 0x61,  // move selected beat by one quantize step
+    ENC_SONG_SHIFT                                  = 0x62,  // rotate all beats of the bank by one step
 
-    ENC_FNC_NONE                                    = 0x61
+    // Must equal the number of rows before the trailing NONE row in kEncoderFuncDataLibrary,
+    // which is indexed by EncoderFunc value. Never stored on SD (only the global map is
+    // persisted, and it is range-checked against kMaxEncoderGlobalFunction).
+    ENC_FNC_NONE                                    = 0x63
 } EncoderFunc;
 
 const EncoderFunc encoderLocalFunction[][8] = {
@@ -1243,7 +1250,7 @@ const EncoderFunc encoderLocalFunction[][8] = {
     // LAYER_INST_2_MENU = 0x11
     {ENC_INST_2_INST, ENC_INST_2_SAMPLE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_INST_2_EQ, ENC_INST_2_FILTER, ENC_INST_2_EFFECT, ENC_INST_2_REVERB},
     // LAYER_SONG_MENU = 0x12
-    {ENC_SONG_FILL, ENC_SONG_PATTERN, ENC_FNC_NONE, ENC_FNC_NONE, ENC_SONG_TIMING, ENC_SONG_VELOCITY, ENC_FNC_NONE, ENC_FNC_NONE},
+    {ENC_SONG_FILL, ENC_SONG_PATTERN, ENC_FNC_NONE, ENC_FNC_NONE, ENC_SONG_TIMING, ENC_SONG_VELOCITY, ENC_SONG_MOVE, ENC_SONG_SHIFT},
     // TEST_MENU = 0x13
     {ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE}};
 
@@ -1256,7 +1263,9 @@ struct EncoderFuncData {
     bool active;
 };
 
-const EncoderFuncData kEncoderFuncDataLibrary[] = {
+// Indexed by EncoderFunc value: row N must describe the function whose value is N
+// (row 0 doubles as the ENC_FNC_OFF slot). Checked at compile time below.
+constexpr EncoderFuncData kEncoderFuncDataLibrary[] = {
     {ENC_FNC_NONE,            ENC_RES_F, "----------", "      ", "   ", true},
 
     {ENC_MIXER_MASTERVOLUME,  ENC_RES_F, "MAS-VOL   ", "MIXER ", "   ", true},
@@ -1331,8 +1340,8 @@ const EncoderFuncData kEncoderFuncDataLibrary[] = {
     {ENC_REVERB_ACTIVE,       ENC_RES_S, "ACTIVE    ", "REVERB", "   ", true},
     {ENC_REVERB_SIZE,         ENC_RES_F, "SIZE      ", "REVERB", "  %", true},
     {ENC_REVERB_DECAY,        ENC_RES_F, "DECAY     ", "REVERB", "  %", true},
-    {ENC_REVERB_PREDELAY,     ENC_RES_F, "PREDELAY  ", "REVERB", "  %", true},
-    {ENC_REVERB_DAMPING,      ENC_RES_F, "DAMPING   ", "REVERB", " MS", true},
+    {ENC_REVERB_DAMPING,      ENC_RES_F, "DAMPING   ", "REVERB", "  %", true},
+    {ENC_REVERB_PREDELAY,     ENC_RES_F, "PREDELAY  ", "REVERB", " MS", true},
     {ENC_REVERB_SURROUND,     ENC_RES_M, "SURROUND  ", "REVERB", "  %", true},
     {ENC_REVERB_DRY,          ENC_RES_F, "DRY       ", "REVERB", "  %", true},
     {ENC_REVERB_WET,          ENC_RES_F, "WET       ", "REVERB", "  %", true},
@@ -1368,8 +1377,25 @@ const EncoderFuncData kEncoderFuncDataLibrary[] = {
     {ENC_SONG_FILL,           ENC_RES_M, "FILL      ", "SONG  ", "   ", false},
     {ENC_SONG_PATTERN,        ENC_RES_M, "PATTERN   ", "SONG  ", "   ", false},
     {ENC_SONG_TIMING,         ENC_RES_M, "TIMING    ", "SONG  ", "   ", false},
-    {ENC_SONG_VELOCITY,       ENC_RES_M, "VELOCITY  ", "SONG  ", "   ", false}
+    {ENC_SONG_VELOCITY,       ENC_RES_M, "VELOCITY  ", "SONG  ", "   ", false},
+    {ENC_SONG_MOVE,           ENC_RES_M, "MOVE      ", "SONG  ", "   ", false},
+    {ENC_SONG_SHIFT,          ENC_RES_M, "SHIFT ALL ", "SONG  ", "   ", false},
+
+    // Row for ENC_FNC_NONE itself, so lookups with function == ENC_FNC_NONE stay in bounds.
+    {ENC_FNC_NONE,            ENC_RES_F, "----------", "      ", "   ", true}
 };
+
+// Compile-time guards: the table is indexed by EncoderFunc value.
+static_assert(sizeof(kEncoderFuncDataLibrary) / sizeof(kEncoderFuncDataLibrary[0]) == ENC_FNC_NONE + 1,
+              "kEncoderFuncDataLibrary must have exactly one row per EncoderFunc value (0..ENC_FNC_NONE)");
+
+constexpr bool encoderFuncTableIsOrdered() {
+    for (unsigned i = 1; i < sizeof(kEncoderFuncDataLibrary) / sizeof(kEncoderFuncDataLibrary[0]); i++) {
+        if (static_cast<unsigned>(kEncoderFuncDataLibrary[i].function) != i) return false;
+    }
+    return true;
+}
+static_assert(encoderFuncTableIsOrdered(), "kEncoderFuncDataLibrary row order must match EncoderFunc values");
 
 typedef enum {
     ENC_MODE_GLOBAL                                 = 0x00,
@@ -1386,7 +1412,7 @@ const uint8_t kMinEncoderGlobalFunction             = 0;
 const uint8_t kMaxEncoderGlobalFunction             = 68;
 
 const uint8_t kMinEncoderLocalFunction              = 0;
-const uint8_t kMaxEncoderLocalFunction              = 96;
+const uint8_t kMaxEncoderLocalFunction              = ENC_SONG_SHIFT;
 
 const uint8_t kMinEncoderResolution                 = 0;
 const uint8_t kMaxEncoderResolution                 = 8;
@@ -7116,6 +7142,9 @@ struct Bank {
         beat.setFillTarget(NULL_FILL_TARGET);
     }
 };
+
+// BeatSnapshot and the MOVE / SHIFT ALL / ADD position arithmetic (host-testable).
+#include "LayerSongEdit.h"
 
 /*----------------------------------------------------------------------------*/
 

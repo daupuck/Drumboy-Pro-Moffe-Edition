@@ -1403,6 +1403,7 @@ void Controller::interruptLongKeyRead() {
         // Cycle beat-generation presets on repeated long-press steps.
         else if (layerBeatKeyFlag) {
             keyboard.longKeyCounter = 0;
+            layerSongAddPending = false;  // long press: generator, not a single-beat tap
             switch (layerBeatKeyStage) {
                 case 0:
                     layerSong_generateBeat(0);

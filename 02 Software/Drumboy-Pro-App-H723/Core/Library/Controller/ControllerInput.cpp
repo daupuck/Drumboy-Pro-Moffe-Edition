@@ -205,6 +205,7 @@ void Controller::keyboard_action() {
             for (uint8_t layerNum = 0; layerNum < kLayerLibrarySize; layerNum++) {
                 switch (keyboard.keyLayer.changeState[layerNum]) {
                     case KEYSTATE_PRESS:
+                        layerSongAddPending = false;  // ADD was used as a modifier, not a tap
                         if (keyboard.muteKeyPress) {
                             layerInst_setMute(layerNum, !layerLibrary[layerNum].mute);
                         } else if (keyboard.fillKeyPress) {
@@ -257,6 +258,7 @@ void Controller::keyboard_action() {
             for (uint8_t i = 0; i < 16; i++) {
                 switch (keyboard.keyLeft.changeState[i]) {
                     case KEYSTATE_PRESS:
+                        if (i != KEY_ADD) layerSongAddPending = false;  // ADD used as a modifier, not a tap
                         switch (i) {
                             case KEY_RESET:
                                 if (!alertFlag) {
@@ -521,7 +523,7 @@ void Controller::keyboard_action() {
                                             break;
 
                                         case LAYER_SONG_MENU:
-                                            (keyboard.shiftKeyPress) ? layerSong_shiftSelectedBeat(false) : layerSong_beatLeft();
+                                            (keyboard.shiftKeyPress) ? layerSong_moveSelectedBeat(false) : layerSong_beatLeft();
                                             break;
                                     }
                                 }
@@ -587,7 +589,7 @@ void Controller::keyboard_action() {
                                             break;
 
                                         case LAYER_SONG_MENU:
-                                            (keyboard.shiftKeyPress) ? layerSong_shiftSelectedBeat(true) : layerSong_beatRight();
+                                            (keyboard.shiftKeyPress) ? layerSong_moveSelectedBeat(true) : layerSong_beatRight();
                                             break;
                                     }
                                 }
@@ -782,6 +784,9 @@ void Controller::keyboard_action() {
                                             break;
 
                                         case LAYER_SONG_MENU:
+                                            // A tap (release without long press or another key) inserts one
+                                            // beat; holding ADD on an empty layer still runs the generator.
+                                            layerSongAddPending = true;
                                             if (layerLibrary[selectedLayerNum].bankLibrary[activeSongBank].lastActiveBeatNum == -1) {
                                                 layerBeatKeyFlag = true;
                                                 layerBeatKeyStage = 0;
@@ -974,7 +979,10 @@ void Controller::keyboard_action() {
                                 }
                                 break;
 
-                            case KEY_ADD:
+                            case KEY_ADD: {
+                                // Decide on the tap-insert before the long-press flags are cleared.
+                                const bool insertBeat = layerSongAddPending && (menu == LAYER_SONG_MENU) && !alertFlag && (selectedLayerNum != -1);
+                                layerSongAddPending = false;
                                 stopLongKeyTimer();
                                 keyboard.shiftKeyPress = false;
                                 masterUnmuteKeyFlag = false;
@@ -990,7 +998,8 @@ void Controller::keyboard_action() {
                                     keyboard.longKeyCounter = 0;
                                     rhythmLockKeyFlag = false;
                                 }
-                                break;
+                                if (insertBeat) layerSong_insertBeat();
+                            } break;
 
                             case KEY_CLEAR:
                                 stopLongKeyTimer();
@@ -1131,6 +1140,7 @@ void Controller::keyboard_action() {
             for (uint8_t i = 0; i < 16; i++) {
                 switch (keyboard.keyRight.changeState[i]) {
                     case KEYSTATE_PRESS:
+                        layerSongAddPending = false;  // ADD used as a modifier, not a tap
                         switch (i) {
                             case KEY_FILE:
                                 if (!alertFlag) file_select();
@@ -1993,7 +2003,7 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
 
     // INPUT VALIDATION: reject LFO/Layer edits when no target is selected.
     if ((encoder[encoderNum_].function >= ENC_LFO_ACTIVE) && (encoder[encoderNum_].function <= ENC_LFO_DEPTH) && (selectedLfoNum == -1)) return;
-    if ((encoder[encoderNum_].function >= ENC_INST_0_INST) && (encoder[encoderNum_].function <= ENC_SONG_VELOCITY) && (selectedLayerNum == -1)) return;
+    if ((encoder[encoderNum_].function >= ENC_INST_0_INST) && (encoder[encoderNum_].function <= ENC_SONG_SHIFT) && (selectedLayerNum == -1)) return;
 
     // 2. PARAMETER INCREMENT DISPATCH
     switch (encoder[encoderNum_].function) {
@@ -2545,6 +2555,16 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
             layerSong_menuUp(5);
             break;
 
+        case ENC_SONG_MOVE:
+            layerSongAddPending = false;
+            layerSong_moveSelectedBeat(true);
+            break;
+
+        case ENC_SONG_SHIFT:
+            layerSongAddPending = false;
+            layerSong_shiftAllBeats(true);
+            break;
+
         default:
             break;
     }
@@ -2565,7 +2585,7 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
 
     // INPUT VALIDATION: reject LFO/Layer edits when no target is selected.
     if ((encoder[encoderNum_].function >= ENC_LFO_ACTIVE) && (encoder[encoderNum_].function <= ENC_LFO_DEPTH) && (selectedLfoNum == -1)) return;
-    if ((encoder[encoderNum_].function >= ENC_INST_0_INST) && (encoder[encoderNum_].function <= ENC_SONG_VELOCITY) && (selectedLayerNum == -1)) return;
+    if ((encoder[encoderNum_].function >= ENC_INST_0_INST) && (encoder[encoderNum_].function <= ENC_SONG_SHIFT) && (selectedLayerNum == -1)) return;
 
     // 2. PARAMETER DECREMENT DISPATCH
     switch (encoder[encoderNum_].function) {
@@ -3085,6 +3105,16 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
 
         case ENC_SONG_VELOCITY:
             layerSong_menuDown(5);
+            break;
+
+        case ENC_SONG_MOVE:
+            layerSongAddPending = false;
+            layerSong_moveSelectedBeat(false);
+            break;
+
+        case ENC_SONG_SHIFT:
+            layerSongAddPending = false;
+            layerSong_shiftAllBeats(false);
             break;
 
         default:
