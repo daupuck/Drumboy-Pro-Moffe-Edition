@@ -570,7 +570,7 @@ void Controller::lcd_drawPage(bool animate_) {
     }
 
     // 6. FOOTER LABELS: the panel image has them in the factory magenta; the Moffe Edition
-    // draws its own ruby labels over them.
+    // draws its own orange labels over them (the palette swap at load does it too).
     lcd_drawEncoderBankTab();
     lcd_drawSongBankTab(activeSongBank, false);
 }
@@ -947,7 +947,7 @@ void Controller::lcd_clearInitSdAlert() {
 /* Lcd Bank Functions --------------------------------------------------------*/
 
 void Controller::lcd_drawFooterLabel(const char* text_, uint16_t centerX_, uint16_t y_) {
-    /// @brief A footer label (KNOB, SONG) in the Moffe Edition ruby (v1.14 "Gold Rush").
+    /// @brief A footer label (KNOB, SONG) in the Moffe Edition orange (v2.00 "Gold Rush").
     /// Drawn over the factory magenta label in the SD card's panel image.
 
     lcd.setAlignment(CENTER);
@@ -966,7 +966,7 @@ void Controller::lcd_drawEncoderBankTab() {
     lcd.setFont(FONT_07x09);
 
     // 2. LABEL DRAW
-    // Draw static KNOB footer label: in the Moffe Edition ruby.
+    // Draw static KNOB footer label: in the Moffe Edition orange.
     lcd_drawFooterLabel("KNOB", 76, 463);
 
     // 3. BANK VALUE DRAW
@@ -986,7 +986,7 @@ void Controller::lcd_drawSongBankTab(uint8_t bank_, bool mode_) {
     lcd.setFont(FONT_07x09);
 
     // 2. LABEL DRAW
-    // Draw static SONG footer label: in the Moffe Edition ruby.
+    // Draw static SONG footer label: in the Moffe Edition orange.
     lcd_drawFooterLabel("SONG", 886, 463);
 
     // 3. HIGHLIGHT STATE APPLY

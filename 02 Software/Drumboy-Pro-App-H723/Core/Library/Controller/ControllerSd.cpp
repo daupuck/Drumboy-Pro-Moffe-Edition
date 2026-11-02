@@ -52,6 +52,17 @@ SdResult Controller::sd_initialize() {
                                                 (sd_loadImage("System/Image/Image_Layer_B.rwi", RAM_IMAGE_LAYER_B_PALETTE_ADDRESS, RAM_IMAGE_LAYER_B_DATA_ADDRESS, kImageLayerPalette, kImageLayerWidth, kImageLayerHeight, RGB16) == SD_OK) &&
                                                 (sd_loadImage("System/Image/Icon_Select.rwi", RAM_ICON_SELECT_PALETTE_ADDRESS, RAM_ICON_SELECT_DATA_ADDRESS, kIconPalette, kIconSelectWidth, kIconSelectHeight * 2, RGB16) == SD_OK) &&
                                                 (sd_loadImage("System/Image/Icon_Play.rwi", RAM_ICON_PLAY_PALETTE_ADDRESS, RAM_ICON_PLAY_DATA_ADDRESS, kIconPalette, kIconPlayWidth, kIconPlayHeight * 8, RGB16) == SD_OK)) {
+                                                // Moffe Edition "Gold Rush" (v2.00): the panel and icon images on the
+                                                // card carry the factory cyan / magenta / green; swap them in their
+                                                // palettes, so any SD card shows the new look.
+                                                const struct { uint32_t address; uint16_t count; } kPalettes[] = {
+                                                    {RAM_IMAGE_MENU_A_PALETTE_ADDRESS, kImageMenuAPalette}, {RAM_IMAGE_MENU_B_PALETTE_ADDRESS, kImageMenuBPalette},
+                                                    {RAM_IMAGE_LAYER_A_PALETTE_ADDRESS, kImageLayerPalette}, {RAM_IMAGE_LAYER_B_PALETTE_ADDRESS, kImageLayerPalette},
+                                                    {RAM_ICON_SELECT_PALETTE_ADDRESS, kIconPalette}, {RAM_ICON_PLAY_PALETTE_ADDRESS, kIconPalette}};
+                                                for (const auto& pal : kPalettes) {
+                                                    RGB16Color* entry = reinterpret_cast<RGB16Color*>(pal.address);
+                                                    for (uint16_t i = 0; i < pal.count; i++) entry[i] = vis::recolor(entry[i], kAccentColor, kAccent2Color);
+                                                }
                                                 sd.ready = true;
                                                 sd.getLibrary = true;  // Signal that we can now index the sample libraries
                                                 sdResult = SD_OK;

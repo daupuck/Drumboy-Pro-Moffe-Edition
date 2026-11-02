@@ -75,6 +75,19 @@ int main() {
         (void)vis::heat(static_cast<uint8_t>(h));
     }
 
+    // Palette swap for the SD card's UI images.
+    const uint16_t gold = vis::rgb(255, 194, 26);
+    const uint16_t orange = vis::rgb(255, 138, 31);
+    CHECK(vis::recolor(0x07FF, gold, orange) == gold);                      // factory cyan -> gold
+    CHECK(vis::recolor(0x07E0, gold, orange) == gold);                      // play icon green -> gold
+    CHECK(vis::recolor(0xF81F, gold, orange) == orange);                    // factory magenta -> orange
+    CHECK(vis::recolor(vis::rgb(0, 128, 128), gold, orange) == vis::dim(gold, 128));  // dimmer stays dimmer
+    CHECK(vis::recolor(0x0000, gold, orange) == 0x0000);                    // black stays
+    CHECK(vis::recolor(0xFFFF, gold, orange) == 0xFFFF);                    // white stays
+    CHECK(vis::recolor(0x8410, gold, orange) == 0x8410);                    // grey stays
+    CHECK(vis::recolor(vis::rgb(255, 0, 127), gold, orange) == vis::rgb(255, 0, 127));  // record red stays
+    CHECK(vis::recolor(vis::rgb(220, 0, 110), gold, orange) == vis::rgb(220, 0, 110));  // ...and its shades
+
     // Level mapping and follower.
     CHECK(vis::level01(0.0f) == 0.0f);
     CHECK(vis::level01(1.0f) == 1.0f);

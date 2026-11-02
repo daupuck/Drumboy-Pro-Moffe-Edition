@@ -40,7 +40,7 @@ The biggest Moffe Edition update yet, big enough for a new major version. Highli
 - 🌈 **VISUALS:** 13 full-screen visuals that dance to your music. Fireworks for every hit, a Game of
   Life seeded by your drums, digital rain, a kaleidoscope, a disco floor, "Unknown Pleasures" ridges,
   spectrum, oscilloscope, VU needles and more. Press **HOME** on the home screen.
-- 🏆 **The Moffe Edition look:** a gold-and-ruby "Gold Rush" style throughout, and a boot
+- 🏆 **The Moffe Edition look:** a gold-and-orange "Gold Rush" style throughout, and a boot
   screen with a golden MOFFE. Works with any SD card.
 
 → **[What's new, explained](MOFFE-EDITION.md#whats-new-in-v200--the-big-one)** ·
@@ -64,7 +64,7 @@ The biggest Moffe Edition update yet, big enough for a new major version. Highli
 | 🎧 | [**Sample preview**](MOFFE-EDITION.md#3-sample-preview--layer-instrument-menu-v105) | Hear a sample *before* you load it. Your ears will thank you. |
 | 📊 | [**CPU meter**](MOFFE-EDITION.md#audio-cpu-meter-v109) | See how busy the audio engine is (IO menu), so you know how much room is left. |
 | 🛟 | [**Safer saving and fixes**](MOFFE-EDITION.md#improvements-and-fixes) | A full card or a failed save no longer leaves half-written files, plus a stack of bug fixes. |
-| 🏆 | [**The look and the boot screen**](MOFFE-EDITION.md#9-the-moffe-edition-look-v200) | Gold and ruby, sunglasses with a golden rim. Purely cosmetic. Deeply important. |
+| 🏆 | [**The look and the boot screen**](MOFFE-EDITION.md#9-the-moffe-edition-look-v200) | Gold and orange, sunglasses with a golden rim. Purely cosmetic. Deeply important. |
 
 ## Version history
 
@@ -74,7 +74,7 @@ the **[CHANGELOG](CHANGELOG.md)**, and each published version has its firmware f
 
 | Version | Highlights |
 |---|---|
-| **v2.00** (latest) | SYNTH layers with 66 presets, random sounds, envelope, LFO, filter types and PAD HOLD · 13 VISUALS · the gold-and-ruby Moffe Edition look and boot screen · NOTE page and file improvements (developed as test builds v1.11–v1.14) |
+| **v2.00** (latest) | SYNTH layers with 66 presets, random sounds, envelope, LFO, filter types and PAD HOLD · 13 VISUALS · the gold-and-orange Moffe Edition look and boot screen · NOTE page and file improvements (developed as test builds v1.11–v1.14) |
 | v1.10 | The pads as a scale keyboard: step entry and live recording; melody generator and variations |
 | v1.09 | Melody layers (TONE) on the NOTE page; audio CPU meter |
 | v1.08 | EUCLID page shows the CLEAR: UNDO hint |

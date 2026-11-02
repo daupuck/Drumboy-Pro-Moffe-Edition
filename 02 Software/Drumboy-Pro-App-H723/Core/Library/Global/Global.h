@@ -631,15 +631,17 @@ const RGB16Color GRAY_85                            = 0xDEDB;
 const RGB16Color GRAY_90                            = 0xE73C;
 const RGB16Color GRAY_95                            = 0xF79E;
 
-// Moffe Edition palette (v1.14 "Gold Rush"): golden yellow where the factory UI used cyan, ruby
-// red where it used magenta (clearly red and much darker than gold, so the two never blend),
-// light gold for the selected layer.
+// Moffe Edition palette (v2.00 "Gold Rush", as in the approved home-screen mockup): gold where
+// the factory UI used cyan, orange where it used magenta (KNOB/SONG labels, indicators), light
+// gold for the selected layer. Ruby red marks the selected beat (it must stand out from the
+// light gold beats) and the boot screen's EDITION.
 const RGB16Color kMoffeGold                         = 0xFE03;  // #FFC21A
+const RGB16Color kMoffeOrange                       = 0xFC43;  // #FF8A1F
 const RGB16Color kMoffeRuby                         = 0xF9EB;  // #FF3D5A
 const RGB16Color kMoffeDeepRuby                     = 0x8885;  // #8A1028
 const RGB16Color kMoffeLightGold                    = 0xFF0F;  // #FFE27A
 const RGB16Color kAccentColor                       = kMoffeGold;
-const RGB16Color kAccent2Color                      = kMoffeRuby;
+const RGB16Color kAccent2Color                      = kMoffeOrange;
 
 /*----------------------------------------------------------------------------*/
 

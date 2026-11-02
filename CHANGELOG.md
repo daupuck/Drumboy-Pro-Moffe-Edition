@@ -15,13 +15,13 @@ number: projects, drumkits and settings from every earlier version load.
 
 **The Moffe Edition look ("Gold Rush").** `kAccentColor` (gold #FFC21A, `0xFE03`) replaces the
 factory cyan everywhere in the UI (menu headers, play bar, active values), `kAccent2Color`
-(ruby #FF3D5A, `0xF9EB`) replaces magenta, and `kLayerSelectedColor` is light gold #FFE27A. The KNOB /
-SONG footer labels are drawn in ruby (`lcd_drawFooterLabel`). The SD card's panel images
+(orange #FF8A1F, `0xFC43`) replaces magenta, and `kLayerSelectedColor` is light gold #FFE27A. The KNOB /
+SONG footer labels are drawn in orange (`lcd_drawFooterLabel`). The SD card's panel images
 still carry the factory cyan play bar and magenta footer labels; `lcd_drawPage` paints over
 them, so no new images are needed. Boot screen: MOFFE in gold with a deep ruby (#8A1028) drop shadow, gold
 shades rim, EDITION fading in to ruby with a gold line under it (`kEditionShadow*`,
 `kEditionLabelColor`, `kEditionUnderline*`). The factory test screens are unchanged. VISUALS
-gets a GOLD RUSH theme (now the default; seven themes). The selected beat in Layer Song is ruby (`kBeatSelectedColor`) and its marker 4 px wide instead of 2, so it stands out from the light gold beats of the selected layer. Also fixed: two `sprintf` overflows
+gets a GOLD RUSH theme (now the default; seven themes). The selected beat in Layer Song is ruby (`kBeatSelectedColor`) and its marker 4 px wide instead of 2, so it stands out from the light gold beats of the selected layer. The panel and icon images on the SD card are recoloured in their RAM palettes right after loading (`vis::recolor`: cyan and green to gold, magenta to orange, shading kept, the red record icon untouched), so the play icon is gold too. Also fixed: two `sprintf` overflows
 into 3-byte buffers in the footer bank numbers.
 
 **VISUALS mode: full-screen music visuals.** HOME (CENTER) on the home screen turns it on;

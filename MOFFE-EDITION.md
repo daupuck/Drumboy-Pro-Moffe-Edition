@@ -42,7 +42,7 @@ The biggest update yet: the Drumboy Pro gets **a real synthesizer, a light show 
 | 📈 | **[AMP envelope and LFO](#7-synth-layers--a-built-in-synth-voice-v200)** | ATTACK, DECAY, SUSTAIN, RELEASE, and a tempo-synced LFO for wobbles, vibrato and tremolo. |
 | 🎹 | **[PAD HOLD](#7-synth-layers--a-built-in-synth-voice-v200)** | Notes sound as long as you hold the pad, like a keyboard, and recorded notes play back just as long. |
 | 🌈 | **[VISUALS](#8-visuals--full-screen-music-visuals-v200)** | 13 full-screen visuals that dance to your music: fireworks for every hit, a Game of Life seeded by your drums, a spectrum skyline, digital rain, a kaleidoscope and more. Press HOME on the home screen. |
-| 🏆 | **[The Moffe Edition look](#9-the-moffe-edition-look-v200)** | A gold-and-ruby "Gold Rush" style throughout, and a new golden boot screen. |
+| 🏆 | **[The Moffe Edition look](#9-the-moffe-edition-look-v200)** | A gold-and-orange "Gold Rush" style throughout, and a new golden boot screen. |
 
 Coming from v1.10 or older? Also new since then: the [NOTE page](#6-melody-layers--note-page-in-layer-song-v109)
 plays pads without touching your track (ADD + pad = step entry) and has a wider keyboard range,
@@ -393,9 +393,9 @@ magenta:
 
 - **Gold** (#FFC21A) for knob names, the play bar, active values and highlights.
 - **Light gold** for the selected layer's row.
-- **Ruby red** (#FF3D5A) where the factory used magenta, clearly apart from the gold: the **KNOB** and **SONG** labels at the
+- **Orange** (#FF8A1F) where the factory used magenta: the **KNOB** and **SONG** labels at the
   bottom of the screen and indicators such as MUTE and the rhythm locks.
-- **Selected beat:** in Layer Song the selected beat is ruby and twice as wide, so you always see
+- **Gold play button**, and the play bar in gold.
   where you are on the line (the layer's other beats are light gold).
 - **Boot screen:** MOFFE in gold with a deep ruby drop shadow, a gold rim on the sunglasses, and
   a gold line under a ruby EDITION (see [the boot screen](#2-moffe-edition-boot-screen-v104)).
@@ -452,7 +452,7 @@ app's `Global.h`.
 | v1.08 | EUCLID page shows the CLEAR: UNDO hint |
 | v1.09 | Melody layers (TONE) on the NOTE page; audio CPU meter in the IO menu |
 | v1.10 | Pads as a scale keyboard (step entry, live recording); melody generator and variations |
-| **v2.00** | **SYNTH layers**: a built-in synth voice (saw, square, triangle, sine or single-cycle WAVs; DETUNE, SUB, NOISE, DRIVE, four filter types, AMP envelope, LFO page, SLIDE and GLIDE), 66 presets in alphabetical order + 16 USER slots, random sounds and variations, PAD HOLD (also when recording), the synth sound's name in the track list, synth sounds in drumkits and the instrument copy. **VISUALS**: 13 full-screen music visuals in seven colour themes. **The Moffe Edition look**: gold and ruby, new boot screen. **NOTE page**: pads only play while stopped (ADD + pad = step entry), wider octave range. (Test builds v1.11–v1.14 led up to it; they were not released.) |
+| **v2.00** | **SYNTH layers**: a built-in synth voice (saw, square, triangle, sine or single-cycle WAVs; DETUNE, SUB, NOISE, DRIVE, four filter types, AMP envelope, LFO page, SLIDE and GLIDE), 66 presets in alphabetical order + 16 USER slots, random sounds and variations, PAD HOLD (also when recording), the synth sound's name in the track list, synth sounds in drumkits and the instrument copy. **VISUALS**: 13 full-screen music visuals in seven colour themes. **The Moffe Edition look**: gold and orange, new boot screen. **NOTE page**: pads only play while stopped (ADD + pad = step entry), wider octave range. (Test builds v1.11–v1.14 led up to it; they were not released.) |
 
 ## Coming next
 

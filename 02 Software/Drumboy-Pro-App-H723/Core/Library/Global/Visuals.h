@@ -57,6 +57,28 @@ inline uint16_t dim(uint16_t c, uint8_t level) {
     return static_cast<uint16_t>((((r * level) >> 8) << 11) | (((g * level) >> 8) << 5) | ((b * level) >> 8));
 }
 
+// Moffe Edition palette swap for the SD card's UI images (v2.00 "Gold Rush"): factory cyan and
+// green become `gold`, factory magenta becomes `second`, each at the original brightness so
+// anti-aliased edges stay smooth. Greys, black, white and the red record icon are left alone.
+inline uint16_t recolor(uint16_t c, uint16_t gold, uint16_t second) {
+    const uint32_t r = ((c >> 11) & 0x1F) << 3;
+    const uint32_t g = ((c >> 5) & 0x3F) << 2;
+    const uint32_t b = (c & 0x1F) << 3;
+    uint32_t mx = r;
+    if (g > mx) mx = g;
+    if (b > mx) mx = b;
+    if (mx < 24) return c;  // (near) black
+    const uint32_t hi = (mx * 6) / 10;
+    const uint32_t lo = (mx * 4) / 10;
+    const uint8_t level = static_cast<uint8_t>((mx > 255) ? 255 : mx);
+    const bool cyan = (g >= hi) && (b >= hi) && (r <= lo);
+    const bool green = (g >= hi) && (r <= lo) && (b <= lo);
+    const bool magenta = (r >= hi) && (b >= hi) && (g <= lo);
+    if (!(cyan || green || magenta)) return c;
+    const uint16_t target = magenta ? second : gold;
+    return (mx >= 248) ? target : dim(target, level);  // full brightness: exactly the target
+}
+
 // Heat-map colour for 0..255: black -> blue -> magenta -> orange -> yellow -> white.
 inline uint16_t heat(uint8_t x) {
     if (x < 64) return rgb(0, 0, static_cast<uint8_t>(x * 4));
