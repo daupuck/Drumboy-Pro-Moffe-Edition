@@ -544,7 +544,22 @@ void Controller::update() {
                 // TONE layer: send the beat's own note. A new beat retriggers without its own
                 // Note Off, so the held note is released first: external synths get a clean
                 // monophonic line.
+                if ((io.midi.txNotes) && (io.midi.txTriggerNoteOn[i]) && toneMidiLegato[i] && (toneMidiSounding[i] != 0xFF)) {
+                    // SLIDE: overlap the notes (new On, then old Off) so a mono synth plays legato.
+                    const uint8_t note = toneMidiNote[i];
+                    const uint8_t old = toneMidiSounding[i];
+                    uint8_t on[3] = {(uint8_t)(0x90 + io.midi.txChannel), note, 0x64};
+                    uint8_t off[3] = {(uint8_t)(0x80 + io.midi.txChannel), old, 0x64};
+                    if ((note == old) || enqueueMidiTx(on, 3)) {
+                        if ((note == old) || enqueueMidiTx(off, 3)) {
+                            io.midi.txTriggerNoteOn[i] = false;
+                            toneMidiLegato[i] = false;
+                            toneMidiSounding[i] = note;
+                        }
+                    }
+                }
                 if ((io.midi.txNotes) && (io.midi.txTriggerNoteOn[i])) {
+                    toneMidiLegato[i] = false;
                     if (toneMidiSounding[i] != 0xFF) {
                         uint8_t off[3] = {(uint8_t)(0x80 + io.midi.txChannel), toneMidiSounding[i], 0x64};
                         if (enqueueMidiTx(off, 3)) toneMidiSounding[i] = 0xFF;

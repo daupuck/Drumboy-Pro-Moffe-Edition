@@ -5,7 +5,7 @@ Moffe Edition is **unofficial community firmware** for the Drumboy Pro, based on
 is not affiliated with or endorsed by Randomwaves. This page collects everything that is new
 compared with the factory firmware: what each feature does and how to use it on the device.
 
-- **Current version:** v1.11 — download from the
+- **Current version:** v1.12 — download from the
   [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest);
   how to install: [README → Install](README.md#install)
 - **User manual:** published by Randomwaves at [randomwaves.io](https://www.randomwaves.io) (it
@@ -24,7 +24,8 @@ compared with the factory firmware: what each feature does and how to use it on 
 > a Drumboy Pro by the maintainer: song mode (v1.07); the melody layers with notes, GLIDE and
 > TRANSPOSE, and the CPU meter (v1.09: CPU PEAK about 42 % with all 10 layers playing, two of them
 > TONE, and chorus, delay, reverb and both filters on); the pad keyboard and the melody generator
-> (v1.10). Not yet tested on a device: SYNTH layers (v1.11) and saving/reloading notes; the other
+> (v1.10); SYNTH layers and erasing on the EUCLID/NOTE pages (v1.11). Not yet tested on a device:
+> DETUNE, SUB, NOISE, WAVE = SAMPLE and SLIDE (v1.12) and saving/reloading notes; the other
 > features are in hardware testing. Each release says what has been tested on hardware.
 
 ## Knob numbering
@@ -189,6 +190,7 @@ NOTE). Once more goes back to the edit page.
 | **LEFT / RIGHT** | Select the beat whose note you edit (ADD + LEFT/RIGHT still moves it). |
 | **The 10 pads** (TONE, SYNTH) | A scale keyboard: pad 1 is the root, the others the next notes of the scale. Stopped: the selected beat gets the note and the next beat is selected. Playing: play along; with REC, record. (v1.10) |
 | **UP / DOWN** (TONE, SYNTH) | Move the pad keyboard an octave down or up; the strip shows the range, e.g. `PADS C4-E5`. (v1.10) |
+| **ADD + UP / DOWN** | **SLIDE** on / off for the selected beat: the note slides in from the previous one (303 style). The NOTE value shows `SLIDE` and the strip joins the two notes. On SYNTH layers the notes join without a new attack; slide time is GLIDE (at least ~36 ms). (v1.12) |
 | **ADD hold** | A new melody over the bank's beats, in the scale, starting and ending on the root. (v1.10) |
 | **ADD tap** | A variation: a few notes move a step or two. Tap again and again to let it evolve. (v1.10) |
 | **CLEAR** (tap) | Undoes the note edits made since the page opened, including generated melodies. |
@@ -235,8 +237,8 @@ other layer.
 a SYNTH layer:
 
 ```
- Page 1 OSC:     [1 WAVE]    [ ]          [ waveform ]
-                 [5 LEVEL]   [6 PITCH]
+ Page 1 OSC:     [1 WAVE]    [2 DETUNE]   [ waveform ]
+                 [5 LEVEL]   [6 PITCH]    [7 SUB]      [8 NOISE]
  Page 2 FILTER:  [1 CUTOFF]  [2 RESO]     [ filter envelope + gate ]
                  [5 ENV AMT] [6 DECAY]    [7 GATE]     [8 DRIVE]
  Page 3:         routing to EQ / FILTER / EFFECT / REVERB, as for samples
@@ -244,8 +246,11 @@ a SYNTH layer:
 
 | Control | What it does |
 |---|---|
-| **WAVE** | Saw (bright, the classic bass), square (hollow), triangle (soft), sine (pure, sub-bass). |
+| **WAVE** | Saw (bright, the classic bass), square (hollow), triangle (soft), sine (pure, sub-bass), or **SAMPLE** (v1.12): the layer's loaded sample as one cycle of the waveform – see below. |
+| **DETUNE** | 0 = one oscillator. Higher values add a second one, up to 25 cents sharper: a thicker, chorus-like sound. (v1.12) |
 | **LEVEL / PITCH** | As for samples, including their LFOs. PITCH 1.00 = the notes as shown on the NOTE page. |
+| **SUB** | Adds a square wave one octave below: more weight for basses. (v1.12) |
+| **NOISE** | Adds white noise: breath, grit, hi-hat-like textures with a short GATE. (v1.12) |
 | **CUTOFF** | How open the filter is when no envelope is applied. |
 | **RESONANCE** | The peak at the cutoff: from smooth to squelchy. |
 | **ENV AMT** | How far each note opens the filter. With a low CUTOFF this gives the "wow" of acid basslines. |
@@ -253,6 +258,14 @@ a SYNTH layer:
 | **GATE** | How long each note is held: a share of the time until the next beat. Low = short staccato, 100 = notes run into each other. |
 | **DRIVE** | Saturation in the filter: from clean to gritty. |
 
+- **Your own waveforms (WAVE = SAMPLE):** put single-cycle WAVs (one period of a waveform,
+  typically 600 samples; free collections exist online) in an instrument folder on the card. Load
+  one on the layer while it is in TONE or DRUM mode (Layer Instrument, INST/SAMPLE, ADD), switch
+  MODE to SYNTH and set WAVE to SAMPLE. The whole sample is played as one cycle at the note's
+  pitch, so a long sample sounds like a buzzy, time-squeezed texture: fun, but single cycles
+  sound cleanest. Very bright cycles alias at high notes.
+- **SLIDE** (v1.12): on the NOTE page, select a beat and press **ADD + UP**; it slides in from
+  the beat before it. Two or three slides in a line give the classic acid "wow".
 - **Accent:** the beat's **VELOCITY** on the edit page decides it. FLAT beats play full and
   bright, GHOST beats softer and with less filter: put a few FLAT beats between GHOST beats for a
   classic accented line.
@@ -312,13 +325,13 @@ a SYNTH layer:
 | v1.09 | Melody layers (TONE) on the NOTE page; audio CPU meter in the IO menu |
 | v1.10 | Pads as a scale keyboard (step entry, live recording); melody generator and variations |
 | v1.11 | SYNTH layers: a built-in synth voice with filter, envelope, gate and accent |
+| v1.12 | SYNTH: DETUNE, SUB, NOISE, WAVE = SAMPLE (single-cycle WAVs); SLIDE per beat |
 
 ## Coming next
 
 Plans, not promises; each step is released only after it has been tried on a device.
 
-- **More SYNTH:** DETUNE (a second oscillator), SUB, NOISE, per-beat SLIDE (303-style legato),
-  then single-cycle WAVs from the card as waveforms.
+- **More SYNTH ideas:** a filter LFO, synth sounds in drumkits and the instrument copy.
 - **Song transpose and harmony:** each song-mode step can change key, and a layer can follow
   another a third or fifth higher.
 
@@ -328,10 +341,10 @@ The step-by-step guide (which file to download, where to put it, what the screen
 to do if something goes wrong) is in the **[README → Install](README.md#install)**. In short:
 
 1. Back up the whole SD card.
-2. Download `Drumboy_Pro_Fw_Moffe_01_11.bin` from the
+2. Download `Drumboy_Pro_Fw_Moffe_01_12.bin` from the
    [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest).
 3. Copy it, with its exact name, to the root of the card as the only `Drumboy_Pro_Fw…bin` there.
-4. Power on: *UPDATING FIRMWARE V1.11* → *FIRMWARE UPDATED* → sunglasses.
+4. Power on: *UPDATING FIRMWARE V1.12* → *FIRMWARE UPDATED* → sunglasses.
 
 **Roll back:** install `Drumboy_Pro_Fw_01_01.bin` (factory, in the release Assets and in
 `02 Software/Firmware/`) the same way. The bootloader accepts any version, older or newer.

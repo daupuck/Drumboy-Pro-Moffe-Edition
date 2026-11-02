@@ -271,6 +271,7 @@ class Controller {
     // is triggered) and the note currently held on the MIDI output (0xFF = none), so the right
     // Note Off is sent before the next note.
     volatile uint8_t toneMidiNote[kLayerLibrarySize] = {};
+    volatile bool toneMidiLegato[kLayerLibrarySize] = {};  // SLIDE: send the new Note On before the old Note Off
 
     // SYNTH voices (one per layer), rendered by processAudioLayer() in the audio ISR. A trigger
     // (sequencer ISR, pad or knob in the main loop) fills synthPending under a critical section
@@ -1016,7 +1017,8 @@ class Controller {
 
     // note_: scale degree (TONE/SYNTH layers); lengthIntervals_: time until the next beat, for the
     // SYNTH gate (0 = an eighth note, for pads and auditions)
-    void layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_ = 0, uint16_t lengthIntervals_ = 0);
+    // beatFlags_: kPlaySlideIn / kPlayTieOut (SLIDE)
+    void layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_ = 0, uint16_t lengthIntervals_ = 0, uint8_t beatFlags_ = 0);
 
     /* Layer Inst Functions -------------------------------------- */
 
@@ -1123,7 +1125,8 @@ class Controller {
     bool synthLayerSelected() const;             // the selected layer is a SYNTH layer
     bool synthInstPageActive() const;            // Layer Inst menu showing a SYNTH layer's pages
     uint8_t layerInstPage() const;               // 0..2 for LAYER_INST_0..2_MENU
-    void synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_);
+    void synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_, uint8_t beatFlags_);
+    void note_setSlide(bool slide_);             // NOTE page: ADD + UP / DOWN on the selected beat
     void synth_change(EncoderFunc function_, bool up_);
     void synth_silence(uint8_t layerNum_);       // stops the voice (mode change, reset)
     void lcd_drawSynthPage(uint8_t layerNum_);

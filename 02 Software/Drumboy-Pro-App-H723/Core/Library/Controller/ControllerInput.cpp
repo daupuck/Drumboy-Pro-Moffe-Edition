@@ -403,7 +403,10 @@ void Controller::keyboard_action() {
 
                                         case LAYER_SONG_MENU:
                                             if (layerSongPage == 0) layerSong_menuUp(0);  // fill type; not on the EUCLID page
-                                            if (layerSongPage == 2) note_shiftKeys(true);  // NOTE page: keyboard octave
+                                            if (layerSongPage == 2) {
+                                                // NOTE page: UP = keyboard octave up; ADD + UP = SLIDE on for the selected beat.
+                                                keyboard.shiftKeyPress ? note_setSlide(true) : note_shiftKeys(true);
+                                            }
                                             break;
                                     }
                                 }
@@ -475,7 +478,10 @@ void Controller::keyboard_action() {
 
                                         case LAYER_SONG_MENU:
                                             if (layerSongPage == 0) layerSong_menuDown(0);  // fill type; not on the EUCLID page
-                                            if (layerSongPage == 2) note_shiftKeys(false);  // NOTE page: keyboard octave
+                                            if (layerSongPage == 2) {
+                                                // NOTE page: DOWN = keyboard octave down; ADD + DOWN = SLIDE off for the selected beat.
+                                                keyboard.shiftKeyPress ? note_setSlide(false) : note_shiftKeys(false);
+                                            }
                                             break;
                                     }
                                 }
@@ -2061,7 +2067,7 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
     if ((encoder[encoderNum_].function >= ENC_LFO_ACTIVE) && (encoder[encoderNum_].function <= ENC_LFO_DEPTH) && (selectedLfoNum == -1)) return;
     if ((encoder[encoderNum_].function >= ENC_INST_0_INST) && (encoder[encoderNum_].function <= ENC_SONG_SHIFT) && (selectedLayerNum == -1)) return;
     if ((encoder[encoderNum_].function >= ENC_EUCLID_STEPS) && (encoder[encoderNum_].function <= ENC_EUCLID_MODE) && (selectedLayerNum == -1)) return;
-    if ((encoder[encoderNum_].function >= ENC_NOTE_MODE) && (encoder[encoderNum_].function <= ENC_SYNTH_DRIVE) && (selectedLayerNum == -1)) return;
+    if ((encoder[encoderNum_].function >= ENC_NOTE_MODE) && (encoder[encoderNum_].function <= ENC_SYNTH_NOISE) && (selectedLayerNum == -1)) return;
 
     // 2. PARAMETER INCREMENT DISPATCH
     switch (encoder[encoderNum_].function) {
@@ -2672,6 +2678,9 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
         case ENC_SYNTH_DECAY:
         case ENC_SYNTH_GATE:
         case ENC_SYNTH_DRIVE:
+        case ENC_SYNTH_DETUNE:
+        case ENC_SYNTH_SUB:
+        case ENC_SYNTH_NOISE:
             synth_change(encoder[encoderNum_].function, true);
             break;
 
@@ -2697,7 +2706,7 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
     if ((encoder[encoderNum_].function >= ENC_LFO_ACTIVE) && (encoder[encoderNum_].function <= ENC_LFO_DEPTH) && (selectedLfoNum == -1)) return;
     if ((encoder[encoderNum_].function >= ENC_INST_0_INST) && (encoder[encoderNum_].function <= ENC_SONG_SHIFT) && (selectedLayerNum == -1)) return;
     if ((encoder[encoderNum_].function >= ENC_EUCLID_STEPS) && (encoder[encoderNum_].function <= ENC_EUCLID_MODE) && (selectedLayerNum == -1)) return;
-    if ((encoder[encoderNum_].function >= ENC_NOTE_MODE) && (encoder[encoderNum_].function <= ENC_SYNTH_DRIVE) && (selectedLayerNum == -1)) return;
+    if ((encoder[encoderNum_].function >= ENC_NOTE_MODE) && (encoder[encoderNum_].function <= ENC_SYNTH_NOISE) && (selectedLayerNum == -1)) return;
 
     // 2. PARAMETER DECREMENT DISPATCH
     switch (encoder[encoderNum_].function) {
@@ -3278,6 +3287,9 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
         case ENC_SYNTH_DECAY:
         case ENC_SYNTH_GATE:
         case ENC_SYNTH_DRIVE:
+        case ENC_SYNTH_DETUNE:
+        case ENC_SYNTH_SUB:
+        case ENC_SYNTH_NOISE:
             synth_change(encoder[encoderNum_].function, false);
             break;
 

@@ -62,6 +62,23 @@ constexpr uint8_t kMaxGlide = 100;
 
 inline uint8_t safeScale(uint8_t scale) { return (scale < kScaleCount) ? scale : kDefaultScale; }
 
+// A beat's note byte: bits 0-5 the scale degree (signed, -32..31; notes use -24..24), bit 6 the
+// SLIDE flag (the note slides in from the previous one, 303 style), bit 7 unused. Keeping both
+// in the one spare byte of Beat costs no RAM. Files store the degree and the slides separately.
+constexpr uint8_t kNoteDegreeMask = 0x3F;
+constexpr uint8_t kNoteSlideBit = 0x40;
+
+inline int8_t unpackDegree(uint8_t data) {
+    const int v = data & kNoteDegreeMask;
+    return static_cast<int8_t>((v & 0x20) ? (v - 64) : v);
+}
+inline bool unpackSlide(uint8_t data) { return (data & kNoteSlideBit) != 0; }
+inline uint8_t packNote(int degree, bool slide) {
+    if (degree > 31) degree = 31;
+    if (degree < -32) degree = -32;
+    return static_cast<uint8_t>((static_cast<unsigned>(degree) & kNoteDegreeMask) | (slide ? kNoteSlideBit : 0));
+}
+
 // Two octaves of the scale either way: +-24 (chromatic), +-14 (7-note), +-10 (pentatonic).
 inline int8_t maxDegree(uint8_t scale) { return static_cast<int8_t>(2 * kScales[safeScale(scale)].size); }
 inline int8_t minDegree(uint8_t scale) { return static_cast<int8_t>(-maxDegree(scale)); }

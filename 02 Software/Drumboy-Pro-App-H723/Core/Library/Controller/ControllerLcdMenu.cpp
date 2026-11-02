@@ -3706,7 +3706,7 @@ void Controller::lcd_drawNoteData(uint8_t slot_) {
     const Layer& layer = layerLibrary[selectedLayerNum];
     const Bank& bank = layer.bankLibrary[activeSongBank];
     char text[kMenuDataTextSize + 1];
-    char value[12];
+    char value[20];
     RGB16Color color = WHITE;
 
     switch (slot_) {
@@ -3715,7 +3715,10 @@ void Controller::lcd_drawNoteData(uint8_t slot_) {
             break;
         case 1:
             if ((selectedBeatNum >= 0) && (selectedBeatNum <= bank.lastActiveBeatNum)) {
-                tone::noteName(tone::semitones(bank.beatLibrary[selectedBeatNum].getNote(), layer.toneScale, layer.toneRoot), value, sizeof(value));
+                const Beat& beat = bank.beatLibrary[selectedBeatNum];
+                char name[8];
+                tone::noteName(tone::semitones(beat.getNote(), layer.toneScale, layer.toneRoot), name, sizeof(name));
+                snprintf(value, sizeof(value), beat.getSlide() ? "%s SLIDE" : "%s", name);  // ADD + UP / DOWN
                 snprintf(text, sizeof(text), "%10.10s", value);
             } else {
                 snprintf(text, sizeof(text), "%s", kDataDashR);
@@ -3781,8 +3784,10 @@ void Controller::lcd_drawNoteStrip() {
     lcd.setForeColor(GRAY_25);
     lcd.drawHLine(kBeatGraphStartX, kNoteRollMidY, kBeatGraphWidth);
 
-    // One mark per beat; half a pixel per semitone keeps +-30 semitones inside the strip.
+    // One mark per beat; half a pixel per semitone keeps +-30 semitones inside the strip. A beat
+    // with SLIDE is joined to the beat before it by a line.
     if (songInterval > 0) {
+        int previousX = -1, previousY = -1;
         for (int16_t i = 0; i <= bank.lastActiveBeatNum; i++) {
             const Beat& beat = bank.beatLibrary[i];
             if (!beat.getActive()) continue;
@@ -3791,9 +3796,18 @@ void Controller::lcd_drawNoteStrip() {
             if (y < static_cast<int>(kNoteRollTopY)) y = kNoteRollTopY;
             if (y > static_cast<int>(kNoteRollBottomY) - 2) y = kNoteRollBottomY - 2;
             const uint32_t x = kBeatGraphStartX + ((static_cast<uint32_t>(beat.getStartInterval()) * (kBeatGraphWidth - kNoteMarkWidth)) / songInterval);
+            if (beat.getSlide() && (previousX >= 0) && (static_cast<int>(x) > previousX + static_cast<int>(kNoteMarkWidth))) {
+                lcd.setForeColor(GRAY_75);
+                lcd.drawHLine(static_cast<uint16_t>(previousX + kNoteMarkWidth), static_cast<uint16_t>(previousY), static_cast<uint16_t>(static_cast<int>(x) - previousX - kNoteMarkWidth));
+                const int y0 = (y < previousY) ? y : previousY;
+                const int y1 = (y < previousY) ? previousY : y;
+                lcd.drawVLine(static_cast<uint16_t>(x), static_cast<uint16_t>(y0), static_cast<uint16_t>(y1 - y0 + 1));
+            }
             const bool selected = (i == selectedBeatNum);
             lcd.setForeColor(selected ? CYAN : (toneOn ? WHITE : GRAY_50));
             lcd.fillRect(static_cast<uint16_t>(x), static_cast<uint16_t>(y), kNoteMarkWidth, selected ? 3 : 2);
+            previousX = static_cast<int>(x);
+            previousY = y;
         }
     }
 
@@ -3843,10 +3857,16 @@ void Controller::lcd_drawSynthPage(uint8_t layerNum_) {
     lcd_setMenuHeaderState(CYAN);
     if (osc) {
         lcd.drawText(kHeaderSynthWave, kMenuHeaderTextSize, kMenuHeaderX[0], kMenuHeaderY[0]);
+        lcd.drawText(kHeaderSynthDetune, kMenuHeaderTextSize, kMenuHeaderX[1], kMenuHeaderY[1]);
         lcd.drawText(kHeaderLevel, kMenuHeaderTextSize, kMenuHeaderX[4], kMenuHeaderY[4]);
         lcd.drawText(kHeaderPitch, kMenuHeaderTextSize, kMenuHeaderX[5], kMenuHeaderY[5]);
+        lcd.drawText(kHeaderSynthSub, kMenuHeaderTextSize, kMenuHeaderX[6], kMenuHeaderY[6]);
+        lcd.drawText(kHeaderSynthNoise, kMenuHeaderTextSize, kMenuHeaderX[7], kMenuHeaderY[7]);
         lcd_setMenuSignState(CYAN);
         lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[0], kMenuSignBoxY[0]);
+        lcd.drawText("  %", kMenuSignTextSize, kMenuSignBoxX[1], kMenuSignBoxY[1]);
+        lcd.drawText("  %", kMenuSignTextSize, kMenuSignBoxX[6], kMenuSignBoxY[6]);
+        lcd.drawText("  %", kMenuSignTextSize, kMenuSignBoxX[7], kMenuSignBoxY[7]);
     } else {
         lcd.drawText(kHeaderSynthCutoff, kMenuHeaderTextSize, kMenuHeaderX[0], kMenuHeaderY[0]);
         lcd.drawText(kHeaderSynthReso, kMenuHeaderTextSize, kMenuHeaderX[1], kMenuHeaderY[1]);
@@ -3861,8 +3881,11 @@ void Controller::lcd_drawSynthPage(uint8_t layerNum_) {
     // 4. VALUES + DISPLAY
     if (osc) {
         lcd_drawSynthData(0);
+        lcd_drawSynthData(1);
         lcd_drawLayerInst_LevelData(layerNum_);
         lcd_drawLayerInst_PitchData(layerNum_);
+        lcd_drawSynthData(6);
+        lcd_drawSynthData(7);
     } else {
         for (uint8_t i = 0; i < 6; i++) lcd_drawSynthData(slots[i]);
     }
@@ -3882,8 +3905,13 @@ void Controller::lcd_drawSynthData(uint8_t slot_) {
     const synth::Params p = synth::sanitize(layerLibrary[selectedLayerNum].synth);
     char text[kMenuDataTextSize + 1];
     if (menu == LAYER_INST_0_MENU) {
-        if (slot_ != 0) return;
-        snprintf(text, sizeof(text), "%10.10s", synth::kWaveNames[p.wave]);
+        switch (slot_) {
+            case 0: snprintf(text, sizeof(text), "%10.10s", synth::kWaveNames[p.wave]); break;
+            case 1: snprintf(text, sizeof(text), "%10.10s", kNumberDataLibrary[p.detune].nameLongR); break;
+            case 6: snprintf(text, sizeof(text), "%10.10s", kNumberDataLibrary[p.sub].nameLongR); break;
+            case 7: snprintf(text, sizeof(text), "%10.10s", kNumberDataLibrary[p.noise].nameLongR); break;
+            default: return;
+        }
     } else {
         uint8_t value;
         switch (slot_) {
@@ -3921,7 +3949,20 @@ void Controller::lcd_drawSynthGraph() {
     const uint16_t height = bottom - top;
 
     if (osc) {
-        // Waveform, 2 cycles across the strip.
+        // Waveform, 2 cycles across the strip. WAVE = SAMPLE shows the layer's loaded sample as
+        // the cycle (or a hint if there is none).
+        const Layer& layer = layerLibrary[selectedLayerNum];
+        synth::Voice shape;
+        if ((p.wave == synth::kSample) && (layer.playSampleSector != -1) && !layer.sampleLoading &&
+            sampleSectorLibrary[layer.playSampleSector].active && (sampleSectorLibrary[layer.playSampleSector].size >= 2)) {
+            shape.table = reinterpret_cast<const float*>(RAM_SAMPLE_ADDRESS + (layer.playSampleSector * kSampleByteSize));
+            shape.tableLength = sampleSectorLibrary[layer.playSampleSector].size;
+        } else if (p.wave == synth::kSample) {
+            lcd.setAlignment(RIGHT);
+            lcd.setForeColor(MAGENTA);
+            lcd.drawText("NO SAMPLE LOADED", 16, kBeatGraphEndX, kBeatGraphStartY + 2);  // load one in TONE/DRUM mode
+            lcd.setAlignment(LEFT);
+        }
         const uint16_t mid = top + (height / 2);
         lcd.setForeColor(GRAY_25);
         lcd.drawHLine(kBeatGraphStartX, mid, kBeatGraphWidth);
@@ -3930,7 +3971,10 @@ void Controller::lcd_drawSynthGraph() {
         for (uint16_t x = 0; x < kBeatGraphWidth; x++) {
             float t = (2.0f * x) / kBeatGraphWidth;
             t -= static_cast<float>(static_cast<int>(t));
-            const int y = mid - static_cast<int>(synth::oscillator(p.wave, t, 0.0f) * (height / 2 - 1));
+            float s = synth::voiceOscillator(shape, p.wave, t, 0.0f);
+            if (s > 1.0f) s = 1.0f;
+            if (s < -1.0f) s = -1.0f;
+            const int y = mid - static_cast<int>(s * (height / 2 - 1));
             if (previous < 0) previous = y;
             const int y0 = (y < previous) ? y : previous;
             const int y1 = (y < previous) ? previous : y;

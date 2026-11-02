@@ -120,7 +120,11 @@ void Controller::interruptPlay() {
                             }
                             // Length until the next beat (the end interval of the last beat is the song end).
                             const uint16_t length = (beat.getEndInterval() > beat.getStartInterval()) ? (beat.getEndInterval() - beat.getStartInterval()) : 0;
-                            if (fillVolMultiplier > 0.0f) layer_playBeat(layer.number, fillVolMultiplier, beat.getNote(), length);
+                            // SLIDE: this beat slides in, and/or the next beat (wrapping) slides in from this one.
+                            const Beat& following = bank.beatLibrary[(playBeatNum < bank.lastActiveBeatNum) ? (playBeatNum + 1) : 0];
+                            uint8_t beatFlags = beat.getSlide() ? kPlaySlideIn : 0;
+                            if ((bank.lastActiveBeatNum > 0) && following.getSlide()) beatFlags |= kPlayTieOut;
+                            if (fillVolMultiplier > 0.0f) layer_playBeat(layer.number, fillVolMultiplier, beat.getNote(), length, beatFlags);
 
                             // Advance to the next beat index
                             (playBeatNum < bank.lastActiveBeatNum) ? bank.playBeatNum += 1 : bank.playBeatNum = 0;
@@ -140,7 +144,8 @@ void Controller::interruptPlay() {
                                 const uint8_t steps = bank.beatFillLibrary[beat.getFillTarget()].getStepSize();
                                 const uint16_t beatLength = (beat.getEndInterval() > beat.getStartInterval()) ? (beat.getEndInterval() - beat.getStartInterval()) : 0;
                                 const uint16_t length = (steps > 0) ? static_cast<uint16_t>(beatLength / steps) : beatLength;
-                                if (fillVolMultiplier > 0.0f) layer_playBeat(layer.number, fillVolMultiplier, beat.getNote(), length);
+                                const uint8_t beatFlags = ((playBeatMicroNum == 0) && beat.getSlide()) ? kPlaySlideIn : 0;  // the fill's first hit slides in
+                                if (fillVolMultiplier > 0.0f) layer_playBeat(layer.number, fillVolMultiplier, beat.getNote(), length, beatFlags);
                             }
 
                             // Advance micro-step index within the fill

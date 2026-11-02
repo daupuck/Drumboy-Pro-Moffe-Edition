@@ -1582,7 +1582,9 @@ SdResult Controller::sd_clearFile(uint8_t fileNum_) {
 //   10 x [mode, root, scale, glide]
 //   10 layers x 5 banks x { count, count x [start interval hi, lo, note] }  (only notes != root)
 //   "EOF"
-//   "SYN1" + 10 x [wave, cutoff, resonance, env amount, decay, gate, drive] + "EOF"   (v1.11+)
+//   "SYN2" + 10 x [wave, cutoff, resonance, env amount, decay, gate, drive, detune, sub, noise]
+//          + "EOF"   (v1.12; v1.11 wrote "SYN1" with the first 7 values, still read)
+//   "SLD1" + 10 layers x 5 banks x { count, count x [start interval hi, lo] } + "EOF"   (v1.12)
 // Mode 2 (SYNTH) is read as DRUM by v1.09/v1.10, which stop at the first "EOF".
 // Notes are matched to beats by start interval on load (positions are unique within a bank),
 // so the file never depends on slot order. Older firmware never opens it.
@@ -1608,11 +1610,12 @@ SdResult Controller::sd_saveNotes(uint8_t fileNum_) {
         const synth::Params def;
         const synth::Params& s = layer.synth;
         if ((s.wave != def.wave) || (s.cutoff != def.cutoff) || (s.resonance != def.resonance) || (s.envAmount != def.envAmount) ||
-            (s.decay != def.decay) || (s.gate != def.gate) || (s.drive != def.drive)) needed = true;
+            (s.decay != def.decay) || (s.gate != def.gate) || (s.drive != def.drive) || (s.detune != def.detune) ||
+            (s.sub != def.sub) || (s.noise != def.noise)) needed = true;
         for (uint8_t b = 0; (b < kBankLibrarySize) && !needed; b++) {
             const Bank& bank = layer.bankLibrary[b];
             for (int16_t k = 0; k <= bank.lastActiveBeatNum; k++) {
-                if (bank.beatLibrary[k].getActive() && (bank.beatLibrary[k].getNote() != 0)) {
+                if (bank.beatLibrary[k].getActive() && ((bank.beatLibrary[k].getNote() != 0) || bank.beatLibrary[k].getSlide())) {
                     needed = true;
                     break;
                 }
@@ -1676,9 +1679,32 @@ SdResult Controller::sd_saveNotes(uint8_t fileNum_) {
         d[4] = s.decay;
         d[5] = s.gate;
         d[6] = s.drive;
+        d[7] = s.detune;
+        d[8] = s.sub;
+        d[9] = s.noise;
     }
     if (sd_write(kSynthFileRef, strlen(kSynthFileRef)) != FR_OK) errorCount += 1;
     if (sd_write(sound, sizeof(sound)) != FR_OK) errorCount += 1;
+    if (sd_write("EOF", 3) != FR_OK) errorCount += 1;
+
+    // v1.12+: beats with SLIDE, as start intervals per layer and bank.
+    if (sd_write(kSlideFileRef, strlen(kSlideFileRef)) != FR_OK) errorCount += 1;
+    uint8_t slides[1 + (kBeatLibrarySize * 2)];
+    for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+        for (uint8_t b = 0; b < kBankLibrarySize; b++) {
+            const Bank& bank = layerLibrary[l].bankLibrary[b];
+            uint8_t count = 0;
+            for (int16_t k = 0; (k <= bank.lastActiveBeatNum) && (count < kBeatLibrarySize); k++) {
+                const Beat& beat = bank.beatLibrary[k];
+                if (!beat.getActive() || !beat.getSlide()) continue;
+                slides[1 + (count * 2) + 0] = static_cast<uint8_t>(beat.getStartInterval() >> 8);
+                slides[1 + (count * 2) + 1] = static_cast<uint8_t>(beat.getStartInterval() & 0xFF);
+                count++;
+            }
+            slides[0] = count;
+            if (sd_write(slides, 1 + (count * 2)) != FR_OK) errorCount += 1;
+        }
+    }
     if (sd_write("EOF", 3) != FR_OK) errorCount += 1;
 
     if (f_close(&sd.file) != FR_OK) errorCount += 1;
@@ -1737,15 +1763,19 @@ void Controller::sd_loadNotes(uint8_t fileNum_) {
             }
         }
 
-        // SYNTH sounds (v1.11+), after the notes' "EOF". Files from v1.09/v1.10 end there:
-        // their layers keep the default sound.
+        // SYNTH sounds after the notes' "EOF": "SYN2" (v1.12, 10 values) or "SYN1" (v1.11, 7).
+        // Files from v1.09/v1.10 end there: their layers keep the default sound.
         char eof[3];
-        char tag[sizeof(kSynthFileRef)] = {};
+        char tag[5] = {};
         uint8_t sound[kLayerLibrarySize * kSynthFileParams];
-        if (ok && (sd_read(eof, 3) == FR_OK) && (sd_read(tag, strlen(kSynthFileRef)) == FR_OK) &&
-            (strncmp(tag, kSynthFileRef, strlen(kSynthFileRef)) == 0) && (sd_read(sound, sizeof(sound)) == FR_OK)) {
+        uint8_t perLayer = 0;
+        if (ok && (sd_read(eof, 3) == FR_OK) && (sd_read(tag, 4) == FR_OK)) {
+            if (strncmp(tag, "SYN2", 4) == 0) perLayer = 10;
+            if (strncmp(tag, "SYN1", 4) == 0) perLayer = 7;
+        }
+        if ((perLayer > 0) && (sd_read(sound, kLayerLibrarySize * perLayer) == FR_OK)) {
             for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
-                const uint8_t* d = &sound[l * kSynthFileParams];
+                const uint8_t* d = &sound[l * perLayer];
                 synth::Params s;
                 s.wave = d[0];
                 s.cutoff = d[1];
@@ -1754,7 +1784,43 @@ void Controller::sd_loadNotes(uint8_t fileNum_) {
                 s.decay = d[4];
                 s.gate = d[5];
                 s.drive = d[6];
+                if (perLayer >= 10) {
+                    s.detune = d[7];
+                    s.sub = d[8];
+                    s.noise = d[9];
+                }
                 layerLibrary[l].synth = synth::sanitize(s);  // a damaged file can never index outside a table
+            }
+
+            // Beats with SLIDE (v1.12+), after the sounds' "EOF".
+            char slideTag[sizeof(kSlideFileRef)] = {};
+            if ((sd_read(eof, 3) == FR_OK) && (sd_read(slideTag, strlen(kSlideFileRef)) == FR_OK) &&
+                (strncmp(slideTag, kSlideFileRef, strlen(kSlideFileRef)) == 0)) {
+                bool slidesOk = true;
+                for (uint8_t l = 0; (l < kLayerLibrarySize) && slidesOk; l++) {
+                    for (uint8_t b = 0; (b < kBankLibrarySize) && slidesOk; b++) {
+                        Bank& bank = layerLibrary[l].bankLibrary[b];
+                        uint8_t count = 0;
+                        if ((sd_read(&count, 1) != FR_OK) || (count > kBeatLibrarySize)) {
+                            slidesOk = false;
+                            break;
+                        }
+                        for (uint8_t e = 0; e < count; e++) {
+                            uint8_t entry[2];
+                            if (sd_read(entry, 2) != FR_OK) {
+                                slidesOk = false;
+                                break;
+                            }
+                            const uint16_t start = static_cast<uint16_t>((entry[0] << 8) | entry[1]);
+                            for (int16_t k = 0; k <= bank.lastActiveBeatNum; k++) {
+                                if (bank.beatLibrary[k].getActive() && (bank.beatLibrary[k].getStartInterval() == start)) {
+                                    bank.beatLibrary[k].setSlide(true);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

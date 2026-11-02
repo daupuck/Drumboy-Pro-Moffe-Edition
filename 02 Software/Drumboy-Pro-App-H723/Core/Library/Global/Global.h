@@ -22,7 +22,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 const uint8_t kVersionMajor                         = 0x01;
-const uint8_t kVersionMinor                         = 0x0B;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMinor                         = 0x0C;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/
@@ -978,6 +978,9 @@ const char kHeaderSynthEnvAmt[]                     = "ENV AMT   ";
 const char kHeaderSynthDecay[]                      = "DECAY     ";
 const char kHeaderSynthGate[]                       = "GATE      ";
 const char kHeaderSynthDrive[]                      = "DRIVE     ";
+const char kHeaderSynthDetune[]                     = "DETUNE    ";
+const char kHeaderSynthSub[]                        = "SUB       ";
+const char kHeaderSynthNoise[]                      = "NOISE     ";
 const char kHeaderVolume[]                          = "VOLUME    ";
 const char kHeaderWet[]                             = "WET       ";
 
@@ -1313,11 +1316,14 @@ typedef enum {
     ENC_SYNTH_DECAY                                 = 0x7B,
     ENC_SYNTH_GATE                                  = 0x7C,
     ENC_SYNTH_DRIVE                                 = 0x7D,
+    ENC_SYNTH_DETUNE                                = 0x7E,
+    ENC_SYNTH_SUB                                   = 0x7F,
+    ENC_SYNTH_NOISE                                 = 0x80,
 
     // Must equal the number of rows before the trailing NONE row in kEncoderFuncDataLibrary,
     // which is indexed by EncoderFunc value. Never stored on SD (only the global map is
     // persisted, and it is range-checked against kMaxEncoderGlobalFunction).
-    ENC_FNC_NONE                                    = 0x7E
+    ENC_FNC_NONE                                    = 0x81
 } EncoderFunc;
 
 const EncoderFunc encoderLocalFunction[][8] = {
@@ -1515,6 +1521,9 @@ constexpr EncoderFuncData kEncoderFuncDataLibrary[] = {
     {ENC_SYNTH_DECAY,         ENC_RES_F, "DECAY     ", "SYNTH ", "  %", false},
     {ENC_SYNTH_GATE,          ENC_RES_F, "GATE      ", "SYNTH ", "  %", false},
     {ENC_SYNTH_DRIVE,         ENC_RES_F, "DRIVE     ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_DETUNE,        ENC_RES_F, "DETUNE    ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_SUB,           ENC_RES_F, "SUB       ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_NOISE,         ENC_RES_F, "NOISE     ", "SYNTH ", "  %", false},
 
     // Row for ENC_FNC_NONE itself, so lookups with function == ENC_FNC_NONE stay in bounds.
     {ENC_FNC_NONE,            ENC_RES_F, "----------", "      ", "   ", true}
@@ -1562,7 +1571,7 @@ const EncoderFunc kEncoderNoteFunction[8]           = {ENC_NOTE_MODE, ENC_NOTE_N
 // Knob maps of the Layer Inst pages while the selected layer is a SYNTH layer (instead of the
 // LAYER_INST_0/1/2_MENU rows): OSC, FILTER, and the unchanged routing page without INST/SAMPLE.
 const EncoderFunc kEncoderSynthFunction[3][8]       = {
-    {ENC_SYNTH_WAVE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_INST_0_LEVEL, ENC_INST_0_PITCH, ENC_FNC_NONE, ENC_FNC_NONE},
+    {ENC_SYNTH_WAVE, ENC_SYNTH_DETUNE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_INST_0_LEVEL, ENC_INST_0_PITCH, ENC_SYNTH_SUB, ENC_SYNTH_NOISE},
     {ENC_SYNTH_CUTOFF, ENC_SYNTH_RESO, ENC_FNC_NONE, ENC_FNC_NONE, ENC_SYNTH_ENVAMT, ENC_SYNTH_DECAY, ENC_SYNTH_GATE, ENC_SYNTH_DRIVE},
     {ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_INST_2_EQ, ENC_INST_2_FILTER, ENC_INST_2_EFFECT, ENC_INST_2_REVERB}};
 
@@ -7085,6 +7094,8 @@ struct BeatFill {
 
 /*----------------------------------------------------------------------------*/
 
+#include "ToneScale.h"  // note/slide packing used by Beat (included again further down, guarded)
+
 struct Beat {
     // [15]     : active
     // [14:11]  : fillType
@@ -7094,7 +7105,7 @@ struct Beat {
 
     uint16_t data                                   = 0x0000;
     uint8_t fillTarget                              = NULL_FILL_TARGET;
-    int8_t note                                     = 0;  // TONE layers: scale degree from the root (ToneScale.h); uses the former padding byte
+    uint8_t note                                    = 0;  // TONE/SYNTH: scale degree + SLIDE flag (tone::packNote); uses the former padding byte
     uint16_t startInterval                          = 0;
     uint16_t endInterval                            = 0;
 
@@ -7121,9 +7132,16 @@ struct Beat {
         note = 0;
     }
 
-    void setNote(int8_t note_) noexcept { note = note_; }
+    // The degree and the SLIDE flag are set independently; reset()/clearNote() clear both.
+    void setNote(int8_t note_) noexcept { note = tone::packNote(note_, tone::unpackSlide(note)); }
 
-    int8_t getNote() const noexcept { return note; }
+    int8_t getNote() const noexcept { return tone::unpackDegree(note); }
+
+    void setSlide(bool slide_) noexcept { note = tone::packNote(tone::unpackDegree(note), slide_); }
+
+    bool getSlide() const noexcept { return tone::unpackSlide(note); }
+
+    void clearNote() noexcept { note = 0; }
 
     // Active bit logic
     void setActive(bool active) noexcept {
@@ -7224,7 +7242,7 @@ struct Bank {
         beat.setFillTarget(NULL_FILL_TARGET);
         beat.setFillTime(0);
         beat.setFillLevel(0);
-        beat.setNote(0);
+        beat.clearNote();
     }
 
     void resetBeat(uint8_t beatNum_) {
@@ -7235,7 +7253,7 @@ struct Bank {
         beat.setStartInterval(0);
         beat.setEndInterval(0);
         beat.setFillType(0);
-        beat.setNote(0);
+        beat.clearNote();
 
         if (oldTarget != NULL_FILL_TARGET) {
             if (ownerOfFillTarget(oldTarget) == beatNum_) {
@@ -7366,8 +7384,14 @@ const float kAudioBlocksPerSecond                   = 44100.0f / I2S_BLOCK_SIZE;
 // size stay exactly as before and older firmware simply ignores them.
 const char kNoteFileEnd[]                           = ".rwn";
 const char kNoteFileRef[]                           = "RWNOTES1";
-const char kSynthFileRef[]                          = "SYN1";  // v1.11+: SYNTH sounds after the notes' "EOF"
-const uint8_t kSynthFileParams                      = 7;       // wave, cutoff, resonance, env amount, decay, gate, drive
+const char kSynthFileRef[]                          = "SYN2";  // SYNTH sounds after the notes' "EOF"
+const uint8_t kSynthFileParams                      = 10;      // wave, cutoff, resonance, env amount, decay, gate, drive, detune, sub, noise
+const char kSlideFileRef[]                          = "SLD1";  // beats with SLIDE, after the SYNTH sounds
+
+// layer_playBeat() flags from the sequencer (SLIDE, 303 style):
+const uint8_t kPlaySlideIn                          = 0x01;  // this beat slides in from the previous note
+const uint8_t kPlayTieOut                           = 0x02;  // the next beat slides in: hold this note until it
+const uint8_t kSlideGlideMin                        = 25;    // SLIDE with GLIDE 0 still slides (~36 ms)
 
 // Where the chain lives in the project file's 1500-byte drumkit-style block. Both ranges are
 // unused by every other reader/writer: 175..179 lies between the reverb (..174) and the LFO

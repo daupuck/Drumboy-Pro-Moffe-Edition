@@ -3,6 +3,34 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v1.12
+
+**SYNTH: DETUNE, SUB, NOISE, SLIDE and sample waveforms (steps 4b + 4c)**
+
+- **OSC page** (Layer Instrument page 1 of a SYNTH layer) now uses all its knobs: **1 WAVE**,
+  **2 DETUNE** (a second oscillator up to 25 cents sharper: thick, chorus-like), **5 LEVEL**,
+  **6 PITCH**, **7 SUB** (a square one octave down), **8 NOISE**.
+- **WAVE = SAMPLE:** the layer's loaded sample is played as one cycle of the waveform, so any
+  single-cycle WAV on the card becomes an oscillator (load it while the layer is in TONE or DRUM
+  mode, then switch to SYNTH). DETUNE, filter and everything else apply. The display shows the
+  cycle, or `NO SAMPLE LOADED`.
+- **SLIDE per beat** (NOTE page, **ADD + UP** = on, **ADD + DOWN** = off for the selected beat):
+  the note slides in from the previous one, 303 style. On SYNTH layers the previous note is
+  held until it and the envelopes keep running (true legato); on TONE layers the sample
+  retriggers but the pitch slides. Slide time = GLIDE, at least about 36 ms. The NOTE value shows
+  `SLIDE`, the strip joins the two notes, CLEAR (tap) undoes slides too, and MIDI out overlaps
+  the notes so external mono synths play legato.
+- Saved with the project (`.rwn`: "SYN2" with the new values, "SLD1" with the slides); projects
+  saved by v1.11 still load. Older versions ignore both.
+
+Under the hood: SLIDE shares the beat's note byte (bits 0-5 note, bit 6 slide; host-tested
+packing), so it costs no RAM; snapshots carry it through MOVE, SHIFT ALL and EUCLID MERGE. The
+sequencer passes "slides in" and "the next beat slides in" with each trigger. `SynthVoice.h`:
+detune/sub/noise mix, linear-interpolated table oscillator, legato start; `test_synth_voice.cpp`
+now 2.96 million checks (everything at maximum stays bounded, table accuracy < 0.001, legato
+keeps the envelopes and glides). RAM_D1 +368 B (91.9 %), `processAudioLayer` +0.6 KB. No new
+compiler warnings.
+
 ## v1.11
 
 **SYNTH layers — a built-in synth voice (step 4a)**

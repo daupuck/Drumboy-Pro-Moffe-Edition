@@ -232,7 +232,117 @@ static void testVelocity() {
     CHECK(brightness(0.5f) < brightness(1.0f), "accent is brighter");
 }
 
+static void testDetuneSubNoise() {
+    // Everything at maximum on every wave and resonance extreme: still bounded and finite.
+    for (uint8_t w = 0; w < kWaveCount; w++) {
+        for (uint8_t reso : {0, 100}) {
+            Params p;
+            p.wave = w;
+            p.detune = p.sub = p.noise = 100;
+            p.resonance = reso;
+            p.drive = 100;
+            p.envAmount = 100;
+            Voice v;
+            start(v, note(110.0f, 44100));
+            uint8_t flags = 0;
+            const float peak = run(v, p, 700, flags);
+            CHECK(peak < 3.0f && peak > 0.01f, "wave %d reso %d with detune/sub/noise: peak %f", w, reso, peak);
+        }
+    }
+    // DETUNE actually detunes: the second phase runs ahead of the first.
+    Params p;
+    p.detune = 100;
+    Voice v;
+    start(v, note(220.0f, 44100));
+    float block[kBlock];
+    for (int i = 0; i < 200; i++) render(v, p, block, kBlock, kFs);
+    CHECK(std::fabs(v.phase2 - v.phase) > 0.001f, "detuned oscillator drifts (%f vs %f)", v.phase2, v.phase);
+    // SUB runs at half speed.
+    Params ps;
+    ps.sub = 100;
+    Voice vs;
+    start(vs, note(441.0f, 44100));
+    for (int i = 0; i < 25; i++) render(vs, ps, block, kBlock, kFs);  // 800 samples = 8 cycles at 441 Hz
+    CHECK(std::fabs(vs.phaseSub - 0.0f) < 0.01f || std::fabs(vs.phaseSub - 1.0f) < 0.01f, "sub: 4 whole cycles (phase %f)", vs.phaseSub);
+    // Noise stays in [-1, 1) and averages out.
+    uint32_t state = 1;
+    double sum = 0.0;
+    bool inRange = true;
+    for (int i = 0; i < 100000; i++) {
+        const float n = noise(state);
+        inRange = inRange && (n >= -1.0f) && (n < 1.0f);
+        sum += n;
+    }
+    CHECK(inRange, "noise range");
+    CHECK(std::fabs(sum / 100000.0) < 0.02, "noise mean %f", sum / 100000.0);
+}
+
+static void testSampleTable() {
+    // A 600-sample sine cycle (like a single-cycle WAV) reproduces a sine at the note's pitch.
+    std::vector<float> table(600);
+    for (size_t i = 0; i < table.size(); i++) table[i] = std::sin(6.2831853f * i / table.size());
+    float worst = 0.0f;
+    for (int i = 0; i < 5000; i++) {
+        const float t = i / 5000.0f;
+        worst = std::fmax(worst, std::fabs(tableOscillator(table.data(), 600, t) - std::sin(6.2831853f * t)));
+    }
+    CHECK(worst < 0.001f, "table interpolation error %f", worst);
+    CHECK(tableOscillator(table.data(), 600, 0.99999f) <= 1.0f, "wraps without reading past the end");
+
+    // WAVE = SAMPLE through the voice: uses the table; without a table it falls back to saw.
+    Params p;
+    p.wave = kSample;
+    p.cutoff = 100;
+    p.envAmount = 0;
+    Voice v;
+    NoteOn n = note(220.0f, 44100);
+    n.table = table.data();
+    n.tableLength = 600;
+    start(v, n);
+    uint8_t flags = 0;
+    const float peak = run(v, p, 200, flags);
+    CHECK(peak > 0.1f && peak < 3.0f, "sample wave plays: peak %f", peak);
+    Voice none;
+    start(none, note(220.0f, 44100));
+    CHECK(voiceOscillator(none, kSample, 0.25f, 0.0f) == oscillator(kSaw, 0.25f, 0.0f), "no table: saw");
+    NoteOn tiny = note(220.0f, 44100);
+    tiny.table = table.data();
+    tiny.tableLength = 1;  // unusable
+    start(none, tiny);
+    CHECK(voiceOscillator(none, kSample, 0.25f, 0.0f) == oscillator(kSaw, 0.25f, 0.0f), "1-sample table: saw");
+}
+
+static void testLegato() {
+    Params p;
+    float block[kBlock];
+    // A held note followed by a SLIDE note: envelopes continue, the pitch glides.
+    Voice v;
+    start(v, note(220.0f, 44100));
+    for (int i = 0; i < 40; i++) render(v, p, block, kBlock, kFs);
+    const float filterBefore = v.filterEnv;
+    NoteOn s = note(330.0f, 44100);
+    s.legato = true;
+    start(v, s);
+    CHECK(v.filterEnv == filterBefore, "slide keeps the filter envelope");
+    CHECK(std::fabs(v.increment - 220.0f / kFs) < 1e-7f && std::fabs(v.incrementTarget - 330.0f / kFs) < 1e-7f, "slide glides from the old pitch");
+    CHECK(v.gateLeft == 44100, "slide renews the gate");
+    for (int i = 0; i < 400; i++) render(v, p, block, kBlock, kFs);  // note still held
+    CHECK(v.active && std::fabs(v.increment - 330.0f / kFs) < 1e-6f, "slide arrives");
+
+    // SLIDE after the previous note was already released: a normal (retriggered) note.
+    Voice r;
+    start(r, note(220.0f, 64));
+    for (int i = 0; i < 10; i++) render(r, p, block, kBlock, kFs);  // gate over, releasing
+    NoteOn s2 = note(330.0f, 2000);
+    s2.legato = true;
+    start(r, s2);
+    CHECK(r.filterEnv == 1.0f && std::fabs(r.increment - 330.0f / kFs) < 1e-7f, "released note: slide retriggers");
+}
+
 int main() {
+    testDetuneSubNoise();
+    testSampleTable();
+    testLegato();
     testOscillators();
     testPolyBlepReducesAliasing();
     testFilterStability();

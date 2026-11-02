@@ -128,12 +128,12 @@ void Controller::updatePlayTimerPeriod() {
 /* Layer Functions -----------------------------------------------------------*/
 ////////////////////////////////////////////////////////////////////////////////
 
-void Controller::layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_) {
+void Controller::layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_, uint8_t beatFlags_) {
     /// @brief Prepares and triggers layer beat playback with LFO/style-dependent modulation.
 
     // 0. SYNTH LAYERS have their own voice and need no sample.
     if (layerLibrary[layerNum_].toneMode == tone::kModeSynth) {
-        synth_playBeat(layerNum_, fillVolMultiplier_, note_, lengthIntervals_);
+        synth_playBeat(layerNum_, fillVolMultiplier_, note_, lengthIntervals_, beatFlags_);
         return;
     }
 
@@ -299,15 +299,18 @@ void Controller::layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int
                 if (layer.toneMode == tone::kModeTone) {
                     const int semis = tone::semitones(note_, layer.toneScale, layer.toneRoot);
                     const float target = tone::clampIncrement(tBD.increment * tone::ratio(semis));
-                    if ((layer.toneGlide > 0) && (lD.toneLastIncrement > 0.0f) && (lD.toneLastIncrement != target)) {
+                    // SLIDE on this beat glides even with GLIDE 0 (sample is retriggered, as always on TONE).
+                    const bool slideIn = (beatFlags_ & kPlaySlideIn) != 0;
+                    if (((layer.toneGlide > 0) || slideIn) && (lD.toneLastIncrement > 0.0f) && (lD.toneLastIncrement != target)) {
                         tBD.increment = lD.toneLastIncrement;
                         tBD.glideTarget = target;
-                        tBD.glideCoef = layer.toneGlideCoef;
+                        tBD.glideCoef = (slideIn && (layer.toneGlide < kSlideGlideMin)) ? tone::glideBlockCoef(kSlideGlideMin, kAudioBlocksPerSecond) : layer.toneGlideCoef;
                     } else {
                         tBD.increment = target;
                     }
                     lD.toneLastIncrement = target;
                     toneMidiNote[layerNum_] = tone::midiNote(semis);
+                    toneMidiLegato[layerNum_] = slideIn;
                 }
 
                 // configure fade logic based on direction
@@ -2213,7 +2216,7 @@ void Controller::note_captureBase() {
         const Beat& beat = bank.beatLibrary[i];
         if (!beat.getActive()) continue;
         noteBaseStart[noteBaseCount] = beat.getStartInterval();
-        noteBase[noteBaseCount] = beat.getNote();
+        noteBase[noteBaseCount] = static_cast<int8_t>(tone::packNote(beat.getNote(), beat.getSlide()));  // note + SLIDE
         noteBaseCount++;
     }
     noteBaseLayer = selectedLayerNum;
@@ -2231,7 +2234,9 @@ void Controller::note_restore() {
         if (!beat.getActive()) continue;
         for (uint8_t k = 0; k < noteBaseCount; k++) {
             if (noteBaseStart[k] == beat.getStartInterval()) {
-                beat.setNote(noteBase[k]);
+                const uint8_t packed = static_cast<uint8_t>(noteBase[k]);
+                beat.setNote(tone::unpackDegree(packed));
+                beat.setSlide(tone::unpackSlide(packed));
                 break;
             }
         }
@@ -2284,7 +2289,7 @@ bool Controller::synthInstPageActive() const {
     return ((menu == LAYER_INST_0_MENU) || (menu == LAYER_INST_1_MENU) || (menu == LAYER_INST_2_MENU)) && synthLayerSelected();
 }
 
-void Controller::synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_) {
+void Controller::synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_, uint8_t beatFlags_) {
     /// @brief Prepares a SYNTH note (pitch from note/root/scale/PITCH, level, velocity, gate) and
     /// hands it to the audio ISR. Called from the sequencer ISR and from the main loop.
     /// LEVEL, PITCH and PROB follow the layer's settings and LFOs like samples (with STYLE on).
@@ -2320,20 +2325,37 @@ void Controller::synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int
     const int semis = tone::semitones(note_, layer.toneScale, layer.toneRoot);
     const float speed = tone::clampIncrement(kLayerPitchDataLibrary[nPitch].data * tone::ratio(semis));
 
-    // Gate: GATE % of the time until the next beat (an eighth note for pads and auditions).
+    // Gate: GATE % of the time until the next beat (an eighth note for pads and auditions). If the
+    // next beat slides in, the note is held until it (plus 3 ms) so the two notes join.
     const uint32_t length = (lengthIntervals_ > 0) ? lengthIntervals_ : (kMeasureInterval / 2);
     const float samplesPerInterval = static_cast<float>(playTimerPeriod) * (kAudioSampleRate / 1000000.0f);
-    uint32_t gateSamples = static_cast<uint32_t>((static_cast<float>(layer.synth.gate) / 100.0f) * static_cast<float>(length) * samplesPerInterval);
+    const bool tieOut = (beatFlags_ & kPlayTieOut) != 0;
+    const float gateShare = tieOut ? 1.0f : (static_cast<float>(layer.synth.gate) / 100.0f);
+    uint32_t gateSamples = static_cast<uint32_t>(gateShare * static_cast<float>(length) * samplesPerInterval);
+    if (tieOut) gateSamples += static_cast<uint32_t>(0.003f * kAudioSampleRate);
     if (gateSamples < 64) gateSamples = 64;  // even GATE 0 is a short blip, not silence
 
+    const bool slideIn = (beatFlags_ & kPlaySlideIn) != 0;
     synth::NoteOn n;
     n.increment = speed * (kSynthC4Hz / kAudioSampleRate);
     n.gain = kLayerVolumeCoef * kNumberDataLibrary[nLevel].powMultiplier * fillVolMultiplier_ * mixer.masterVolumeFloat;
     n.velocity = (fillVolMultiplier_ >= 0.99f) ? 1.0f : 0.5f;  // FLAT = accent, GHOST = softer and darker
     n.gateSamples = gateSamples;
     n.glideCoef = (layer.toneGlide > 0) ? layer.toneGlideCoef : 0.0f;
+    if (slideIn) {
+        n.legato = true;  // envelopes keep going, the pitch glides (GLIDE time, at least ~36 ms)
+        n.glideCoef = (layer.toneGlide >= kSlideGlideMin) ? layer.toneGlideCoef : tone::glideBlockCoef(kSlideGlideMin, kAudioBlocksPerSecond);
+    }
+
+    // WAVE = SAMPLE: the layer's loaded sample (in SDRAM) is one cycle of the waveform.
+    if ((layer.synth.wave == synth::kSample) && (layer.playSampleSector != -1) && !layer.sampleLoading &&
+        sampleSectorLibrary[layer.playSampleSector].active && (sampleSectorLibrary[layer.playSampleSector].size >= 2)) {
+        n.table = reinterpret_cast<const float*>(RAM_SAMPLE_ADDRESS + (layer.playSampleSector * kSampleByteSize));
+        n.tableLength = sampleSectorLibrary[layer.playSampleSector].size;
+    }
 
     toneMidiNote[layerNum_] = tone::midiNote(semis);
+    toneMidiLegato[layerNum_] = slideIn;
     lD.beatStartFlag = true;
     lD.beatEndFlag = false;
 
@@ -2404,6 +2426,18 @@ void Controller::synth_change(EncoderFunc function_, bool up_) {
             value = &p.drive;
             slot = 7;
             break;
+        case ENC_SYNTH_DETUNE:  // OSC page
+            value = &p.detune;
+            slot = 1;
+            break;
+        case ENC_SYNTH_SUB:
+            value = &p.sub;
+            slot = 6;
+            break;
+        case ENC_SYNTH_NOISE:
+            value = &p.noise;
+            slot = 7;
+            break;
         default:
             return;  // ENC_FNC_NONE: empty slot
     }
@@ -2453,6 +2487,27 @@ void Controller::note_padPressed(uint8_t pad_) {
             lcd_redrawNotePage();
         }
     }
+}
+
+void Controller::note_setSlide(bool slide_) {
+    /// @brief ADD + UP / DOWN on the NOTE page: SLIDE on / off for the selected beat (the note
+    /// slides in from the previous one; on SYNTH layers without restarting the envelopes).
+
+    // ADD is being used as shift here, so its pending tap and hold (melody) are cancelled.
+    if (noteMelodyKeyFlag) {
+        stopLongKeyTimer();
+        keyboard.longKeyCounter = 0;
+        noteMelodyKeyFlag = false;
+    }
+    layerSongAddPending = false;
+
+    if (selectedLayerNum == -1) return;
+    Bank& bank = layerLibrary[selectedLayerNum].bankLibrary[activeSongBank];
+    if ((selectedBeatNum < 0) || (selectedBeatNum > bank.lastActiveBeatNum)) return;
+    Beat& beat = bank.beatLibrary[selectedBeatNum];
+    if (beat.getSlide() == slide_) return;
+    beat.setSlide(slide_);
+    lcd_redrawNotePage();
 }
 
 void Controller::note_shiftKeys(bool up_) {
@@ -3160,6 +3215,7 @@ uint8_t Controller::layerSong_snapshotBank(uint8_t layerNum_, uint8_t bankTab_, 
         beats_[count].fillTime = beat.getFillTime();
         beats_[count].fillLevel = beat.getFillLevel();
         beats_[count].note = beat.getNote();
+        beats_[count].slide = beat.getSlide();
         count++;
     }
     return count;
@@ -3190,6 +3246,7 @@ int8_t Controller::layerSong_rebuildBank(uint8_t layerNum_, uint8_t bankTab_, Be
             const uint16_t endInterval = (i + 1 < count_) ? beats_[i + 1].startInterval : songInterval;
             bank.setBeat(i, beats_[i].startInterval, endInterval);
             bank.beatLibrary[i].setNote(beats_[i].note);
+            bank.beatLibrary[i].setSlide(beats_[i].slide);
         }
         for (uint8_t i = 0; i < count_; i++) {
             bank.setBeatFill(i, beats_[i].fillType, beats_[i].fillPattern, beats_[i].fillTime, beats_[i].fillLevel);
@@ -3289,6 +3346,7 @@ void Controller::layerSong_insertBeat() {
     beats[sorted].fillLevel = 0;
     // The new beat continues the line: it takes the note of the beat it was inserted after.
     beats[sorted].note = ((sel >= 0) && (sel < static_cast<int8_t>(sorted))) ? beats[sel].note : 0;
+    beats[sorted].slide = false;
 
     selectedBeatNum = layerSong_rebuildBank(selectedLayerNum, activeSongBank, beats, sorted + 1, sorted);
     layerSong_redrawEdited();

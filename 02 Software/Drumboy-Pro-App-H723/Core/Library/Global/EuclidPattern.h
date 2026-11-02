@@ -126,7 +126,7 @@ inline uint8_t compose(const BeatSnapshot* base, uint8_t baseCount, const uint16
             truncated = true;
             break;
         }
-        out[count++] = BeatSnapshot{hits[h], 0, 0, 0, 0, 0};
+        out[count++] = BeatSnapshot{hits[h], 0, 0, 0, 0, 0, false};
     }
     return count;
 }

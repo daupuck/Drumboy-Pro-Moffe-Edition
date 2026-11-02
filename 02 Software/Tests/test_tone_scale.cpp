@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <initializer_list>
 
 #include "ToneScale.h"
 
@@ -278,7 +279,20 @@ static void testKeys() {
     }
 }
 
+static void testNotePacking() {
+    for (int d = -32; d <= 31; d++) {
+        for (bool s : {false, true}) {
+            const uint8_t data = packNote(d, s);
+            CHECK(unpackDegree(data) == d && unpackSlide(data) == s, "pack %d/%d", d, s);
+            CHECK((data & 0x80) == 0, "bit 7 unused");
+        }
+    }
+    CHECK(unpackDegree(packNote(40, false)) == 31 && unpackDegree(packNote(-40, true)) == -32, "pack clamps");
+    CHECK(unpackDegree(0) == 0 && !unpackSlide(0), "zero is the root without slide");
+}
+
 int main() {
+    testNotePacking();
     testScaleTables();
     testSemitones();
     testRatio();

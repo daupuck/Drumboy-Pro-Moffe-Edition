@@ -22,9 +22,10 @@
 
 namespace synth {
 
-enum Wave : uint8_t { kSaw = 0, kSquare, kTriangle, kSine, kWaveCount };
+// kSample: the layer's loaded sample is played as one cycle of the waveform (single-cycle WAVs).
+enum Wave : uint8_t { kSaw = 0, kSquare, kTriangle, kSine, kSample, kWaveCount };
 
-inline constexpr const char* kWaveNames[kWaveCount] = {"SAW", "SQUARE", "TRIANGLE", "SINE"};
+inline constexpr const char* kWaveNames[kWaveCount] = {"SAW", "SQUARE", "TRIANGLE", "SINE", "SAMPLE"};
 
 // Sound settings of a layer (0..100 except wave). Saved in the project's .rwn file.
 struct Params {
@@ -35,14 +36,18 @@ struct Params {
     uint8_t decay = 35;
     uint8_t gate = 50;   // % of the time until the next beat
     uint8_t drive = 25;
+    uint8_t detune = 0;  // 0 = one oscillator; 1..100 = a second one, up to 25 cents sharper
+    uint8_t sub = 0;     // level of a square one octave down
+    uint8_t noise = 0;   // level of white noise
 };
 
 constexpr uint8_t kMaxParam = 100;
+constexpr float kMaxDetuneCents = 25.0f;
 
 inline Params sanitize(const Params& p) {
     Params s = p;
     if (s.wave >= kWaveCount) s.wave = kSaw;
-    uint8_t* fields[6] = {&s.cutoff, &s.resonance, &s.envAmount, &s.decay, &s.gate, &s.drive};
+    uint8_t* fields[9] = {&s.cutoff, &s.resonance, &s.envAmount, &s.decay, &s.gate, &s.drive, &s.detune, &s.sub, &s.noise};
     for (uint8_t* f : fields) {
         if (*f > kMaxParam) *f = kMaxParam;
     }
@@ -56,11 +61,17 @@ struct NoteOn {
     float velocity = 1.0f;     // 1 = FLAT (accent), 0.5 = GHOST
     uint32_t gateSamples = 0;  // how long the note is held
     float glideCoef = 0.0f;    // > 0: slide from the previous pitch (per-block coefficient)
+    bool legato = false;       // SLIDE: if the previous note is still held, keep its envelopes and only glide
+    const float* table = nullptr;  // WAVE = SAMPLE: one cycle (the layer's sample in SDRAM)
+    uint32_t tableLength = 0;
 };
 
 struct Voice {
     bool active = false;
     float phase = 0.0f;
+    float phase2 = 0.0f;    // DETUNE oscillator
+    float phaseSub = 0.0f;  // SUB oscillator (half speed)
+    uint32_t noiseState = 0x12345678u;
     float increment = 0.0f;
     float incrementTarget = 0.0f;
     float glideCoef = 0.0f;
@@ -70,6 +81,8 @@ struct Voice {
     float amp = 0.0f;       // amp envelope 0..1
     float filterEnv = 0.0f; // filter envelope 0..1
     float s1 = 0.0f, s2 = 0.0f, s3 = 0.0f, s4 = 0.0f;  // filter stages
+    const float* table = nullptr;
+    uint32_t tableLength = 0;
 };
 
 // Render result flags.
@@ -79,6 +92,19 @@ constexpr uint8_t kVoiceEnded = 0x02; // the release finished; the voice is sile
 // Starts (or retriggers) a note. The phase and the filter keep running, and the amp envelope
 // starts from where it is, so a retrigger never clicks.
 inline void start(Voice& v, const NoteOn& n) {
+    v.table = n.table;
+    v.tableLength = n.tableLength;
+
+    // SLIDE (legato): the previous note is still held, so it simply glides on to the new pitch
+    // with its envelopes untouched; only the gate is renewed.
+    if (n.legato && v.active && (v.gateLeft > 0) && (v.increment > 0.0f)) {
+        v.incrementTarget = n.increment;
+        v.glideCoef = (n.glideCoef > 0.0f) ? n.glideCoef : 0.9f;
+        v.gateLeft = (n.gateSamples > 0) ? n.gateSamples : 1;
+        v.gain = n.gain;
+        return;
+    }
+
     if (v.active && (n.glideCoef > 0.0f) && (v.increment > 0.0f)) {
         v.incrementTarget = n.increment;  // slide from the current pitch
         v.glideCoef = n.glideCoef;
@@ -131,6 +157,32 @@ inline float oscillator(uint8_t wave, float t, float dt) {
     }
 }
 
+// WAVE = SAMPLE: one cycle read from a table with linear interpolation (wrapping).
+inline float tableOscillator(const float* table, uint32_t length, float t) {
+    const float position = t * static_cast<float>(length);
+    uint32_t i = static_cast<uint32_t>(position);
+    if (i >= length) i = length - 1;
+    const uint32_t j = (i + 1 < length) ? (i + 1) : 0;
+    const float frac = position - static_cast<float>(i);
+    return table[i] + ((table[j] - table[i]) * frac);
+}
+
+// One oscillator sample for the voice's waveform (falls back to saw without a usable table).
+inline float voiceOscillator(const Voice& v, uint8_t wave, float t, float dt) {
+    if (wave == kSample) {
+        return ((v.table != nullptr) && (v.tableLength >= 2)) ? tableOscillator(v.table, v.tableLength, t) : oscillator(kSaw, t, dt);
+    }
+    return oscillator(wave, t, dt);
+}
+
+// White noise in [-1, 1).
+inline float noise(uint32_t& state) {
+    state ^= state << 13;
+    state ^= state >> 17;
+    state ^= state << 5;
+    return (static_cast<float>(state >> 8) * (2.0f / 16777216.0f)) - 1.0f;
+}
+
 // Soft clip with |result| < 1 for any input (x / (1 + |x|)).
 inline float softClip(float x) { return x / (1.0f + fabsf(x)); }
 
@@ -180,11 +232,31 @@ inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t co
     const float releaseCoef = expf(-1.0f / (0.012f * sampleRate));  // 12 ms
     const float dt = v.increment;
 
+    // Oscillator mix: DETUNE adds a second oscillator (both then at 0.6), SUB a square one octave
+    // down, NOISE white noise. Parts that are off cost nothing per sample.
+    const bool detuneOn = (p.detune > 0);
+    const float dt2 = dt * (1.0f + ((static_cast<float>(p.detune) / 100.0f) * kMaxDetuneCents * 0.0005778f));  // 2^(c/1200)
+    const float mainLevel = detuneOn ? 0.6f : 1.0f;
+    const float subLevel = (static_cast<float>(p.sub) / 100.0f) * 0.8f;
+    const float noiseLevel = (static_cast<float>(p.noise) / 100.0f) * 0.6f;
+    const float dtSub = dt * 0.5f;
+
     // 2. SAMPLE LOOP
     for (uint16_t i = 0; i < count; i++) {
-        const float osc = oscillator(p.wave, v.phase, dt);
+        float osc = voiceOscillator(v, p.wave, v.phase, dt) * mainLevel;
         v.phase += dt;
         if (v.phase >= 1.0f) v.phase -= 1.0f;
+        if (detuneOn) {
+            osc += voiceOscillator(v, p.wave, v.phase2, dt2) * 0.6f;
+            v.phase2 += dt2;
+            if (v.phase2 >= 1.0f) v.phase2 -= 1.0f;
+        }
+        if (subLevel > 0.0f) {
+            osc += oscillator(kSquare, v.phaseSub, dtSub) * subLevel;
+            v.phaseSub += dtSub;
+            if (v.phaseSub >= 1.0f) v.phaseSub -= 1.0f;
+        }
+        if (noiseLevel > 0.0f) osc += noise(v.noiseState) * noiseLevel;
 
         const float x = softClip((osc * drive) - (k * v.s4));
         v.s1 += g * (x - v.s1);
@@ -205,9 +277,13 @@ inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t co
 
     // 3. END OF NOTE
     if ((v.gateLeft == 0) && (v.amp < 0.0001f)) {
-        const float phase = v.phase;
+        const float phase = v.phase, phase2 = v.phase2, phaseSub = v.phaseSub;
+        const uint32_t noiseState = v.noiseState;
         stop(v);
-        v.phase = phase;
+        v.phase = phase;  // oscillators keep running in phase: no click on the next note
+        v.phase2 = phase2;
+        v.phaseSub = phaseSub;
+        v.noiseState = noiseState;
         events |= kVoiceEnded;
     }
     return events;
