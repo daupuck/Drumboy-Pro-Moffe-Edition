@@ -416,7 +416,7 @@ void Controller::lcd_drawEdition(bool animate_) {
         lcd_drawEditionShades(0);
     }
 
-    // 2. NAME: large gold letters with an orange drop shadow (v1.14 "Gold Rush"), one by one
+    // 2. NAME: large gold letters with a deep violet drop shadow (v1.14 "Gold Rush"), one by one
     // when animated. drawTextScaled leaves the background alone, so the shadow goes first.
     lcd.setFont(FONT_14x18);
     lcd.setSpacing(kEditionNameSpacing);
@@ -442,7 +442,7 @@ void Controller::lcd_drawEdition(bool animate_) {
         lcd.drawTextScaled(kEditionName, nameLength, kEditionCenterX, kEditionNameY, kEditionNameScale);
     }
 
-    // 3. LABEL: small, wide-spaced, fading in to warm grey, then a gold line under it.
+    // 3. LABEL: small, wide-spaced, fading in to violet, then a gold line under it.
     lcd.setFont(FONT_14x18);
     lcd.setSpacing(kEditionLabelSpacing);
     lcd.setAlignment(CENTER);
@@ -570,7 +570,7 @@ void Controller::lcd_drawPage(bool animate_) {
     }
 
     // 6. FOOTER LABELS: the panel image has them in the factory magenta; the Moffe Edition
-    // draws its own orange labels over them.
+    // draws its own violet labels over them.
     lcd_drawEncoderBankTab();
     lcd_drawSongBankTab(activeSongBank, false);
 }
@@ -947,7 +947,7 @@ void Controller::lcd_clearInitSdAlert() {
 /* Lcd Bank Functions --------------------------------------------------------*/
 
 void Controller::lcd_drawFooterLabel(const char* text_, uint16_t centerX_, uint16_t y_) {
-    /// @brief A footer label (KNOB, SONG) in the Moffe Edition orange (v1.14 "Gold Rush").
+    /// @brief A footer label (KNOB, SONG) in the Moffe Edition violet (v1.14 "Gold Rush").
     /// Drawn over the factory magenta label in the SD card's panel image.
 
     lcd.setAlignment(CENTER);
@@ -966,7 +966,7 @@ void Controller::lcd_drawEncoderBankTab() {
     lcd.setFont(FONT_07x09);
 
     // 2. LABEL DRAW
-    // Draw static KNOB footer label: in the Moffe Edition orange.
+    // Draw static KNOB footer label: in the Moffe Edition violet.
     lcd_drawFooterLabel("KNOB", 76, 463);
 
     // 3. BANK VALUE DRAW
@@ -986,7 +986,7 @@ void Controller::lcd_drawSongBankTab(uint8_t bank_, bool mode_) {
     lcd.setFont(FONT_07x09);
 
     // 2. LABEL DRAW
-    // Draw static SONG footer label: in the Moffe Edition orange.
+    // Draw static SONG footer label: in the Moffe Edition violet.
     lcd_drawFooterLabel("SONG", 886, 463);
 
     // 3. HIGHLIGHT STATE APPLY

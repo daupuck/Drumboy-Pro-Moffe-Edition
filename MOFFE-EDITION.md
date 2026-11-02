@@ -42,7 +42,7 @@ The biggest update yet: the Drumboy Pro gets **a real synthesizer, a light show 
 | 📈 | **[AMP envelope and LFO](#7-synth-layers--a-built-in-synth-voice-v111)** | ATTACK, DECAY, SUSTAIN, RELEASE, and a tempo-synced LFO for wobbles, vibrato and tremolo. |
 | 🎹 | **[PAD HOLD](#7-synth-layers--a-built-in-synth-voice-v111)** | Notes sound as long as you hold the pad, like a keyboard, and recorded notes play back just as long. |
 | 🌈 | **[VISUALS](#8-visuals--full-screen-music-visuals-v114)** | 13 full-screen visuals that dance to your music: fireworks for every hit, a Game of Life seeded by your drums, a spectrum skyline, digital rain, a kaleidoscope and more. Press HOME on the home screen. |
-| 🏆 | **[The Moffe Edition look](#9-the-moffe-edition-look-v114)** | A warm gold-and-orange "Gold Rush" style throughout, and a new golden boot screen. |
+| 🏆 | **[The Moffe Edition look](#9-the-moffe-edition-look-v114)** | A gold-and-violet "Gold Rush" style throughout, and a new golden boot screen. |
 
 Coming from v1.10 or older? Also new since then: the [NOTE page](#6-melody-layers--note-page-in-layer-song-v109)
 plays pads without touching your track (ADD + pad = step entry) and has a wider keyboard range,
@@ -84,8 +84,8 @@ where you want it.
 
 At power-on the logo fades in and **pixel sunglasses** slide down over its eyes. Then **MOFFE**
 appears letter by letter, and **EDITION** fades in below. Since v1.14 it wears the
-[Moffe Edition look](#9-the-moffe-edition-look-v114): MOFFE in gold with an orange drop shadow, a
-gold rim on the sunglasses and a gold line under a warm-grey EDITION (before v1.14:
+[Moffe Edition look](#9-the-moffe-edition-look-v114): MOFFE in gold with a deep violet drop shadow,
+a gold rim on the sunglasses and a gold line under a violet EDITION (before v1.14:
 large magenta letters).
 
 - Drawn by the firmware, so the SD card and the logo file are unchanged and any card works.
@@ -393,10 +393,10 @@ magenta:
 
 - **Gold** (#FFC21A) for knob names, the play bar, active values and highlights.
 - **Light gold** for the selected layer's row.
-- **Orange** (#FF8A1F) where the factory used magenta: the **KNOB** and **SONG** labels at the
+- **Violet** (#B388FF), gold's opposite on the colour wheel, where the factory used magenta: the **KNOB** and **SONG** labels at the
   bottom of the screen and indicators such as MUTE and the rhythm locks.
-- **Boot screen:** MOFFE in gold with an orange drop shadow, a gold rim on the sunglasses, and a
-  gold line under a warm-grey EDITION (see [the boot screen](#2-moffe-edition-boot-screen-v104)).
+- **Boot screen:** MOFFE in gold with a deep violet drop shadow, a gold rim on the sunglasses, and
+  a gold line under a violet EDITION (see [the boot screen](#2-moffe-edition-boot-screen-v104)).
 - **VISUALS** starts in the matching GOLD RUSH colour theme.
 
 Nothing to install for it: the firmware repaints the parts of the SD card's panel images that
@@ -453,7 +453,7 @@ app's `Global.h`.
 | v1.11 | SYNTH layers: a built-in synth voice with filter, envelope, gate and accent |
 | v1.12 | SYNTH: DETUNE, SUB, NOISE, WAVE = SAMPLE (single-cycle WAVs); SLIDE per beat; stronger DRIVE |
 | v1.13 | SYNTH: 32 presets + 16 USER slots, random sounds and variations, AMP envelope (ADSR), filter types, own LFO page; pads play the synth on its pages; synth sounds in drumkits and the instrument copy. NOTE page: pads only play while stopped (ADD + pad = step entry), wider octave range |
-| v1.14 | VISUALS: 13 full-screen music visuals (HOME on the home screen) with seven colour themes; the gold-and-orange Moffe Edition look and a new boot screen; SYNTH: 66 presets in alphabetical order, the synth sound's name in the track list; recording with PAD HOLD keeps the held note lengths |
+| v1.14 | VISUALS: 13 full-screen music visuals (HOME on the home screen) with seven colour themes; the gold-and-violet Moffe Edition look and a new boot screen; SYNTH: 66 presets in alphabetical order, the synth sound's name in the track list; recording with PAD HOLD keeps the held note lengths |
 
 ## Coming next
 

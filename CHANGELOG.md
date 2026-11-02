@@ -12,11 +12,11 @@ recorded PAD HOLD lengths.
 
 **The Moffe Edition look ("Gold Rush").** `kAccentColor` (gold #FFC21A, `0xFE03`) replaces the
 factory cyan everywhere in the UI (menu headers, play bar, active values), `kAccent2Color`
-(orange #FF8A1F) replaces magenta, and `kLayerSelectedColor` is light gold #FFE27A. The KNOB /
-SONG footer labels are drawn in orange (`lcd_drawFooterLabel`). The SD card's panel images
+(violet #B388FF, `0xB45F`) replaces magenta, and `kLayerSelectedColor` is light gold #FFE27A. The KNOB /
+SONG footer labels are drawn in violet (`lcd_drawFooterLabel`). The SD card's panel images
 still carry the factory cyan play bar and magenta footer labels; `lcd_drawPage` paints over
-them, so no new images are needed. Boot screen: MOFFE in gold with an orange drop shadow, gold
-shades rim, EDITION fading in to warm grey with a gold line under it (`kEditionShadow*`,
+them, so no new images are needed. Boot screen: MOFFE in gold with a deep violet (#5B2DB3) drop shadow, gold
+shades rim, EDITION fading in to violet with a gold line under it (`kEditionShadow*`,
 `kEditionLabelColor`, `kEditionUnderline*`). The factory test screens are unchanged. VISUALS
 gets a GOLD RUSH theme (now the default; seven themes). Also fixed: two `sprintf` overflows
 into 3-byte buffers in the footer bank numbers.

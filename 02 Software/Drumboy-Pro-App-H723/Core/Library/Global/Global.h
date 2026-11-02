@@ -631,14 +631,15 @@ const RGB16Color GRAY_85                            = 0xDEDB;
 const RGB16Color GRAY_90                            = 0xE73C;
 const RGB16Color GRAY_95                            = 0xF79E;
 
-// Moffe Edition palette (v1.14 "Gold Rush"): golden yellow where the factory UI used cyan, warm
-// orange where it used magenta, light gold for the selected layer.
+// Moffe Edition palette (v1.14 "Gold Rush"): golden yellow where the factory UI used cyan, violet
+// (gold's opposite on the colour wheel, so the two never blend) where it used magenta, light gold
+// for the selected layer.
 const RGB16Color kMoffeGold                         = 0xFE03;  // #FFC21A
-const RGB16Color kMoffeOrange                       = 0xFC43;  // #FF8A1F
+const RGB16Color kMoffeViolet                       = 0xB45F;  // #B388FF
+const RGB16Color kMoffeDeepViolet                   = 0x5976;  // #5B2DB3
 const RGB16Color kMoffeLightGold                    = 0xFF0F;  // #FFE27A
-const RGB16Color kMoffeWarmGray                     = 0xCDD1;  // #C9B98F
 const RGB16Color kAccentColor                       = kMoffeGold;
-const RGB16Color kAccent2Color                      = kMoffeOrange;
+const RGB16Color kAccent2Color                      = kMoffeViolet;
 
 /*----------------------------------------------------------------------------*/
 
@@ -739,10 +740,11 @@ const uint8_t kEditionLabelSpacing                  = 10;
 const uint16_t kEditionCenterX                      = 480;
 const uint16_t kEditionNameY                        = kImageLogoY + 190;
 const uint16_t kEditionLabelY                       = kImageLogoY + 256;
-// v1.14 "Gold Rush" boot screen: gold name with an orange drop shadow, a gold line under EDITION.
-const RGB16Color kEditionShadowColor                = kMoffeOrange;
+// v1.14 "Gold Rush" boot screen: gold name with a deep violet drop shadow, EDITION in violet with
+// a gold line under it.
+const RGB16Color kEditionShadowColor                = kMoffeDeepViolet;
 const uint16_t kEditionShadowOffset                 = 4;
-const RGB16Color kEditionLabelColor                 = kMoffeWarmGray;
+const RGB16Color kEditionLabelColor                 = kMoffeViolet;
 const uint16_t kEditionUnderlineWidth               = 160;
 const uint16_t kEditionUnderlineY                   = kEditionLabelY + 26;
 const uint16_t kEditionShadesTop                    = 96;     // logo rows covered by the shades: 96..120
