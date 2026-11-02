@@ -108,8 +108,10 @@ inline void start(Voice& v, const NoteOn& n) {
         return;
     }
 
-    if (v.active && (n.glideCoef > 0.0f) && (v.increment > 0.0f)) {
-        v.incrementTarget = n.increment;  // slide from the current pitch
+    // GLIDE: slide from the previous note's pitch, also when that note has already ended (the
+    // voice keeps its last pitch for this; only the very first note jumps).
+    if ((n.glideCoef > 0.0f) && (v.increment > 0.0f)) {
+        v.incrementTarget = n.increment;
         v.glideCoef = n.glideCoef;
     } else {
         v.increment = n.increment;
@@ -291,12 +293,15 @@ inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t co
     // 3. END OF NOTE
     if ((v.gateLeft == 0) && (v.amp < 0.0001f)) {
         const float phase = v.phase, phase2 = v.phase2, phaseSub = v.phaseSub;
+        const float pitch = v.incrementTarget;  // where the note ended up (after any glide)
         const uint32_t noiseState = v.noiseState;
         stop(v);
         v.phase = phase;  // oscillators keep running in phase: no click on the next note
         v.phase2 = phase2;
         v.phaseSub = phaseSub;
         v.noiseState = noiseState;
+        v.increment = pitch;  // GLIDE on the next note starts here
+        v.incrementTarget = pitch;
         events |= kVoiceEnded;
     }
     return events;

@@ -23,6 +23,10 @@ SD-card package is named after it). Rolling back = installing an older package.
   the notes so external mono synths play legato.
 - Saved with the project (`.rwn`: "SYN2" with the new values, "SLD1" with the slides); projects
   saved by v1.11 still load. Older versions ignore both.
+- **Fix: GLIDE on SYNTH layers** (found in hardware testing). The voice only glided if the
+  previous note was still sounding; with GATE below 100 it had usually faded out (gate plus
+  release) before the next beat, so the next note jumped. The voice now remembers its last pitch
+  and GLIDE slides from it, as on TONE layers; only the very first note after a mode change jumps.
 
 Under the hood: SLIDE shares the beat's note byte (bits 0-5 note, bit 6 slide; host-tested
 packing), so it costs no RAM; snapshots carry it through MOVE, SHIFT ALL and EUCLID MERGE. The

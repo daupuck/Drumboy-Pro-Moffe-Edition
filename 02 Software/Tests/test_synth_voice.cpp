@@ -211,6 +211,20 @@ static void testGlide() {
     Voice j;
     start(j, note(220.0f, 44100, 1.0f, coef));
     CHECK(std::fabs(j.increment - 220.0f / kFs) < 1e-7f, "first note never slides");
+
+    // Regression (v1.12 hardware test: "GLIDE does not do anything"): with GATE < 100 the previous
+    // note has ended (gate + release) before the next beat. GLIDE must still slide from its pitch,
+    // as on TONE layers.
+    Voice g;
+    start(g, note(220.0f, 2000));  // 45 ms gate
+    for (int i = 0; i < 400; i++) render(g, p, block, kBlock, kFs);  // 290 ms: gate over, release faded out
+    CHECK(!g.active, "previous note has ended");
+    start(g, note(440.0f, 2000, 1.0f, coef));
+    CHECK(std::fabs(g.increment - 220.0f / kFs) < 1e-7f, "glide starts at the previous note's pitch after a gap");
+    CHECK(g.glideCoef > 0.0f && std::fabs(g.incrementTarget - 440.0f / kFs) < 1e-7f, "and slides to the new one");
+    // ...and with GLIDE 0 the next note still jumps.
+    start(g, note(330.0f, 2000));
+    CHECK(std::fabs(g.increment - 330.0f / kFs) < 1e-7f && g.glideCoef == 0.0f, "GLIDE 0 jumps");
 }
 
 static void testVelocity() {
