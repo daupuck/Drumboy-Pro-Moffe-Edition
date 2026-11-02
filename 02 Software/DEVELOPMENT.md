@@ -35,7 +35,7 @@ and checked against the code in this repo.
 
 | Context | Runs | Budget / constraint |
 |---|---|---|
-| I2S3 DMA half/complete callbacks (`main.cpp`) → `processAudioBlock()` | every 32 stereo samples at 44.1 kHz | **≈ 0.73 ms per call** (≈ 400 000 CPU cycles at 550 MHz) for the whole chain: receive → metronome → 10 layers → EQ → 2 filters → 2 effects → reverb → send. Never block here. |
+| I2S3 DMA half/complete callbacks (`main.cpp`) → `processAudioBlock()` | every 32 stereo samples at 44.1 kHz | **≈ 0.73 ms per call** (≈ 400 000 CPU cycles at 550 MHz) for the whole chain: receive → metronome → 10 layers → EQ → 2 filters → 2 effects → reverb → send. Never block here. Measured with the IO-menu CPU meter (v1.09): peak ≈ 32 % with 10 layers playing, ≈ 42 % with chorus, delay, reverb and both filters on. |
 | TIM15 → `interruptPlay()` | sequencer tick (BPM-derived) | triggers beats, samples LFOs (sample-and-hold at trigger), sends MIDI/sync |
 | Other timers | TIM4 MIDI clock, TIM5 UI transitions, TIM6/TIM7 preset autosave debounce, TIM8 LED meters, TIM12–14 long-press, TIM16 text overlay, TIM17 SD hot-plug, TIM23 sync pulse, TIM24 limit alert | keep handlers short; most just raise flags |
 | GPIO EXTI | keypads (MCP23017 INT), 8 encoders, function button, sync-in pulse | |
@@ -113,8 +113,8 @@ tested by `02 Software/Tests/test_layer_song_edit.cpp`, and `Global/SampleFormat
 conversion used by the sample loader and the preview), tested by `test_sample_format.cpp`, and
 `Global/EuclidPattern.h` (Euclidean rhythms for the Layer Song EUCLID page), tested by
 `test_euclid.cpp`, `Global/SongChain.h` (song mode chain), tested by `test_song_chain.cpp`, and
-`Global/ToneScale.h` (TONE layers: scales, pitch, note names, glide), tested by
-`test_tone_scale.cpp`. CI compiles and runs every
+`Global/ToneScale.h` (TONE layers: scales, pitch, note names, glide, TRANSPOSE, the melody
+generator and the pad keyboard), tested by `test_tone_scale.cpp`. CI compiles and runs every
 `02 Software/Tests/test_*.cpp` with `-Wall -Wextra -Werror`.
 
 ```sh
@@ -139,7 +139,12 @@ keep the Controller method as thin glue (snapshot → pure function → write ba
 - **SD file formats are fixed-size binary layouts** (`kSystemPresetDataSize`,
   `kDrumkitByteSize`, `kSongByteSize`, …). Changing a layout makes existing files on users'
   cards fail to load. If you must change one, change the file's reference header string as
-  well and handle the old format.
+  well and handle the old format. Prefer unused bytes (song chain, v1.07) or a small file next
+  to the project (notes in `File_NNN.rwn`, v1.09) so older firmware keeps working.
+- **Long-press and other timer ISRs must not draw or touch the SD card.** Raise a flag and do
+  the work in the main loop (e.g. ADD hold on the NOTE page: `noteMelodyKeyFlag` in the
+  long-key ISR → `noteMelodyActionFlag` → `note_melody()` in `update()`).
+- **Check the CPU meter** (IO menu, knobs 5–6) after any change that adds work per audio block.
 - **Writes to SD** go through `sd_write()` / `sd_read()`, which treat short transfers (card
   full) as errors, and check `f_close()` — it flushes the last sector.
 - **Do not lower the optimization level** of the application (`-Ofast`) without testing audio

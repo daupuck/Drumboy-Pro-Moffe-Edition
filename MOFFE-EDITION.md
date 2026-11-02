@@ -20,12 +20,12 @@ compared with the factory firmware: what each feature does and how to use it on 
 > the firmware may affect your warranty with Randomwaves. Report problems in this repository's
 > [Issues](../../issues), not to Randomwaves.
 
-> **Status (1 November 2026):** every version is built, unit-tested and verified by CI. v1.07 has
-> been run on a Drumboy Pro by the maintainer, with song mode confirmed working; the other features
-> are in hardware testing. In v1.09 the melody layers (notes, GLIDE, TRANSPOSE) and the CPU meter
-> have been tested on a device: CPU PEAK about 42 % with all 10 layers playing, two of them TONE,
-> and chorus, delay, reverb and both filters on. Saving and reloading notes is still to be
-> confirmed. Each release says what has been tested on hardware.
+> **Status (2 November 2026):** every version is built, unit-tested and verified by CI. Tested on
+> a Drumboy Pro by the maintainer: song mode (v1.07); the melody layers with notes, GLIDE and
+> TRANSPOSE, and the CPU meter (v1.09: CPU PEAK about 42 % with all 10 layers playing, two of them
+> TONE, and chorus, delay, reverb and both filters on); the pad keyboard and the melody generator
+> (v1.10). Saving and reloading notes is still to be confirmed; the other features are in
+> hardware testing. Each release says what has been tested on hardware.
 
 ## Knob numbering
 
@@ -268,6 +268,16 @@ A quick bassline: EUCLID page E(5,16), then the NOTE page, MODE TONE, hold ADD u
 | v1.08 | EUCLID page shows the CLEAR: UNDO hint |
 | v1.09 | Melody layers (TONE) on the NOTE page; audio CPU meter in the IO menu |
 | v1.10 | Pads as a scale keyboard (step entry, live recording); melody generator and variations |
+
+## Coming next
+
+Plans, not promises; each step is released only after it has been tried on a device.
+
+- **SYNTH layers:** a built-in synth voice as a third MODE next to DRUM and TONE: oscillators
+  (or single-cycle WAVs from the card), a resonant filter with envelope, accent and slide. The
+  CPU meter shows there is room for one on every layer.
+- **Song transpose and harmony:** each song-mode step can change key, and a layer can follow
+  another a third or fifth higher.
 
 ## Install and roll back
 

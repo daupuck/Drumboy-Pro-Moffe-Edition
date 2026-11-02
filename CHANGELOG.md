@@ -30,6 +30,8 @@ host-tested in `test_tone_scale.cpp`. The long press only sets a flag in the lon
 main loop generates and draws. `layerSong_setBeat()` takes an optional note. RAM_D1 +16 B, flash
 +2.9 KB. Audio path unchanged; no new compiler warnings.
 
+Tested on a Drumboy Pro: pad keyboard and melody generator.
+
 ## v1.09
 
 **Melody layers (TONE) — play your samples as notes**
@@ -77,6 +79,12 @@ byte of `Beat` (guarded by `static_assert(sizeof(Beat) == 8)`), so 3200 notes co
 RAM_D1 grows by 656 B (91.3 → 91.5 %), flash by 11.5 KB. Glide is applied once per audio block,
 outside the per-sample loops (`processAudioLayer` +64 B); the meter adds two cycle-counter
 reads per block (`processAudioBlock` +164 B). No new compiler warnings.
+
+Tested on a Drumboy Pro: notes, GLIDE, TRANSPOSE (after the fix below, part of v1.09) and the CPU
+meter; CPU PEAK about 42 % with all 10 layers playing (two TONE) and chorus, delay, reverb and both
+filters on. Fixed during testing: TRANSPOSE clamped every note on its own, so turning it far
+squashed the melody into one note; it now moves the melody as a whole and stops at the edge.
+Saving and reloading notes: still to be confirmed.
 
 ## v1.08
 

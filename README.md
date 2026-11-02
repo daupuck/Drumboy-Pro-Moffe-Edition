@@ -28,10 +28,11 @@ rolled back to the factory firmware the same way.
 | | Feature | In one sentence |
 |---|---|---|
 | 🥁 | [**Euclidean rhythms**](MOFFE-EDITION.md#4-euclidean-rhythms--euclid-page-in-layer-song-v106) | Pick steps and hits, turn a knob, hear the pattern change live. |
-| 🎹 | [**Melody layers**](MOFFE-EDITION.md#6-melody-layers--note-page-in-layer-song-v109) | Turn any layer into an instrument: give each beat a note, pick a key and scale, add glide. Your kick just became an 808 bassline. |
+| 🎹 | [**Melody layers**](MOFFE-EDITION.md#6-melody-layers--note-page-in-layer-song-v109) | Turn any layer into an instrument: give each beat a note in a key and scale, add glide, play the pads as a keyboard, or hold ADD and let it write a melody. Your kick just became an 808 bassline. |
 | 🎼 | [**Song mode**](MOFFE-EDITION.md#5-song-mode--arrange-parts-into-a-song-v107) | Chain the 5 song banks into intro → verse → chorus, with repeats, looped or played once. |
 | 🎯 | [**Precise beat placement**](MOFFE-EDITION.md#1-place-beats-precisely--layer-song-menu-v103) | Move a single beat, shift a whole layer, or add one beat exactly where you want it. |
 | 🎧 | [**Sample preview**](MOFFE-EDITION.md#3-sample-preview--layer-instrument-menu-v105) | Hear a sample *before* you load it. Your ears will thank you. |
+| 📊 | [**CPU meter**](MOFFE-EDITION.md#audio-cpu-meter-v109) | See how busy the audio engine is (IO menu), so you know how much room is left. |
 | 🛟 | [**Safer saving and fixes**](MOFFE-EDITION.md#improvements-and-fixes) | A full card or a failed save no longer leaves half-written files, plus a stack of bug fixes. |
 | 😎 | [**Boot screen**](MOFFE-EDITION.md#2-moffe-edition-boot-screen-v104) | Purely cosmetic. Deeply important. |
 
