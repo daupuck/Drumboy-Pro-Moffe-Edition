@@ -416,10 +416,10 @@ void Controller::lcd_drawEdition(bool animate_) {
         lcd_drawEditionShades(0);
     }
 
-    // 2. NAME: large accent letters, one by one when animated.
+    // 2. NAME: large gold letters with a deep ruby drop shadow (v1.14 "Gold Rush"), one by one
+    // when animated. drawTextScaled leaves the background alone, so the shadow goes first.
     lcd.setFont(FONT_14x18);
     lcd.setSpacing(kEditionNameSpacing);
-    lcd.setForeColor(kEditionAccentColor);
     lcd.setBackColor(BLACK);
     const uint16_t nameLength = strlen(kEditionName);
     if (animate_) {
@@ -428,30 +428,38 @@ void Controller::lcd_drawEdition(bool animate_) {
         const uint16_t cell = (kFontWidth_14x18 + kEditionNameSpacing) * kEditionNameScale;
         const uint16_t xStart = kEditionCenterX - (width / 2);
         for (uint16_t i = 0; i < nameLength; i++) {
+            lcd.setForeColor(kEditionShadowColor);
+            lcd.drawTextScaled(&kEditionName[i], 1, xStart + (i * cell) + kEditionShadowOffset, kEditionNameY + kEditionShadowOffset, kEditionNameScale);
+            lcd.setForeColor(kEditionAccentColor);
             lcd.drawTextScaled(&kEditionName[i], 1, xStart + (i * cell), kEditionNameY, kEditionNameScale);
             HAL_Delay(kEditionLetterMs);
         }
     } else {
         lcd.setAlignment(CENTER);
+        lcd.setForeColor(kEditionShadowColor);
+        lcd.drawTextScaled(kEditionName, nameLength, kEditionCenterX + kEditionShadowOffset, kEditionNameY + kEditionShadowOffset, kEditionNameScale);
+        lcd.setForeColor(kEditionAccentColor);
         lcd.drawTextScaled(kEditionName, nameLength, kEditionCenterX, kEditionNameY, kEditionNameScale);
     }
 
-    // 3. LABEL: small, wide-spaced, fading in through three grey levels.
+    // 3. LABEL: small, wide-spaced, fading in to ruby, then a gold line under it.
     lcd.setFont(FONT_14x18);
     lcd.setSpacing(kEditionLabelSpacing);
     lcd.setAlignment(CENTER);
     const uint16_t labelLength = strlen(kEditionLabel);
     if (animate_) {
-        const RGB16Color steps[3] = {GRAY_25, GRAY_50, GRAY_75};
+        const RGB16Color steps[3] = {GRAY_25, GRAY_50, kEditionLabelColor};
         for (uint8_t s = 0; s < 3; s++) {
             lcd.setForeColor(steps[s]);
             lcd.drawText(kEditionLabel, labelLength, kEditionCenterX, kEditionLabelY);
             HAL_Delay(kEditionLabelFadeMs);
         }
     } else {
-        lcd.setForeColor(GRAY_75);
+        lcd.setForeColor(kEditionLabelColor);
         lcd.drawText(kEditionLabel, labelLength, kEditionCenterX, kEditionLabelY);
     }
+    lcd.setForeColor(kEditionAccentColor);
+    lcd.fillRect(kEditionCenterX - (kEditionUnderlineWidth / 2), kEditionUnderlineY, kEditionUnderlineWidth, 3);
 
     // 4. RESTORE DEFAULT FONT STATE (setFont resets spacing).
     lcd.setFont(FONT_07x09);
@@ -459,11 +467,12 @@ void Controller::lcd_drawEdition(bool animate_) {
 }
 
 void Controller::lcd_clearEdition() {
-    /// @brief Clears the edition name and label (the shades go with the logo fade-out).
+    /// @brief Clears the edition name (with its shadow), the label and its line (the shades go
+    /// with the logo fade-out).
 
     lcd.setBackColor(BLACK);
     const uint16_t top = kEditionNameY;
-    const uint16_t bottom = kEditionLabelY + kFontHeight_14x18;
+    const uint16_t bottom = kEditionUnderlineY + 3;
     lcd.clearRect(kEditionCenterX - 240, top, 480, bottom - top);
 }
 
@@ -505,6 +514,10 @@ void Controller::lcd_drawPage(bool animate_) {
     } else {
         lcd.drawRGB16Image(indexPtr, dataPtr, 64, kImageMenuAX, kImageMenuAY, kImageMenuAWidth, kImageMenuAHeight);
     }
+    // The panel image (on the SD card) has the play bar in the factory cyan: repaint it in the
+    // Moffe Edition accent, so an old SD card needs no new images.
+    lcd.setForeColor(kPlayColor1);
+    lcd.drawHLine(kPlayX, kPlayY, kPlayWidth);
 
     // 3. LAYER PANEL RENDER
     // Draw all layer rows by alternating A/B panel styles.
@@ -555,6 +568,11 @@ void Controller::lcd_drawPage(bool animate_) {
         sprintf(num, "%02d", (i + 1));
         lcd.drawText(num, 2, kLayerTextNumberX, kLayerTextY[i]);
     }
+
+    // 6. FOOTER LABELS: the panel image has them in the factory magenta; the Moffe Edition
+    // draws its own orange labels over them (the palette swap at load does it too).
+    lcd_drawEncoderBankTab();
+    lcd_drawSongBankTab(activeSongBank, false);
 }
 
 /* Lcd Alert Functions -------------------------------------------------------*/
@@ -566,7 +584,7 @@ void Controller::lcd_drawAlert() {
     // Configure text alignment, font, and colors for alert rendering.
     lcd.setAlignment(CENTER);
     lcd.setFont(FONT_07x09);
-    lcd.setForeColor(CYAN);
+    lcd.setForeColor(kAccentColor);
     lcd.setBackColor(BLACK);
 
     // 2. FRAME DRAW
@@ -674,7 +692,7 @@ void Controller::lcd_clearAlert() {
 
     // 1. ALERT REGION CLEAR
     // Clear alert area with default colors.
-    lcd.setForeColor(CYAN);
+    lcd.setForeColor(kAccentColor);
     lcd.setBackColor(BLACK);
     lcd.clearRect(355, 260, 250, 20);
 
@@ -701,7 +719,7 @@ void Controller::lcd_drawLimitAlert() {
             lcd.setBackColor(BLACK);
             lcd.setFont(FONT_07x09);
             lcd.setAlignment(CENTER);
-            lcd.setForeColor(MAGENTA);
+            lcd.setForeColor(kAccent2Color);
             lcd.drawText("!", 1, kLimitAlertX, kLimitAlertY);
         }
 
@@ -714,7 +732,7 @@ void Controller::lcd_drawLimitAlert() {
         // Clear alert symbol
         lcd.setFont(FONT_07x09);
         lcd.setAlignment(CENTER);
-        lcd.setForeColor(MAGENTA);
+        lcd.setForeColor(kAccent2Color);
         lcd.setBackColor(BLACK);
         lcd.drawText(" ", 1, kLimitAlertX, kLimitAlertY);
     }
@@ -830,7 +848,7 @@ void Controller::lcd_drawSdAlert(SdResult result_) {
     // Configure style and draw SD alert frame.
     lcd.setAlignment(CENTER);
     lcd.setFont(FONT_07x09);
-    lcd.setForeColor(CYAN);
+    lcd.setForeColor(kAccentColor);
     lcd.setBackColor(BLACK);
     lcd.clearRect(355, 260, 250, 20);
     lcd.drawRect(355, 260, 250, 20);
@@ -901,7 +919,7 @@ void Controller::lcd_clearSdAlert() {
 
     // 1. ALERT REGION CLEAR
     // Clear SD alert region with default colors.
-    lcd.setForeColor(CYAN);
+    lcd.setForeColor(kAccentColor);
     lcd.setBackColor(BLACK);
     lcd.clearRect(355, 260, 250, 20);
 
@@ -928,6 +946,17 @@ void Controller::lcd_clearInitSdAlert() {
 
 /* Lcd Bank Functions --------------------------------------------------------*/
 
+void Controller::lcd_drawFooterLabel(const char* text_, uint16_t centerX_, uint16_t y_) {
+    /// @brief A footer label (KNOB, SONG) in the Moffe Edition orange (v2.00 "Gold Rush").
+    /// Drawn over the factory magenta label in the SD card's panel image.
+
+    lcd.setAlignment(CENTER);
+    lcd.setFont(FONT_07x09);
+    lcd.setBackColor(BLACK);
+    lcd.setForeColor(kAccent2Color);
+    lcd.drawText(text_, static_cast<uint16_t>(strlen(text_)), centerX_, y_);
+}
+
 void Controller::lcd_drawEncoderBankTab() {
     /// @brief Displays active global encoder bank number indicator.
 
@@ -937,15 +966,14 @@ void Controller::lcd_drawEncoderBankTab() {
     lcd.setFont(FONT_07x09);
 
     // 2. LABEL DRAW
-    // Draw static KNOB footer label.
-    lcd.setForeColor(MAGENTA);
-    lcd.drawText("KNOB", 4, 76, 463);
+    // Draw static KNOB footer label: in the Moffe Edition orange.
+    lcd_drawFooterLabel("KNOB", 76, 463);
 
     // 3. BANK VALUE DRAW
     // Draw two-digit active encoder bank index.
     lcd.setForeColor(WHITE);
-    char textData[3];
-    sprintf(textData, "%02d", activeEncoderBank + 1);
+    char textData[4];
+    snprintf(textData, sizeof(textData), "%02d", (activeEncoderBank + 1) % 100);
     lcd.drawText(textData, 2, 76, 489);
 }
 
@@ -958,18 +986,17 @@ void Controller::lcd_drawSongBankTab(uint8_t bank_, bool mode_) {
     lcd.setFont(FONT_07x09);
 
     // 2. LABEL DRAW
-    // Draw static SONG footer label.
-    lcd.setForeColor(MAGENTA);
-    lcd.drawText("SONG", 4, 886, 463);
+    // Draw static SONG footer label: in the Moffe Edition orange.
+    lcd_drawFooterLabel("SONG", 886, 463);
 
     // 3. HIGHLIGHT STATE APPLY
-    // Select highlighted color when requested.
-    (mode_) ? lcd.setForeColor(MAGENTA) : lcd.setForeColor(WHITE);
+    // Select highlighted color when requested (a bank change waiting for the loop end).
+    (mode_) ? lcd.setForeColor(kAccentColor) : lcd.setForeColor(WHITE);
 
     // 4. BANK VALUE DRAW
     // Draw two-digit selected bank index.
-    char textData[3];
-    sprintf(textData, "%02d", bank_ + 1);
+    char textData[4];
+    snprintf(textData, sizeof(textData), "%02d", (bank_ + 1) % 100);
     lcd.drawText(textData, 2, 886, 489);
 }
 
@@ -1168,21 +1195,21 @@ void Controller::lcd_drawFileBox(uint8_t menuTab_, FileStatus status_) {
     // Draw file box with color corresponding to file status.
     switch (status_) {
         case FILE_NONE:
-            lcd.setForeColor(MAGENTA);
+            lcd.setForeColor(kAccent2Color);
             lcd.setBackColor(BLACK);
             lcd.clearRect(xPos, yPos, kMenuFileBoxWidth, kMenuFileBoxHeight);
             lcd.fillRect(xPos, yPos, kMenuFileBoxWidth, kMenuFileBoxHeight);
             break;
 
         case FILE_MISSING:
-            lcd.setForeColor(MAGENTA);
+            lcd.setForeColor(kAccent2Color);
             lcd.setBackColor(BLACK);
             lcd.clearRect(xPos, yPos, kMenuFileBoxWidth, kMenuFileBoxHeight);
             lcd.fillRect(xPos, yPos, kMenuFileBoxWidth, kMenuFileBoxHeight);
             break;
 
         case FILE_INCOMPATIBLE:
-            lcd.setForeColor(MAGENTA);
+            lcd.setForeColor(kAccent2Color);
             lcd.setBackColor(BLACK);
             lcd.clearRect(xPos, yPos, kMenuFileBoxWidth, kMenuFileBoxHeight);
             lcd.fillRect(xPos, yPos, kMenuFileBoxWidth, kMenuFileBoxHeight);
@@ -1622,7 +1649,7 @@ void Controller::lcd_drawLayerBox(uint8_t layerNum_) {
 
     // 1. COLOR SELECT
     // Use selected or default row color.
-    (layerNum_ == selectedLayerNum) ? lcd.setForeColor(CYAN) : lcd.setForeColor(GRAY_75);
+    (layerNum_ == selectedLayerNum) ? lcd.setForeColor(kLayerSelectedColor) : lcd.setForeColor(GRAY_75);
 
     // 2. BORDER DRAW
     // Draw top and bottom horizontal border lines.
@@ -1654,7 +1681,16 @@ void Controller::lcd_drawLayerTab_InstData(uint8_t layerNum_) {
     Layer& layer = layerLibrary[layerNum_];
 
     // 3. VALUE DRAW
-    // Draw loaded instrument short label.
+    // Draw loaded instrument short label. A SYNTH layer plays no sample: it shows its sound's
+    // preset name instead (v1.14), padded so a longer old name is fully overwritten.
+    if (layer.toneMode == tone::kModeSynth) {
+        char name[16];
+        synth_soundName(layerNum_, name, sizeof(name));
+        char field[13];
+        snprintf(field, sizeof(field), "%-12.12s", name);
+        lcd.drawText(field, 12, kLayerTextInstX, kLayerTextY[layerNum_]);
+        return;
+    }
     lcd.drawText(layer.instLoadedData.nameShortL, 12, kLayerTextInstX, kLayerTextY[layerNum_]);
 }
 
@@ -1721,7 +1757,7 @@ void Controller::lcd_drawTransition() {
         if (transitionShowMenu) {
             lcd.setFont(FONT_05x07);
             lcd.setAlignment(RIGHT);
-            (transitionShowFlag == 1) ? lcd.setForeColor(MAGENTA) : lcd.setForeColor(GREEN);
+            (transitionShowFlag == 1) ? lcd.setForeColor(kAccent2Color) : lcd.setForeColor(GREEN);
             lcd.setBackColor(BLACK);
             lcd.drawText("    PASS", kMenuTextBoxTextSize, kMenuTextBoxX[0], kMenuTextBoxY[0]);
             transitionShowMenu = 0;
@@ -1732,7 +1768,7 @@ void Controller::lcd_drawTransition() {
             if (transitionShowEncoder[i]) {
                 lcd.setFont(FONT_07x09);
                 lcd.setAlignment(RIGHT);
-                (transitionShowFlag == 1) ? lcd.setForeColor(MAGENTA) : lcd.setForeColor(GREEN);
+                (transitionShowFlag == 1) ? lcd.setForeColor(kAccent2Color) : lcd.setForeColor(GREEN);
 
                 // lcd.clearRect(kEncoderDataX[i] - 53, kEncoderDataY[i], 7, 7);
                 // lcd.drawRect(kEncoderDataX[i] - 53, kEncoderDataY[i], 7, 7);
@@ -1749,7 +1785,7 @@ void Controller::lcd_drawTransition() {
         if (transitionClearMenu) {
             lcd.setFont(FONT_05x07);
             lcd.setAlignment(RIGHT);
-            lcd.setForeColor(MAGENTA);
+            lcd.setForeColor(kAccent2Color);
             lcd.setBackColor(BLACK);
             lcd.drawText("        ", kMenuTextBoxTextSize, kMenuTextBoxX[0], kMenuTextBoxY[0]);
             transitionClearMenu = false;
@@ -1760,7 +1796,7 @@ void Controller::lcd_drawTransition() {
             if (transitionClearEncoder[i]) {
                 lcd.setFont(FONT_07x09);
                 lcd.setAlignment(RIGHT);
-                lcd.setForeColor(MAGENTA);
+                lcd.setForeColor(kAccent2Color);
 
                 // lcd.clearRect(kEncoderDataX[i] - 53, kEncoderDataY[i], 7, 7);
                 // lcd.drawRect(kEncoderDataX[i] - 53, kEncoderDataY[i], 7, 7);
@@ -1881,7 +1917,7 @@ void Controller::lcd_drawCopyPaste() {
         textCopyFlag = false;
         textShow = true;
         startTextTimer();
-        lcd.setForeColor(CYAN);
+        lcd.setForeColor(kAccentColor);
         lcd.drawText("COPY", 4, 170, 112);
 
         // 4. PASTE NOTIFICATION
@@ -1890,7 +1926,7 @@ void Controller::lcd_drawCopyPaste() {
         textPasteFlag = false;
         textShow = true;
         startTextTimer();
-        lcd.setForeColor(CYAN);
+        lcd.setForeColor(kAccentColor);
         lcd.drawText("PASTE", 5, 170, 112);
 
         // 5. CLEAR NOTIFICATION
@@ -2100,13 +2136,17 @@ void Controller::lcd_drawBeat(uint8_t layerNum_, uint8_t bankNum_, uint8_t beatN
             uint16_t yStart = kImageLayerY[layerNum_] + kSongOffsetY;
 
             // Draw beat shape based on fill type
+            // The selected beat's marker is twice as wide (v1.14), so it is easy to find on the
+            // line; the clear below covers the whole beat, so a deselected beat is thin again.
+            const uint16_t span = xEnd - xStart + 1;
+            const uint16_t marker = selected_ ? ((span >= 4) ? 4 : span) : 2;
             if ((fillType == 0) && (fillPattern < 2)) {
-                lcd.clearRect(xStart, yStart, xEnd - xStart + 1, kSongHeight);
-                lcd.drawRect(xStart, yStart, 2, kSongHeight);
+                lcd.clearRect(xStart, yStart, span, kSongHeight);
+                lcd.fillRect(xStart, yStart, marker, kSongHeight);
             } else if ((fillType == 0) && (fillPattern == 2)) {
-                lcd.clearRect(xStart, yStart, xEnd - xStart + 1, kSongHeight);
+                lcd.clearRect(xStart, yStart, span, kSongHeight);
                 for (uint8_t i = 0; i < 4; i++) {
-                    lcd.drawPixel(xStart, yStart + (i * 3));
+                    lcd.fillRect(xStart, yStart + (i * 3), (marker > 2) ? marker : 1, 1);
                 }
             } else {
                 lcd.fillRect(xStart, yStart, xEnd - xStart, kSongHeight);

@@ -180,6 +180,16 @@ SECTIONS
     . = ALIGN(4);
   } >RAM_D3
 
+  /* DTCM (CPU only, not reachable by DMA): visuals buffers. NOLOAD = not zeroed at boot,
+     so the code clears them itself before use. */
+  .DTCM (NOLOAD) :
+  {
+    . = ALIGN(4);
+    *(.DTCM)
+    *(.DTCM*)
+    . = ALIGN(4);
+  } >DTCMRAM
+
   /DISCARD/ :
   {
     libc.a ( * )

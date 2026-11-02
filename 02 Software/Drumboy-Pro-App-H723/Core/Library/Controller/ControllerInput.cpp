@@ -200,12 +200,16 @@ void Controller::keyboard_action() {
 
     // 1. INPUT GATE CHECK
     if (keyboardActive) {
+        // VISUALS mode takes its steering keys first (and leaves before a menu key).
+        visual_filterKeys();
+
         // 2. LAYER KEYPAD DISPATCH
         if (keyboard.keyLayer.read) {
             for (uint8_t layerNum = 0; layerNum < kLayerLibrarySize; layerNum++) {
                 switch (keyboard.keyLayer.changeState[layerNum]) {
                     case KEYSTATE_PRESS:
                         layerSongAddPending = false;  // ADD was used as a modifier, not a tap
+                        synthAddPending = false;
                         if (keyboard.muteKeyPress) {
                             layerInst_setMute(layerNum, !layerLibrary[layerNum].mute);
                         } else if (keyboard.fillKeyPress) {
@@ -240,11 +244,12 @@ void Controller::keyboard_action() {
                             // which writes beats that play the loaded sound.
                             const bool inInstMenu = (menu == LAYER_INST_0_MENU) || (menu == LAYER_INST_1_MENU) || (menu == LAYER_INST_2_MENU);
                             const bool auditionSelected = inInstMenu && previewActive && (!recordActive) && (layerNum == selectedLayerNum) &&
+                                                          (layer.toneMode != tone::kModeSynth) &&
                                                           (layer.sampleSelected != -1) &&
                                                           (strcmp(layer.sampleSelectedData.fileName, layer.sampleLoadedData.fileName) != 0);
                             if (auditionSelected) {
                                 preview_start(layerNum);
-                            } else if ((!layer.mute) && (layer.samplePlay)) {
+                            } else if ((!layer.mute) && layerSounds(layerNum)) {
                                 // TONE layers: on the NOTE page the pad plays the selected beat's note.
                                 layer_playBeat(layerNum, 1.0f, note_auditionNote(layerNum));
                             }
@@ -260,6 +265,8 @@ void Controller::keyboard_action() {
                         break;
 
                     case KEYSTATE_RELEASE:
+                        note_padReleased(layerNum);  // PAD HOLD: the held note ends with its pad
+                        break;
 
                     case KEYSTATE_NONE:
                         break;
@@ -338,6 +345,7 @@ void Controller::keyboard_action() {
                                 break;
                             case KEY_UP:
                                 if (!alertFlag) {
+                                    if (keyboard.shiftKeyPress) synthAddPending = false;  // ADD + UP/DOWN: a modifier
                                     if (upDownKeyLongActive) {
                                         keyboard.upKeyCounter = 0;
                                         keyboard.upKeyFlag = true;
@@ -402,7 +410,10 @@ void Controller::keyboard_action() {
 
                                         case LAYER_SONG_MENU:
                                             if (layerSongPage == 0) layerSong_menuUp(0);  // fill type; not on the EUCLID page
-                                            if (layerSongPage == 2) note_shiftKeys(true);  // NOTE page: keyboard octave
+                                            if (layerSongPage == 2) {
+                                                // NOTE page: UP = keyboard octave up; ADD + UP = SLIDE on for the selected beat.
+                                                keyboard.shiftKeyPress ? note_setSlide(true) : note_shiftKeys(true);
+                                            }
                                             break;
                                     }
                                 }
@@ -410,6 +421,7 @@ void Controller::keyboard_action() {
 
                             case KEY_DOWN:
                                 if (!alertFlag) {
+                                    if (keyboard.shiftKeyPress) synthAddPending = false;  // ADD + UP/DOWN: a modifier
                                     if (upDownKeyLongActive) {
                                         keyboard.downKeyCounter = 0;
                                         keyboard.downKeyFlag = true;
@@ -474,7 +486,10 @@ void Controller::keyboard_action() {
 
                                         case LAYER_SONG_MENU:
                                             if (layerSongPage == 0) layerSong_menuDown(0);  // fill type; not on the EUCLID page
-                                            if (layerSongPage == 2) note_shiftKeys(false);  // NOTE page: keyboard octave
+                                            if (layerSongPage == 2) {
+                                                // NOTE page: DOWN = keyboard octave down; ADD + DOWN = SLIDE off for the selected beat.
+                                                keyboard.shiftKeyPress ? note_setSlide(false) : note_shiftKeys(false);
+                                            }
                                             break;
                                     }
                                 }
@@ -613,7 +628,8 @@ void Controller::keyboard_action() {
                                 break;
 
                             case KEY_CENTER:
-                                if (!alertFlag) global_select();
+                                // HOME on the home screen: VISUALS mode (v1.14).
+                                if (!alertFlag) (menu == GLOBAL_MENU) ? visual_enter() : global_select();
                                 break;
 
                             case KEY_ADD:
@@ -790,6 +806,12 @@ void Controller::keyboard_action() {
                                         case LAYER_INST_1_MENU:
 
                                         case LAYER_INST_2_MENU:
+                                            if (synthLayerSelected()) {
+                                                // SYNTH: SOUND page = save to USER slot; other sound
+                                                // pages = random sound (hold) / variation (tap).
+                                                synth_addPressed();
+                                                break;
+                                            }
                                             if (menuTab < 4) {
                                                 if (!((strcmp(layerLibrary[selectedLayerNum].instSelectedData.fileName, layerLibrary[selectedLayerNum].instLoadedData.fileName) == 0) && (strcmp(layerLibrary[selectedLayerNum].sampleSelectedData.fileName, layerLibrary[selectedLayerNum].sampleLoadedData.fileName) == 0))) {
                                                     layerInst_setInstLoaded(selectedLayerNum);
@@ -805,7 +827,9 @@ void Controller::keyboard_action() {
                                             // beat; holding ADD on an empty layer still runs the generator.
                                             layerSongAddPending = true;
                                             if (layerSongPage == 2) {
-                                                // NOTE page: tap = melody variation, hold = new melody.
+                                                // NOTE page: tap = melody variation, hold = new melody
+                                                // (both on release); ADD + pad = step entry.
+                                                noteMelodyLongFlag = false;
                                                 if (layerLibrary[selectedLayerNum].bankLibrary[activeSongBank].lastActiveBeatNum != -1) {
                                                     noteMelodyKeyFlag = true;
                                                     startLongKeyTimer();
@@ -897,15 +921,16 @@ void Controller::keyboard_action() {
                                             break;
 
                                         case LAYER_SONG_MENU:
-                                            if (layerSongPage == 1) {
-                                                // EUCLID page: CLEAR puts back the beats from before the page opened.
-                                                euclid_restore();
-                                            } else if (layerSongPage == 2) {
-                                                // NOTE page: CLEAR puts back the notes from before the page opened.
-                                                note_restore();
-                                            } else if (layerLibrary[selectedLayerNum].bankLibrary[activeSongBank].lastActiveBeatNum != -1) {
+                                            // On every page, holding CLEAR erases all of the layer's beats in this
+                                            // bank. A tap erases the selected beat (edit page) or undoes the page's
+                                            // edits (EUCLID: beats, NOTE: notes); see the release handler.
+                                            if (layerLibrary[selectedLayerNum].bankLibrary[activeSongBank].lastActiveBeatNum != -1) {
                                                 layerSongResetKeyFlag = true;
                                                 startLongKeyTimer();
+                                            } else if (layerSongPage == 1) {
+                                                euclid_restore();  // empty layer: nothing to erase, undo at once
+                                            } else if (layerSongPage == 2) {
+                                                note_restore();
                                             }
                                             break;
 
@@ -1034,8 +1059,12 @@ void Controller::keyboard_action() {
                                     keyboard.longKeyCounter = 0;
                                     rhythmLockKeyFlag = false;
                                 }
+                                synth_addReleased();  // SYNTH pages: random sound / variation, if ADD was not a modifier
                                 if (insertBeat) layerSong_insertBeat();
-                                if (mutateMelody) note_melody(false);
+                                // NOTE page: held long = a new melody, short = a variation; nothing
+                                // if ADD was used with a pad or UP/DOWN (mutateMelody is false then).
+                                if (mutateMelody) note_melody(noteMelodyLongFlag);
+                                noteMelodyLongFlag = false;
                             } break;
 
                             case KEY_CLEAR:
@@ -1049,13 +1078,23 @@ void Controller::keyboard_action() {
                                     lfoResetKeyFlag = false;
                                 }
                                 if (layerInstResetKeyFlag) {
+                                    // Released before the long press (reset): a tap. On a synth page
+                                    // it undoes back to the sound from when the menu was opened.
                                     keyboard.longKeyCounter = 0;
                                     layerInstResetKeyFlag = false;
+                                    if (synthInstPageActive()) synth_undo();
                                 }
                                 if (layerSongResetKeyFlag) {
+                                    // Released before the long press: a tap.
                                     keyboard.longKeyCounter = 0;
                                     layerSongResetKeyFlag = false;
-                                    layerSong_resetSelectedBeat();
+                                    if (layerSongPage == 1) {
+                                        euclid_restore();  // EUCLID page: back to the beats from when the page opened
+                                    } else if (layerSongPage == 2) {
+                                        note_restore();    // NOTE page: back to the notes from when the page opened
+                                    } else {
+                                        layerSong_resetSelectedBeat();
+                                    }
                                 }
                                 if (rhythmUnlockKeyFlag) {
                                     keyboard.longKeyCounter = 0;
@@ -1879,6 +1918,8 @@ void Controller::encoder_update() {
                 enc.function = kEncoderEuclidFunction[i];
             } else if ((menuSafe == LAYER_SONG_MENU) && (layerSongPage == 2)) {
                 enc.function = kEncoderNoteFunction[i];
+            } else if (synthInstPageActive()) {
+                enc.function = kEncoderSynthFunction[layerInstPage()][i];  // SYNTH layer: OSC / FILTER / routing
             } else {
                 enc.function = encoderLocalFunction[menuSafe][i];
             }
@@ -2033,6 +2074,7 @@ void Controller::encoder_setGlobalFunction(uint8_t bankNum_, uint8_t encoderNum_
 }
 
 void Controller::encoder_incValue(uint8_t encoderNum_) {
+    if (keyboard.shiftKeyPress) synthAddPending = false;  // ADD + knob: ADD was a modifier
     /// @brief Increments parameter mapped to selected encoder function.
     /// Applies bounds checks and target-selection guards before dispatch.
 
@@ -2049,7 +2091,7 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
     if ((encoder[encoderNum_].function >= ENC_LFO_ACTIVE) && (encoder[encoderNum_].function <= ENC_LFO_DEPTH) && (selectedLfoNum == -1)) return;
     if ((encoder[encoderNum_].function >= ENC_INST_0_INST) && (encoder[encoderNum_].function <= ENC_SONG_SHIFT) && (selectedLayerNum == -1)) return;
     if ((encoder[encoderNum_].function >= ENC_EUCLID_STEPS) && (encoder[encoderNum_].function <= ENC_EUCLID_MODE) && (selectedLayerNum == -1)) return;
-    if ((encoder[encoderNum_].function >= ENC_NOTE_MODE) && (encoder[encoderNum_].function <= ENC_NOTE_TRANSPOSE) && (selectedLayerNum == -1)) return;
+    if ((encoder[encoderNum_].function >= ENC_NOTE_MODE) && (encoder[encoderNum_].function <= ENC_SYNTH_NOISE) && (selectedLayerNum == -1)) return;
 
     // 2. PARAMETER INCREMENT DISPATCH
     switch (encoder[encoderNum_].function) {
@@ -2653,12 +2695,39 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
             note_change(encoder[encoderNum_].function, true);
             break;
 
+        case ENC_SYNTH_WAVE:
+        case ENC_SYNTH_CUTOFF:
+        case ENC_SYNTH_RESO:
+        case ENC_SYNTH_ENVAMT:
+        case ENC_SYNTH_DECAY:
+        case ENC_SYNTH_GATE:
+        case ENC_SYNTH_DRIVE:
+        case ENC_SYNTH_DETUNE:
+        case ENC_SYNTH_SUB:
+        case ENC_SYNTH_NOISE:
+        case ENC_SYNTH_LFO_SHAPE:
+        case ENC_SYNTH_LFO_RATE:
+        case ENC_SYNTH_LFO_DEPTH:
+        case ENC_SYNTH_LFO_TARGET:
+        case ENC_SYNTH_LFO_RETRIG:
+        case ENC_SYNTH_PRESET:
+        case ENC_SYNTH_SAVE_SLOT:
+        case ENC_SYNTH_ATTACK:
+        case ENC_SYNTH_AMP_DECAY:
+        case ENC_SYNTH_SUSTAIN:
+        case ENC_SYNTH_RELEASE:
+        case ENC_SYNTH_FILTER_TYPE:
+        case ENC_SYNTH_PAD_HOLD:
+            synth_change(encoder[encoderNum_].function, true);
+            break;
+
         default:
             break;
     }
 }
 
 void Controller::encoder_decValue(uint8_t encoderNum_) {
+    if (keyboard.shiftKeyPress) synthAddPending = false;  // ADD + knob: ADD was a modifier
     /// @brief Decrements parameter mapped to selected encoder function.
     /// Applies lower-bound checks and target-selection guards before dispatch.
 
@@ -2675,7 +2744,7 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
     if ((encoder[encoderNum_].function >= ENC_LFO_ACTIVE) && (encoder[encoderNum_].function <= ENC_LFO_DEPTH) && (selectedLfoNum == -1)) return;
     if ((encoder[encoderNum_].function >= ENC_INST_0_INST) && (encoder[encoderNum_].function <= ENC_SONG_SHIFT) && (selectedLayerNum == -1)) return;
     if ((encoder[encoderNum_].function >= ENC_EUCLID_STEPS) && (encoder[encoderNum_].function <= ENC_EUCLID_MODE) && (selectedLayerNum == -1)) return;
-    if ((encoder[encoderNum_].function >= ENC_NOTE_MODE) && (encoder[encoderNum_].function <= ENC_NOTE_TRANSPOSE) && (selectedLayerNum == -1)) return;
+    if ((encoder[encoderNum_].function >= ENC_NOTE_MODE) && (encoder[encoderNum_].function <= ENC_SYNTH_NOISE) && (selectedLayerNum == -1)) return;
 
     // 2. PARAMETER DECREMENT DISPATCH
     switch (encoder[encoderNum_].function) {
@@ -3247,6 +3316,32 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
         case ENC_NOTE_GLIDE:
         case ENC_NOTE_TRANSPOSE:
             note_change(encoder[encoderNum_].function, false);
+            break;
+
+        case ENC_SYNTH_WAVE:
+        case ENC_SYNTH_CUTOFF:
+        case ENC_SYNTH_RESO:
+        case ENC_SYNTH_ENVAMT:
+        case ENC_SYNTH_DECAY:
+        case ENC_SYNTH_GATE:
+        case ENC_SYNTH_DRIVE:
+        case ENC_SYNTH_DETUNE:
+        case ENC_SYNTH_SUB:
+        case ENC_SYNTH_NOISE:
+        case ENC_SYNTH_LFO_SHAPE:
+        case ENC_SYNTH_LFO_RATE:
+        case ENC_SYNTH_LFO_DEPTH:
+        case ENC_SYNTH_LFO_TARGET:
+        case ENC_SYNTH_LFO_RETRIG:
+        case ENC_SYNTH_PRESET:
+        case ENC_SYNTH_SAVE_SLOT:
+        case ENC_SYNTH_ATTACK:
+        case ENC_SYNTH_AMP_DECAY:
+        case ENC_SYNTH_SUSTAIN:
+        case ENC_SYNTH_RELEASE:
+        case ENC_SYNTH_FILTER_TYPE:
+        case ENC_SYNTH_PAD_HOLD:
+            synth_change(encoder[encoderNum_].function, false);
             break;
 
         default:

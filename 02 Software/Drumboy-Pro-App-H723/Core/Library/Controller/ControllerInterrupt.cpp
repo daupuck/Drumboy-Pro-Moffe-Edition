@@ -88,6 +88,12 @@ void Controller::interruptPlay() {
                 }
             }
 
+            // Recorded held notes on TONE layers: fade out once their length has passed (a beat
+            // starting on this tick sets a new count below).
+            for (uint8_t i = 0; i < kLayerLibrarySize; i++) {
+                if ((toneHoldLeft[i] > 0) && (--toneHoldLeft[i] == 0)) toneReleasePending[i] = true;
+            }
+
             // 3. LAYER BEAT PROCESSING
             // Iterate through all layers and trigger simple/complex beat events.
             for (uint8_t i = 0; i < kLayerLibrarySize; i++) {
@@ -104,7 +110,7 @@ void Controller::interruptPlay() {
                     // Trigger simple beats at the main beat interval.
                     if ((beat.getFillType() == 0) && (beat.getFillPattern() <= 2) && (beat.getFillTarget() == NULL_FILL_TARGET)) {
                         if (beat.getStartInterval() == playInterval) {
-                            if ((!layer.mute) && (layer.samplePlay)) {
+                            if ((!layer.mute) && layerSounds(layer.number)) {
                                 switch (beat.getFillPattern()) {
                                     case 0:
                                         fillVolMultiplier = kNumberDataLibrary[100].powMultiplier;
@@ -118,7 +124,22 @@ void Controller::interruptPlay() {
                                         break;  // MUTED: 0% velocity
                                 }
                             }
-                            if (fillVolMultiplier > 0.0f) layer_playBeat(layer.number, fillVolMultiplier, beat.getNote());
+                            // Length until the next beat (the end interval of the last beat is the song end).
+                            uint16_t length = (beat.getEndInterval() > beat.getStartInterval()) ? (beat.getEndInterval() - beat.getStartInterval()) : 0;
+                            // SLIDE: this beat slides in, and/or the next beat (wrapping) slides in from this one.
+                            const Beat& following = bank.beatLibrary[(playBeatNum < bank.lastActiveBeatNum) ? (playBeatNum + 1) : 0];
+                            uint8_t beatFlags = beat.getSlide() ? kPlaySlideIn : 0;
+                            if ((bank.lastActiveBeatNum > 0) && following.getSlide()) beatFlags |= kPlayTieOut;
+                            // Recorded with PAD HOLD: sounds as long as the pad was held (a tie wins).
+                            if ((beat.getHold() > 0) && !(beatFlags & kPlayTieOut)) {
+                                length = beat.getHold();
+                                beatFlags |= kPlayHeld;
+                            }
+                            // The beat being recorded right now with its pad still held is already
+                            // sounding from the pad: triggering it again would cut it short.
+                            const bool beingHeld = (holdRecLayer == static_cast<int8_t>(i)) && (holdRecBank == activeSongBank) &&
+                                                   (holdRecStart == beat.getStartInterval());
+                            if ((fillVolMultiplier > 0.0f) && !beingHeld) layer_playBeat(layer.number, fillVolMultiplier, beat.getNote(), length, beatFlags);
 
                             // Advance to the next beat index
                             (playBeatNum < bank.lastActiveBeatNum) ? bank.playBeatNum += 1 : bank.playBeatNum = 0;
@@ -132,9 +153,14 @@ void Controller::interruptPlay() {
                     else if ((beat.getFillTarget() != NULL_FILL_TARGET) && (playBeatMicroNum != -1)) {
                         BeatMicro& beatMicro = bank.beatFillLibrary[beat.getFillTarget()].beatMicroLibrary[playBeatMicroNum];
                         if (beatMicro.getInterval() == playInterval) {
-                            if ((!layer.mute) && (layer.samplePlay) && ((playBeatMicroNum == 0) || ((playBeatMicroNum != 0) && (layer.fill)))) {
+                            if ((!layer.mute) && layerSounds(layer.number) && ((playBeatMicroNum == 0) || ((playBeatMicroNum != 0) && (layer.fill)))) {
                                 fillVolMultiplier = kNumberDataLibrary[beatMicro.getLevel()].powMultiplier;
-                                if (fillVolMultiplier > 0.0f) layer_playBeat(layer.number, fillVolMultiplier, beat.getNote());
+                                // A fill step lasts the beat's length divided by its number of steps.
+                                const uint8_t steps = bank.beatFillLibrary[beat.getFillTarget()].getStepSize();
+                                const uint16_t beatLength = (beat.getEndInterval() > beat.getStartInterval()) ? (beat.getEndInterval() - beat.getStartInterval()) : 0;
+                                const uint16_t length = (steps > 0) ? static_cast<uint16_t>(beatLength / steps) : beatLength;
+                                const uint8_t beatFlags = ((playBeatMicroNum == 0) && beat.getSlide()) ? kPlaySlideIn : 0;  // the fill's first hit slides in
+                                if (fillVolMultiplier > 0.0f) layer_playBeat(layer.number, fillVolMultiplier, beat.getNote(), length, beatFlags);
                             }
 
                             // Advance micro-step index within the fill
@@ -1410,14 +1436,22 @@ void Controller::interruptLongKeyRead() {
             }
         }
 
-        // NOTE PAGE: ADD held -> a new melody. Only a flag here; the main loop generates and
-        // draws it (this is an ISR).
+        // NOTE PAGE: ADD held long enough -> a new melody when ADD is released, unless ADD was
+        // used as a modifier meanwhile (ADD + pad = step entry, ADD + UP/DOWN = slide). Only a
+        // flag here (this is an ISR); the release in the main loop decides.
         else if (noteMelodyKeyFlag) {
             stopLongKeyTimer();
             keyboard.longKeyCounter = 0;
             noteMelodyKeyFlag = false;
-            layerSongAddPending = false;  // long press: not a tap
-            noteMelodyActionFlag = true;
+            noteMelodyLongFlag = true;
+        }
+
+        // SYNTH PAGES: ADD held long enough -> a random sound when ADD is released.
+        else if (synthRandomKeyFlag) {
+            stopLongKeyTimer();
+            keyboard.longKeyCounter = 0;
+            synthRandomKeyFlag = false;
+            synthRandomLongFlag = true;
         }
 
         // MULTI-STAGE BEAT GENERATION

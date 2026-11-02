@@ -21,8 +21,8 @@
 /* Application Version -------------------------------------------------------*/
 ////////////////////////////////////////////////////////////////////////////////
 
-const uint8_t kVersionMajor                         = 0x01;
-const uint8_t kVersionMinor                         = 0x0A;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMajor                         = 0x02;  // v2.00: the synth, VISUALS and Gold Rush release
+const uint8_t kVersionMinor                         = 0x00;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/
@@ -631,12 +631,24 @@ const RGB16Color GRAY_85                            = 0xDEDB;
 const RGB16Color GRAY_90                            = 0xE73C;
 const RGB16Color GRAY_95                            = 0xF79E;
 
+// Moffe Edition palette (v2.00 "Gold Rush", as in the approved home-screen mockup): gold where
+// the factory UI used cyan, orange where it used magenta (KNOB/SONG labels, indicators), light
+// gold for the selected layer. Ruby red marks the selected beat (it must stand out from the
+// light gold beats) and the boot screen's EDITION.
+const RGB16Color kMoffeGold                         = 0xFE03;  // #FFC21A
+const RGB16Color kMoffeOrange                       = 0xFC43;  // #FF8A1F
+const RGB16Color kMoffeRuby                         = 0xF9EB;  // #FF3D5A
+const RGB16Color kMoffeDeepRuby                     = 0x8885;  // #8A1028
+const RGB16Color kMoffeLightGold                    = 0xFF0F;  // #FFE27A
+const RGB16Color kAccentColor                       = kMoffeGold;
+const RGB16Color kAccent2Color                      = kMoffeOrange;
+
 /*----------------------------------------------------------------------------*/
 
 const RGB16Color kLayerColorPalette[]               = {WHITE, GRAY_75, WHITE, GRAY_75, WHITE, GRAY_75, WHITE, GRAY_75, WHITE, GRAY_75};
 
-const RGB16Color kBeatSelectedColor                 = MAGENTA;
-const RGB16Color kLayerSelectedColor                = CYAN;
+const RGB16Color kBeatSelectedColor                 = kMoffeRuby;  // must stand out from the light gold beats of the selected layer
+const RGB16Color kLayerSelectedColor                = kMoffeLightGold;
 
 const RGB16Color kMenuHLineColor                    = GRAY_50;
 const RGB16Color kMenuVLineColor                    = GRAY_50;
@@ -680,7 +692,7 @@ const uint16_t kPlayX                               = 305;
 const uint16_t kPlayY                               = 115;
 
 const RGB16Color kPlayColor0                        = BLACK;
-const RGB16Color kPlayColor1                        = CYAN;
+const RGB16Color kPlayColor1                        = kAccentColor;
 
 const uint16_t kImageLogoWidth                      = 170;
 const uint16_t kImageLogoHeight                     = 170;
@@ -723,13 +735,20 @@ const uint16_t kSdDataY                             = 460;  // was 440; below th
    eyes centred at (52,108) and (119,108)). */
 const char kEditionName[]                           = "MOFFE";
 const char kEditionLabel[]                          = "EDITION";
-const RGB16Color kEditionAccentColor                = MAGENTA;
+const RGB16Color kEditionAccentColor                = kAccentColor;
 const uint8_t kEditionNameScale                     = 3;      // FONT_14x18 x 3 = 42 x 54 px glyphs
 const uint8_t kEditionNameSpacing                   = 2;      // font units, scaled with the text
 const uint8_t kEditionLabelSpacing                  = 10;
 const uint16_t kEditionCenterX                      = 480;
 const uint16_t kEditionNameY                        = kImageLogoY + 190;
 const uint16_t kEditionLabelY                       = kImageLogoY + 256;
+// v1.14 "Gold Rush" boot screen: gold name with a deep ruby drop shadow, EDITION in ruby with
+// a gold line under it.
+const RGB16Color kEditionShadowColor                = kMoffeDeepRuby;
+const uint16_t kEditionShadowOffset                 = 4;
+const RGB16Color kEditionLabelColor                 = kMoffeRuby;
+const uint16_t kEditionUnderlineWidth               = 160;
+const uint16_t kEditionUnderlineY                   = kEditionLabelY + 26;
 const uint16_t kEditionShadesTop                    = 96;     // logo rows covered by the shades: 96..120
 const uint16_t kEditionShadesBottom                 = 120;
 const int16_t kEditionShadesDrop[]                  = {-90, -64, -44, -28, -16, -8, -3, 0};  // eased slide-in (logo rows)
@@ -780,10 +799,10 @@ const uint16_t kLayerTextInstX                      = 66;
 
 /*----------------------------------------------------------------------------*/
 
-const RGB16Color kEncoderGlobalActiveColor          = CYAN;
+const RGB16Color kEncoderGlobalActiveColor          = kAccentColor;
 const RGB16Color kEncoderGlobalInactiveColor        = GRAY_50;
 
-const RGB16Color kEncoderLocalActiveColor           = CYAN;
+const RGB16Color kEncoderLocalActiveColor           = kAccentColor;
 const RGB16Color kEncoderLocalInactiveColor         = GRAY_50;
 
 /*----------------------------------------------------------------------------*/
@@ -873,8 +892,8 @@ const uint8_t kMenuSignTextSize                     = 3;
 const uint8_t kTextBoxWidth                         = 29;
 const uint8_t kTextBoxHeight                        = 14;
 
-const RGB16Color kGlobalMenuHeaderColor             = CYAN;
-const RGB16Color kLocalMenuHeaderColor              = CYAN;
+const RGB16Color kGlobalMenuHeaderColor             = kAccentColor;
+const RGB16Color kLocalMenuHeaderColor              = kAccentColor;
 
 const RGB16Color kGlobalMenuDataColor               = WHITE;
 const RGB16Color kLocalMenuDataColor                = WHITE;
@@ -971,6 +990,21 @@ const char kHeaderNoteRoot[]                        = "ROOT      ";
 const char kHeaderNoteScale[]                       = "SCALE     ";
 const char kHeaderNoteGlide[]                       = "GLIDE     ";
 const char kHeaderNoteTranspose[]                   = "TRANSPOSE ";
+const char kHeaderSynthWave[]                       = "WAVE      ";
+const char kHeaderSynthCutoff[]                     = "CUTOFF    ";
+const char kHeaderSynthReso[]                       = "RESONANCE ";
+const char kHeaderSynthEnvAmt[]                     = "ENV AMT   ";
+const char kHeaderSynthDecay[]                      = "DECAY     ";
+const char kHeaderSynthGate[]                       = "GATE      ";
+const char kHeaderSynthDrive[]                      = "DRIVE     ";
+const char kHeaderSynthDetune[]                     = "DETUNE    ";
+const char kHeaderSynthSub[]                        = "SUB       ";
+const char kHeaderSynthNoise[]                      = "NOISE     ";
+const char kHeaderSynthLfoShape[]                   = "LFO SHAPE ";
+const char kHeaderSynthLfoRate[]                    = "LFO RATE  ";
+const char kHeaderSynthLfoDepth[]                   = "LFO DEPTH ";
+const char kHeaderSynthLfoTarget[]                  = "LFO TARGET";
+const char kHeaderSynthLfoRetrig[]                  = "LFO RETRIG";
 const char kHeaderVolume[]                          = "VOLUME    ";
 const char kHeaderWet[]                             = "WET       ";
 
@@ -1298,10 +1332,39 @@ typedef enum {
     ENC_NOTE_GLIDE                                  = 0x75,
     ENC_NOTE_TRANSPOSE                              = 0x76,  // every note of the bank, in scale steps
 
+    // SYNTH layers: Layer Inst pages 1-2 (LEVEL and PITCH reuse ENC_INST_0_LEVEL/PITCH)
+    ENC_SYNTH_WAVE                                  = 0x77,
+    ENC_SYNTH_CUTOFF                                = 0x78,
+    ENC_SYNTH_RESO                                  = 0x79,
+    ENC_SYNTH_ENVAMT                                = 0x7A,
+    ENC_SYNTH_DECAY                                 = 0x7B,
+    ENC_SYNTH_GATE                                  = 0x7C,
+    ENC_SYNTH_DRIVE                                 = 0x7D,
+    ENC_SYNTH_DETUNE                                = 0x7E,
+    ENC_SYNTH_SUB                                   = 0x7F,
+    ENC_SYNTH_NOISE                                 = 0x80,
+
+    // SYNTH layers: the LFO page (Layer Inst page 3 of a SYNTH layer, before routing)
+    ENC_SYNTH_LFO_SHAPE                             = 0x81,
+    ENC_SYNTH_LFO_RATE                              = 0x82,
+    ENC_SYNTH_LFO_DEPTH                             = 0x83,
+    ENC_SYNTH_LFO_TARGET                            = 0x84,
+    ENC_SYNTH_LFO_RETRIG                            = 0x85,
+
+    // SYNTH layers: SOUND page (presets) and AMP page, plus FILTER TYPE (v1.13)
+    ENC_SYNTH_PRESET                                = 0x86,
+    ENC_SYNTH_SAVE_SLOT                             = 0x87,
+    ENC_SYNTH_ATTACK                                = 0x88,
+    ENC_SYNTH_AMP_DECAY                             = 0x89,
+    ENC_SYNTH_SUSTAIN                               = 0x8A,
+    ENC_SYNTH_RELEASE                               = 0x8B,
+    ENC_SYNTH_FILTER_TYPE                           = 0x8C,
+    ENC_SYNTH_PAD_HOLD                              = 0x8D,  // AMP page knob 8, NOTE page knob 3
+
     // Must equal the number of rows before the trailing NONE row in kEncoderFuncDataLibrary,
     // which is indexed by EncoderFunc value. Never stored on SD (only the global map is
     // persisted, and it is range-checked against kMaxEncoderGlobalFunction).
-    ENC_FNC_NONE                                    = 0x77
+    ENC_FNC_NONE                                    = 0x8E
 } EncoderFunc;
 
 const EncoderFunc encoderLocalFunction[][8] = {
@@ -1492,6 +1555,29 @@ constexpr EncoderFuncData kEncoderFuncDataLibrary[] = {
     {ENC_NOTE_SCALE,          ENC_RES_S, "SCALE     ", "NOTE  ", "   ", false},
     {ENC_NOTE_GLIDE,          ENC_RES_F, "GLIDE     ", "NOTE  ", "  %", false},
     {ENC_NOTE_TRANSPOSE,      ENC_RES_S, "TRANSPOSE ", "NOTE  ", "   ", false},
+    {ENC_SYNTH_WAVE,          ENC_RES_S, "WAVE      ", "SYNTH ", "   ", false},
+    {ENC_SYNTH_CUTOFF,        ENC_RES_F, "CUTOFF    ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_RESO,          ENC_RES_F, "RESONANCE ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_ENVAMT,        ENC_RES_F, "ENV AMT   ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_DECAY,         ENC_RES_F, "DECAY     ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_GATE,          ENC_RES_F, "GATE      ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_DRIVE,         ENC_RES_F, "DRIVE     ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_DETUNE,        ENC_RES_F, "DETUNE    ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_SUB,           ENC_RES_F, "SUB       ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_NOISE,         ENC_RES_F, "NOISE     ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_LFO_SHAPE,     ENC_RES_S, "LFO SHAPE ", "SYNTH ", "   ", false},
+    {ENC_SYNTH_LFO_RATE,      ENC_RES_S, "LFO RATE  ", "SYNTH ", "   ", false},
+    {ENC_SYNTH_LFO_DEPTH,     ENC_RES_F, "LFO DEPTH ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_LFO_TARGET,    ENC_RES_S, "LFO TARGET", "SYNTH ", "   ", false},
+    {ENC_SYNTH_LFO_RETRIG,    ENC_RES_S, "LFO RETRIG", "SYNTH ", "   ", false},
+    {ENC_SYNTH_PRESET,        ENC_RES_S, "PRESET    ", "SYNTH ", "   ", false},
+    {ENC_SYNTH_SAVE_SLOT,     ENC_RES_S, "SAVE TO   ", "SYNTH ", "   ", false},
+    {ENC_SYNTH_ATTACK,        ENC_RES_F, "ATTACK    ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_AMP_DECAY,     ENC_RES_F, "AMP DECAY ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_SUSTAIN,       ENC_RES_F, "SUSTAIN   ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_RELEASE,       ENC_RES_F, "RELEASE   ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_FILTER_TYPE,   ENC_RES_S, "FILT TYPE ", "SYNTH ", "   ", false},
+    {ENC_SYNTH_PAD_HOLD,      ENC_RES_S, "PAD HOLD  ", "SYNTH ", "   ", false},
 
     // Row for ENC_FNC_NONE itself, so lookups with function == ENC_FNC_NONE stay in bounds.
     {ENC_FNC_NONE,            ENC_RES_F, "----------", "      ", "   ", true}
@@ -1533,8 +1619,25 @@ const EncoderFunc kEncoderEuclidFunction[8]         = {ENC_EUCLID_STEPS, ENC_EUC
 
 // Knob map of the Layer Song NOTE page (Controller::layerSongPage == 2). Slots 2/3 hold the
 // note strip.
-const EncoderFunc kEncoderNoteFunction[8]           = {ENC_NOTE_MODE, ENC_NOTE_NOTE, ENC_FNC_NONE, ENC_FNC_NONE,
+// Knob 3 (no tab: the strip is there) toggles PAD HOLD, shown in the strip.
+const EncoderFunc kEncoderNoteFunction[8]           = {ENC_NOTE_MODE, ENC_NOTE_NOTE, ENC_SYNTH_PAD_HOLD, ENC_FNC_NONE,
                                                        ENC_NOTE_ROOT, ENC_NOTE_SCALE, ENC_NOTE_GLIDE, ENC_NOTE_TRANSPOSE};
+
+// The pages of a SYNTH layer's Layer Instrument menu, in the order the layer key steps through
+// them. Two pages share each LAYER_INST_x_MENU (kSynthPageMenu), so icons and routing behave as
+// before; Controller::synthPage says which one is shown.
+enum SynthPage : uint8_t { SYNTH_PAGE_SOUND = 0, SYNTH_PAGE_OSC, SYNTH_PAGE_FILTER, SYNTH_PAGE_AMP, SYNTH_PAGE_LFO, SYNTH_PAGE_ROUTING, SYNTH_PAGE_COUNT };
+const uint8_t kSynthPageMenu[SYNTH_PAGE_COUNT]      = {0, 0, 1, 1, 2, 2};  // 0/1/2 = LAYER_INST_0/1/2_MENU
+const char* const kSynthPageNames[SYNTH_PAGE_COUNT] = {"SOUND", "OSC", "FILTER", "AMP", "LFO", "ROUTING"};
+
+// Knob maps of those pages (instead of the LAYER_INST_0/1/2_MENU rows). Slots 2/3 are the display.
+const EncoderFunc kEncoderSynthFunction[SYNTH_PAGE_COUNT][8] = {
+    {ENC_SYNTH_PRESET, ENC_SYNTH_SAVE_SLOT, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE},
+    {ENC_SYNTH_WAVE, ENC_SYNTH_DETUNE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_INST_0_LEVEL, ENC_INST_0_PITCH, ENC_SYNTH_SUB, ENC_SYNTH_NOISE},
+    {ENC_SYNTH_CUTOFF, ENC_SYNTH_RESO, ENC_FNC_NONE, ENC_FNC_NONE, ENC_SYNTH_ENVAMT, ENC_SYNTH_DECAY, ENC_SYNTH_FILTER_TYPE, ENC_SYNTH_DRIVE},
+    {ENC_SYNTH_ATTACK, ENC_SYNTH_AMP_DECAY, ENC_FNC_NONE, ENC_FNC_NONE, ENC_SYNTH_SUSTAIN, ENC_SYNTH_RELEASE, ENC_SYNTH_GATE, ENC_SYNTH_PAD_HOLD},
+    {ENC_SYNTH_LFO_SHAPE, ENC_SYNTH_LFO_RATE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_SYNTH_LFO_DEPTH, ENC_SYNTH_LFO_TARGET, ENC_SYNTH_LFO_RETRIG, ENC_FNC_NONE},
+    {ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_INST_2_EQ, ENC_INST_2_FILTER, ENC_INST_2_EFFECT, ENC_INST_2_REVERB}};
 
 const uint8_t kMinEncoderResolution                 = 0;
 const uint8_t kMaxEncoderResolution                 = 8;
@@ -7055,6 +7158,8 @@ struct BeatFill {
 
 /*----------------------------------------------------------------------------*/
 
+#include "ToneScale.h"  // note/slide packing used by Beat (included again further down, guarded)
+
 struct Beat {
     // [15]     : active
     // [14:11]  : fillType
@@ -7064,9 +7169,10 @@ struct Beat {
 
     uint16_t data                                   = 0x0000;
     uint8_t fillTarget                              = NULL_FILL_TARGET;
-    int8_t note                                     = 0;  // TONE layers: scale degree from the root (ToneScale.h); uses the former padding byte
+    uint8_t note                                    = 0;  // TONE/SYNTH: scale degree + SLIDE flag (tone::packNote); uses the former padding byte
     uint16_t startInterval                          = 0;
     uint16_t endInterval                            = 0;
+    uint16_t hold                                   = 0;  // TONE/SYNTH: recorded PAD HOLD length in intervals (0 = GATE)
 
     // Bit masks for precise field extraction
 
@@ -7089,11 +7195,23 @@ struct Beat {
         endInterval = 0;
         fillTarget = NULL_FILL_TARGET;
         note = 0;
+        hold = 0;
     }
 
-    void setNote(int8_t note_) noexcept { note = note_; }
+    void setHold(uint16_t hold_) noexcept { hold = hold_; }
 
-    int8_t getNote() const noexcept { return note; }
+    uint16_t getHold() const noexcept { return hold; }
+
+    // The degree and the SLIDE flag are set independently; reset()/clearNote() clear both.
+    void setNote(int8_t note_) noexcept { note = tone::packNote(note_, tone::unpackSlide(note)); }
+
+    int8_t getNote() const noexcept { return tone::unpackDegree(note); }
+
+    void setSlide(bool slide_) noexcept { note = tone::packNote(tone::unpackDegree(note), slide_); }
+
+    bool getSlide() const noexcept { return tone::unpackSlide(note); }
+
+    void clearNote() noexcept { note = 0; }
 
     // Active bit logic
     void setActive(bool active) noexcept {
@@ -7146,8 +7264,9 @@ struct Beat {
     uint16_t getData() const noexcept { return data; }
 };
 
-// The note lives in what used to be padding, so 3200 beats cost no extra RAM_D1.
-static_assert(sizeof(Beat) == 8, "Beat must stay 8 bytes (RAM_D1 is nearly full)");
+// The note lives in what used to be padding; the recorded hold length (v1.13) costs 2 bytes per
+// beat (~7.7 KB of RAM_D1 for 3200 beats + the copy buffers).
+static_assert(sizeof(Beat) == 10, "Beat must stay 10 bytes (RAM_D1 is nearly full)");
 
 /*----------------------------------------------------------------------------*/
 
@@ -7194,7 +7313,8 @@ struct Bank {
         beat.setFillTarget(NULL_FILL_TARGET);
         beat.setFillTime(0);
         beat.setFillLevel(0);
-        beat.setNote(0);
+        beat.clearNote();
+        beat.setHold(0);
     }
 
     void resetBeat(uint8_t beatNum_) {
@@ -7205,7 +7325,8 @@ struct Bank {
         beat.setStartInterval(0);
         beat.setEndInterval(0);
         beat.setFillType(0);
-        beat.setNote(0);
+        beat.clearNote();
+        beat.setHold(0);
 
         if (oldTarget != NULL_FILL_TARGET) {
             if (ownerOfFillTarget(oldTarget) == beatNum_) {
@@ -7320,7 +7441,15 @@ const char kSongModeText[3][5]                      = {"OFF", "LOOP", "ONCE"};
 // TONE layers: per-beat notes in a scale (Layer Song NOTE page, host-testable).
 #include "ToneScale.h"
 
-const char kToneModeText[2][11]                     = {"      DRUM", "      TONE"};
+// SYNTH layers: one subtractive voice per layer, rendered in the audio ISR (host-testable).
+#include "SynthVoice.h"
+#include "SynthPresets.h"
+
+const char kToneModeText[tone::kModeCount][11]      = {"      DRUM", "      TONE", "     SYNTH"};
+
+// The synth voice's C4 (MIDI 60) at PITCH 1.00, matching TONE layers' "the sample is a C4".
+const float kSynthC4Hz                              = 261.6256f;
+const float kAudioSampleRate                        = 44100.0f;
 
 // Audio blocks per second (44.1 kHz / 32 samples): the rate at which glide is applied.
 const float kAudioBlocksPerSecond                   = 44100.0f / I2S_BLOCK_SIZE;
@@ -7329,6 +7458,20 @@ const float kAudioBlocksPerSecond                   = 44100.0f / I2S_BLOCK_SIZE;
 // size stay exactly as before and older firmware simply ignores them.
 const char kNoteFileEnd[]                           = ".rwn";
 const char kNoteFileRef[]                           = "RWNOTES1";
+const char kSynthFileRef[]                          = "SYN6";  // SYNTH sounds after the notes' "EOF" (SYN1..5 still read)
+const uint8_t kSynthFileParams                      = synth::kPackedSize;  // see synth::pack (21 values per layer)
+const char kDrumkitSynthRef[]                       = "SYK4";  // drumkit tail: MODE + SYNTH sound per layer (v1.13)
+const char kSynthUserFile[]                         = "System/Preset/SynthUser.rws";  // USER 01..16 synth sounds
+const char kSynthUserRef[]                          = "RWSYNUS2";  // 21 values per slot ("RWSYNUSR" = 20, still read)
+const char kSlideFileRef[]                          = "SLD1";  // beats with SLIDE, after the SYNTH sounds
+const char kHoldFileRef[]                           = "HLD1";  // recorded hold lengths, after the slides (v1.13)
+
+// layer_playBeat() flags from the sequencer (SLIDE, 303 style):
+const uint8_t kPlaySlideIn                          = 0x01;  // this beat slides in from the previous note
+const uint8_t kPlayTieOut                           = 0x02;  // the next beat slides in: hold this note until it
+const uint8_t kPlayHold                             = 0x04;  // PAD HOLD: a pad note, held until the pad is released
+const uint8_t kPlayHeld                             = 0x08;  // a recorded held note: sounds its whole length (no GATE)
+const uint8_t kSlideGlideMin                        = 25;    // SLIDE with GLIDE 0 still slides (~36 ms)
 
 // Where the chain lives in the project file's 1500-byte drumkit-style block. Both ranges are
 // unused by every other reader/writer: 175..179 lies between the reverb (..174) and the LFO
@@ -7400,6 +7543,7 @@ struct Layer {
     uint8_t toneScale                               = tone::kDefaultScale;
     uint8_t toneGlide                               = 0;
     float toneGlideCoef                             = 0.0f;  // derived from toneGlide (tone::glideBlockCoef)
+    synth::Params synth;                                     // SYNTH sound (Layer Inst pages 1-2), saved in the .rwn file
 
     Bank bankLibrary[kBankLibrarySize];
 
@@ -7470,6 +7614,9 @@ struct LayerInstCopy {
     bool mute                                       = kInitialLayerMute;
     bool fill                                       = kInitialLayerFill;
     bool style                                      = kInitialLayerStyle;
+
+    uint8_t toneMode                                = tone::kModeDrum;  // v1.13: MODE and the SYNTH sound travel too
+    synth::Params synth;
 };
 
 struct LayerSongCopy {

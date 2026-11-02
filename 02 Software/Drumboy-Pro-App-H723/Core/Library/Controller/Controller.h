@@ -7,6 +7,7 @@
 #include "Global.h"
 #include "Lcd.h"
 #include "SampleFormat.h"
+#include "Visuals.h"
 #include "fatfs.h"
 #include "main.h"
 #include "sdmmc.h"
@@ -26,6 +27,11 @@ extern __attribute__((section(".RAM_D3"))) uint8_t i2c3_rxData[2];
 extern __attribute__((section(".RAM_D3"))) uint8_t i2c3_txData[2];
 extern __attribute__((section(".RAM_D3"))) uint8_t i2c4_rxData[2];
 extern __attribute__((section(".RAM_D3"))) uint8_t i2c4_txData[2];
+
+/* Memory Allocation In DTCM ------------------------------------- */
+
+// VISUALS mode: what the audio ISR captures for the visuals (ControllerVisual.cpp).
+extern vis::Tap visTap;
 
 /* Sync And Midi Buffers ----------------------------------------- */
 
@@ -263,7 +269,8 @@ class Controller {
     int8_t noteTransposeTotal = 0;
     int8_t noteKeysOctave = 0;                // pads as a scale keyboard: octave of pad 1 (UP/DOWN)
     bool noteMelodyKeyFlag = false;           // ADD held on the NOTE page (long-key timer running)
-    volatile bool noteMelodyActionFlag = false;  // long-key ISR -> main loop: roll a new melody
+    volatile bool noteMelodyActionFlag = false;  // (unused since v1.13: the melody is rolled on ADD release)
+    volatile bool noteMelodyLongFlag = false;    // long-key ISR: ADD was held long (new melody on release)
     int8_t precountPendingNote[kLayerLibrarySize] = {};       // note of a keyboard hit during precount
     bool precountPendingHasNote[kLayerLibrarySize] = {};
 
@@ -271,6 +278,14 @@ class Controller {
     // is triggered) and the note currently held on the MIDI output (0xFF = none), so the right
     // Note Off is sent before the next note.
     volatile uint8_t toneMidiNote[kLayerLibrarySize] = {};
+    volatile bool toneMidiLegato[kLayerLibrarySize] = {};  // SLIDE: send the new Note On before the old Note Off
+
+    // SYNTH voices (one per layer), rendered by processAudioLayer() in the audio ISR. A trigger
+    // (sequencer ISR, pad or knob in the main loop) fills synthPending under a critical section
+    // and sets synthPendingFlag; the audio ISR starts the voice at the next block.
+    synth::Voice synthVoice[kLayerLibrarySize];
+    synth::NoteOn synthPending[kLayerLibrarySize];
+    volatile bool synthPendingFlag[kLayerLibrarySize] = {};
     uint8_t toneMidiSounding[kLayerLibrarySize] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
     // Song mode (Rhythm menu knobs 5-8). The chain is project data (saved in the .rwf file);
@@ -587,6 +602,7 @@ class Controller {
     void lcd_clearInitSdAlert();
     // Song functions
     void lcd_drawEncoderBankTab();
+    void lcd_drawFooterLabel(const char* text_, uint16_t centerX_, uint16_t y_);
     void lcd_drawSongBankTab(uint8_t bankNum_, bool mode_);
     void lcd_drawSongBankShift();
     // Menu functions
@@ -1007,7 +1023,10 @@ class Controller {
 
     /* Layer Functions ------------------------------------------- */
 
-    void layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_ = 0);  // note_: scale degree, used by TONE layers
+    // note_: scale degree (TONE/SYNTH layers); lengthIntervals_: time until the next beat, for the
+    // SYNTH gate (0 = an eighth note, for pads and auditions)
+    // beatFlags_: kPlaySlideIn / kPlayTieOut (SLIDE)
+    void layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_ = 0, uint16_t lengthIntervals_ = 0, uint8_t beatFlags_ = 0);
 
     /* Layer Inst Functions -------------------------------------- */
 
@@ -1107,9 +1126,114 @@ class Controller {
     void note_padPressed(uint8_t pad_);
     void note_shiftKeys(bool up_);
     void note_melody(bool fresh_);          // fresh: new melody (ADD hold); else variation (ADD tap)
+
+    /* SYNTH Layers ----------------------------------------- */
+
+    bool layerSounds(uint8_t layerNum_) const;   // has something to play: a loaded sample, or SYNTH mode
+    bool synthLayerSelected() const;             // the selected layer is a SYNTH layer
+    bool synthInstPageActive() const;            // Layer Inst menu showing a SYNTH layer's pages
+    uint8_t layerInstPage() const;               // SYNTH: the shown SynthPage (row of kEncoderSynthFunction)
+    void synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_, uint8_t beatFlags_);
+    void note_setSlide(bool slide_);             // NOTE page: ADD + UP / DOWN on the selected beat
+    void synth_change(EncoderFunc function_, bool up_);
+    float synth_lfoIncrement(uint8_t layerNum_) const;  // layer LFO phase step per sample (audio ISR)
+    uint8_t synthPage = SYNTH_PAGE_SOUND;                // which SynthPage is shown (with the matching LAYER_INST_x_MENU)
+    uint8_t synthPageNow() const;                        // synthPage, made consistent with `menu`
+    bool synthPageIs(uint8_t page_) const { return synthInstPageActive() && (synthPageNow() == page_); }
+    bool synthLfoPageActive() const { return synthPageIs(SYNTH_PAGE_LFO); }
+    uint8_t synthSlotOf(EncoderFunc function_) const;    // knob slot of a function on the shown synth page
+    // SOUND page: presets. Factory 0..kFactoryPresetCount-1, then USER 01..16.
+    int16_t synthPresetIndex[kLayerLibrarySize] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};  // last loaded (-1 = own sound)
+    uint8_t synthSaveSlot = 0;                           // SAVE TO: USER 01..16
+    synth::Params synthUserPresets[synth::kUserPresetCount];
+    bool synthUserUsed[synth::kUserPresetCount] = {};
+    char synthStatus[24] = "";                           // one-line message on the SOUND page ("SAVED TO USER 03")
+    // Undo (CLEAR tap on a synth page): the sound from when the Layer Instrument menu was opened.
+    synth::Params synthUndoParams;
+    int8_t synthUndoLayer = -1;
+    // ADD on the OSC/FILTER/AMP/LFO pages: tap = variation, hold = random sound (on release).
+    bool synthAddPending = false;
+    bool synthRandomKeyFlag = false;                     // long-key timer running for it
+    volatile bool synthRandomLongFlag = false;           // long-key ISR: held long enough
+    // PAD HOLD: the pad whose note is held (monophonic: the newest press wins) and the release
+    // requests for the audio ISR (it shortens the synth gate / fades the sample out).
+    int8_t padHoldLayer = -1;
+    int8_t padHoldKey = -1;
+    volatile bool synthReleasePending[kLayerLibrarySize] = {};
+    volatile bool toneReleasePending[kLayerLibrarySize] = {};
+    // Recording with PAD HOLD: the beat that was just written while its pad is still down. The
+    // sequencer skips it (the pad note is already sounding) and the release stores its length.
+    volatile int8_t holdRecLayer = -1;
+    volatile uint8_t holdRecBank = 0;
+    volatile uint16_t holdRecStart = 0;                  // quantized start of the beat
+    uint16_t holdRecPress = 0;                           // playInterval when the pad went down
+    // TONE layers playing a recorded held note: sequencer ticks left until it fades out.
+    volatile uint16_t toneHoldLeft[kLayerLibrarySize] = {};
+    void note_padReleased(uint8_t pad_);
+    void note_releaseHeld();
+    void note_finishHoldRec();
+    int16_t synth_matchPreset(uint8_t layerNum_) const;
+    void synth_soundName(uint8_t layerNum_, char* name_, size_t size_) const;
+    uint16_t layerSong_quantizeStart(uint16_t interval_) const;
+
+    // VISUALS mode (v1.14): full-screen music visuals. HOME (CENTER) on the home screen turns it
+    // on; LEFT/RIGHT = style, UP/DOWN = colours, HOME = off; a menu key leaves and opens its menu.
+    // Pads, transport and the home-screen knobs keep working underneath.
+    volatile bool visualActive = false;
+    uint8_t visualScene = 0;
+    uint8_t visualTheme = 0;
+    bool visualSceneReady = false;
+    uint32_t visualTick = 0;
+    uint32_t visualFrame = 0;
+    uint32_t visualHintUntil = 0;
+    bool visualHintShown = false;
+    void visual_enter();
+    void visual_exit();
+    void visual_service();
+    void visual_filterKeys();
+    void visual_restoreScreen();
+    void visual_analyze();
+    void visual_initScene();
+    void visual_drawScene();
+    void visual_drawHint(bool show_);
+    void visual_sceneShowtime(bool init_);
+    void visual_sceneOrbit(bool init_);
+    void visual_scenePhase(bool init_);
+    void visual_sceneSpectrum(bool init_);
+    void visual_sceneSpectro(bool init_);
+    void visual_sceneTunnel(bool init_);
+    void visual_sceneMeters(bool init_);
+    void visual_sceneRain(bool init_);
+    void visual_sceneFireworks(bool init_);
+    void visual_sceneMandala(bool init_);
+    void visual_sceneDisco(bool init_);
+    void visual_sceneRidges(bool init_);
+    void visual_sceneLife(bool init_);
+    void synth_captureUndo();
+    void synth_undo();
+    void synth_loadPreset(int16_t index_);
+    void synth_saveUser();
+    void synth_randomize(bool fresh_);
+    void synth_addPressed();
+    void synth_addReleased();
+    void synth_soundChanged();                           // redraw the page + audition after a whole-sound change
+    void sd_loadSynthUser();
+    SdResult sd_saveSynthUser();
+    void lcd_drawSynthSoundGraph();
+    void lcd_drawSynthAmpGraph();
+    void lcd_drawSynthLfoGraph();
+    void lcd_updateSynthLfoCursor();                     // main loop: the moving position on the LFO page
+    int16_t synthLfoCursorX = -1;
+    uint32_t synthLfoCursorTick = 0;
+    void synth_silence(uint8_t layerNum_);       // stops the voice (mode change, reset)
+    void lcd_drawSynthPage(uint8_t layerNum_);
+    void lcd_drawSynthData(uint8_t slot_);
+    void lcd_drawSynthGraph();
     void tone_setGlide(uint8_t layerNum_, uint8_t glide_);
     void tone_resetLayer(uint8_t layerNum_);
     void tone_resetAll();
+    void tone_setMode(uint8_t layerNum_, uint8_t mode_);  // DRUM / TONE / SYNTH, click-free
+    void sd_loadDrumkitSynth(const char* drumkitName_);   // optional synth tail of a drumkit
     void lcd_drawLayerSongNoteMenu(uint8_t layerNum_);
     void lcd_drawNoteData(uint8_t slot_);
     void lcd_drawNoteStrip();

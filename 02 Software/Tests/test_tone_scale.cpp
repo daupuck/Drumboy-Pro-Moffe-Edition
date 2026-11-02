@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <initializer_list>
 
 #include "ToneScale.h"
 
@@ -69,25 +70,25 @@ static void testSemitones() {
     for (int r = 0; r < 12; r++) CHECK(rootOffset(r) == offsets[r], "root %d offset %d", r, rootOffset(r));
 
     // Chromatic is 1:1.
-    for (int d = -24; d <= 24; d++) CHECK(semitones(d, chroma, 0) == d, "chromatic %d", d);
+    for (int d = -60; d <= 60; d++) CHECK(semitones(d, chroma, 0) == d, "chromatic %d", d);
 
-    // Pentatonic minor: two octaves = 10 degrees.
-    CHECK(maxDegree(pentaMin) == 10, "penta range");
-    CHECK(semitones(10, pentaMin, 0) == 24, "penta top");
-    CHECK(semitones(-10, pentaMin, 0) == -24, "penta bottom");
+    // Pentatonic minor: five octaves = 25 degrees.
+    CHECK(maxDegree(pentaMin) == 25, "penta range");
+    CHECK(semitones(25, pentaMin, 0) == 60, "penta top");
+    CHECK(semitones(-25, pentaMin, 0) == -60, "penta bottom");
 
-    // Clamping: beyond two octaves the note stays at the edge (a smaller scale never wraps).
-    CHECK(semitones(40, major, 0) == semitones(14, major, 0), "clamped high");
-    CHECK(semitones(-40, major, 0) == semitones(-14, major, 0), "clamped low");
-    CHECK(clampDegree(24, pentaMin) == 10, "chromatic degree clamped into penta");
+    // Clamping: beyond five octaves the note stays at the edge (a smaller scale never wraps).
+    CHECK(semitones(80, major, 0) == semitones(35, major, 0), "clamped high");
+    CHECK(semitones(-80, major, 0) == semitones(-35, major, 0), "clamped low");
+    CHECK(clampDegree(40, pentaMin) == 25, "chromatic degree clamped into penta");
 
-    // Every degree of every scale and root stays within +-30 semitones and rises monotonically.
+    // Every degree of every scale and root stays within +-66 semitones and rises monotonically.
     for (int s = 0; s < kScaleCount; s++) {
         for (int r = 0; r < 12; r++) {
             int previous = -1000;
             for (int d = minDegree(s); d <= maxDegree(s); d++) {
                 const int st = semitones(d, s, r);
-                CHECK((st >= -30) && (st <= 30), "scale %d root %d degree %d -> %d", s, r, d, st);
+                CHECK((st >= -66) && (st <= 66), "scale %d root %d degree %d -> %d", s, r, d, st);
                 CHECK(st > previous, "scale %d root %d rises at %d", s, r, d);
                 previous = st;
             }
@@ -154,7 +155,7 @@ static void transposeEachClamped(int8_t* notes, uint8_t count, int delta, uint8_
 }
 
 static void testTranspose() {
-    const uint8_t minor = scaleIndex("MINOR");  // range -14..+14
+    const uint8_t minor = scaleIndex("MINOR");  // range -35..+35
     const int8_t melody[4] = {0, 4, -2, 7};
 
     // Regression: turning TRANSPOSE far up and back down must give the melody back.
@@ -162,22 +163,22 @@ static void testTranspose() {
         int8_t old[4], fixed[4];
         for (int i = 0; i < 4; i++) old[i] = fixed[i] = melody[i];
         int moved = 0;
-        for (int step = 0; step < 30; step++) {
+        for (int step = 0; step < 50; step++) {
             transposeEachClamped(old, 4, +1, minor);
             if (transposeAll(fixed, 4, +1, minor)) moved++;
         }
-        for (int step = 0; step < 30; step++) {
+        for (int step = 0; step < 50; step++) {
             transposeEachClamped(old, 4, -1, minor);
             transposeAll(fixed, 4, -1, minor);
         }
         CHECK(old[0] == old[1] && old[1] == old[2] && old[2] == old[3], "the old code squashed the melody into one note");
-        CHECK(moved == 7, "up stops when the highest note (7) reaches +14: moved %d", moved);
-        // 30 steps down from the top: the melody goes down until its lowest note hits -14.
-        const int8_t expected[4] = {-12, -8, -14, -5};
+        CHECK(moved == 28, "up stops when the highest note (7) reaches +35: moved %d", moved);
+        // 50 steps down from the top (+28): every step moves, the lowest note stays above -35.
+        const int8_t expected[4] = {-22, -18, -24, -15};
         for (int i = 0; i < 4; i++) CHECK(fixed[i] == expected[i], "note %d = %d after far down (expected %d)", i, fixed[i], expected[i]);
         int8_t back[4];
         for (int i = 0; i < 4; i++) back[i] = fixed[i];
-        for (int step = 0; step < 12; step++) transposeAll(back, 4, +1, minor);
+        for (int step = 0; step < 22; step++) transposeAll(back, 4, +1, minor);
         for (int i = 0; i < 4; i++) CHECK(back[i] == melody[i], "note %d restored: %d (expected %d)", i, back[i], melody[i]);
     }
 
@@ -201,9 +202,9 @@ static void testTranspose() {
     int8_t one[1] = {0};
     CHECK(!transposeAll(one, 0, 1, minor), "empty bank");
     CHECK(!transposeAll(one, 1, 0, minor), "zero delta");
-    int8_t wide[2] = {20, 0};  // 20 only exists in a wider scale; in MINOR it sounds as +14
-    CHECK(!transposeAll(wide, 2, 1, minor) && wide[0] == 20, "already at the top: refused, untouched");
-    CHECK(transposeAll(wide, 2, -1, minor) && wide[0] == 13 && wide[1] == -1, "down: brought into range first");
+    int8_t wide[2] = {40, 0};  // 40 only exists in a wider scale; in MINOR it sounds as +35
+    CHECK(!transposeAll(wide, 2, 1, minor) && wide[0] == 40, "already at the top: refused, untouched");
+    CHECK(transposeAll(wide, 2, -1, minor) && wide[0] == 34 && wide[1] == -1, "down: brought into range first");
 }
 
 static void testMelody() {
@@ -278,7 +279,21 @@ static void testKeys() {
     }
 }
 
+static void testNotePacking() {
+    for (int d = -64; d <= 63; d++) {
+        for (bool s : {false, true}) {
+            const uint8_t data = packNote(d, s);
+            CHECK(unpackDegree(data) == d && unpackSlide(data) == s, "pack %d/%d", d, s);
+        }
+    }
+    // Every scale's whole range fits the byte.
+    for (int s = 0; s < kScaleCount; s++) CHECK(maxDegree(s) <= 63 && minDegree(s) >= -64, "scale %d range fits", s);
+    CHECK(unpackDegree(packNote(100, false)) == 63 && unpackDegree(packNote(-100, true)) == -64, "pack clamps");
+    CHECK(unpackDegree(0) == 0 && !unpackSlide(0), "zero is the root without slide");
+}
+
 int main() {
+    testNotePacking();
     testScaleTables();
     testSemitones();
     testRatio();

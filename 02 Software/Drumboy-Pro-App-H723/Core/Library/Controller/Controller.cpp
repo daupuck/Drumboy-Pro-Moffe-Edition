@@ -339,6 +339,7 @@ void Controller::initialize() {
         // 3. Restore User Session
         loadSystemPreset();   // Restore Global settings
         loadEncoderPreset();  // Restore last-used knob values
+        sd_loadSynthUser();   // USER 01..16 synth sounds (none yet = all empty)
 
         // 4. Enable Global Communication Protocols
         HAL_HalfDuplex_EnableReceiver(&huart1);  // MIDI In (Interrupt)
@@ -383,12 +384,21 @@ void Controller::update() {
         // IO menu: refresh the audio CPU meter.
         cpu_service();
 
+        // SYNTH LFO page: move the position marker (25 times per second, only when it moved).
+        if (synthLfoPageActive() && ((HAL_GetTick() - synthLfoCursorTick) >= 40)) {
+            synthLfoCursorTick = HAL_GetTick();
+            lcd_updateSynthLfoCursor();
+        }
+
         // 3. OUTPUT & UI REFRESH
         // Refresh LED outputs and LCD frame content.
         led_action();
 
         // Push buffered graphical changes to the LCD.
         lcd_update();
+
+        // VISUALS mode: one frame every ~33 ms (the normal UI is muted meanwhile).
+        visual_service();
 
         // 4. FILESYSTEM MAINTENANCE
         // Recover SD subsystem if media access is lost.
@@ -508,6 +518,18 @@ void Controller::update() {
         if ((layerSongResetActionFlag) && (selectedLayerNum != -1)) {
             layerSongResetActionFlag = false;
             layerSong_resetAllBeats(selectedLayerNum, activeSongBank);
+            // On the EUCLID / NOTE page the empty layer becomes the page's new starting point, so
+            // the next knob turn (or CLEAR tap) cannot bring the erased beats back.
+            if (euclidPageActive()) {
+                euclid_captureBase();
+                euclidTruncated = false;
+                lcd_drawEuclidStrip();
+            } else if (notePageActive()) {
+                note_captureBase();
+                noteTransposeTotal = 0;
+                lcd_drawNoteData(7);
+                lcd_redrawNotePage();
+            }
         }
         if (noteMelodyActionFlag) {
             noteMelodyActionFlag = false;
@@ -528,11 +550,26 @@ void Controller::update() {
         // 12. OUTBOUND MIDI TRANSMISSION
         // Enqueue pending MIDI note events for each layer into the TX ring buffer.
         for (uint8_t i = 0; i < kLayerLibrarySize; i++) {
-            if (layerLibrary[i].toneMode == tone::kModeTone) {
+            if (tone::playsNotes(layerLibrary[i].toneMode)) {
                 // TONE layer: send the beat's own note. A new beat retriggers without its own
                 // Note Off, so the held note is released first: external synths get a clean
                 // monophonic line.
+                if ((io.midi.txNotes) && (io.midi.txTriggerNoteOn[i]) && toneMidiLegato[i] && (toneMidiSounding[i] != 0xFF)) {
+                    // SLIDE: overlap the notes (new On, then old Off) so a mono synth plays legato.
+                    const uint8_t note = toneMidiNote[i];
+                    const uint8_t old = toneMidiSounding[i];
+                    uint8_t on[3] = {(uint8_t)(0x90 + io.midi.txChannel), note, 0x64};
+                    uint8_t off[3] = {(uint8_t)(0x80 + io.midi.txChannel), old, 0x64};
+                    if ((note == old) || enqueueMidiTx(on, 3)) {
+                        if ((note == old) || enqueueMidiTx(off, 3)) {
+                            io.midi.txTriggerNoteOn[i] = false;
+                            toneMidiLegato[i] = false;
+                            toneMidiSounding[i] = note;
+                        }
+                    }
+                }
                 if ((io.midi.txNotes) && (io.midi.txTriggerNoteOn[i])) {
+                    toneMidiLegato[i] = false;
                     if (toneMidiSounding[i] != 0xFF) {
                         uint8_t off[3] = {(uint8_t)(0x80 + io.midi.txChannel), toneMidiSounding[i], 0x64};
                         if (enqueueMidiTx(off, 3)) toneMidiSounding[i] = 0xFF;
@@ -581,7 +618,7 @@ void Controller::update() {
                 Layer& layer = layerLibrary[layerNum];
 
                 // Trigger audio if layer is active and unmuted
-                if ((!layer.mute) && (layer.samplePlay))
+                if ((!layer.mute) && layerSounds(layerNum))
                     layer_playBeat(layerNum, 1.0f);
 
                 // Write note to the current sequencer step if Recording is enabled

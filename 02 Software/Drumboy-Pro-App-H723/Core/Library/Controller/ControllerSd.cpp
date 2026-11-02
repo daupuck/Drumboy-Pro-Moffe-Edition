@@ -52,6 +52,17 @@ SdResult Controller::sd_initialize() {
                                                 (sd_loadImage("System/Image/Image_Layer_B.rwi", RAM_IMAGE_LAYER_B_PALETTE_ADDRESS, RAM_IMAGE_LAYER_B_DATA_ADDRESS, kImageLayerPalette, kImageLayerWidth, kImageLayerHeight, RGB16) == SD_OK) &&
                                                 (sd_loadImage("System/Image/Icon_Select.rwi", RAM_ICON_SELECT_PALETTE_ADDRESS, RAM_ICON_SELECT_DATA_ADDRESS, kIconPalette, kIconSelectWidth, kIconSelectHeight * 2, RGB16) == SD_OK) &&
                                                 (sd_loadImage("System/Image/Icon_Play.rwi", RAM_ICON_PLAY_PALETTE_ADDRESS, RAM_ICON_PLAY_DATA_ADDRESS, kIconPalette, kIconPlayWidth, kIconPlayHeight * 8, RGB16) == SD_OK)) {
+                                                // Moffe Edition "Gold Rush" (v2.00): the panel and icon images on the
+                                                // card carry the factory cyan / magenta / green; swap them in their
+                                                // palettes, so any SD card shows the new look.
+                                                const struct { uint32_t address; uint16_t count; } kPalettes[] = {
+                                                    {RAM_IMAGE_MENU_A_PALETTE_ADDRESS, kImageMenuAPalette}, {RAM_IMAGE_MENU_B_PALETTE_ADDRESS, kImageMenuBPalette},
+                                                    {RAM_IMAGE_LAYER_A_PALETTE_ADDRESS, kImageLayerPalette}, {RAM_IMAGE_LAYER_B_PALETTE_ADDRESS, kImageLayerPalette},
+                                                    {RAM_ICON_SELECT_PALETTE_ADDRESS, kIconPalette}, {RAM_ICON_PLAY_PALETTE_ADDRESS, kIconPalette}};
+                                                for (const auto& pal : kPalettes) {
+                                                    RGB16Color* entry = reinterpret_cast<RGB16Color*>(pal.address);
+                                                    for (uint16_t i = 0; i < pal.count; i++) entry[i] = vis::recolor(entry[i], kAccentColor, kAccent2Color);
+                                                }
                                                 sd.ready = true;
                                                 sd.getLibrary = true;  // Signal that we can now index the sample libraries
                                                 sdResult = SD_OK;
@@ -1582,6 +1593,13 @@ SdResult Controller::sd_clearFile(uint8_t fileNum_) {
 //   10 x [mode, root, scale, glide]
 //   10 layers x 5 banks x { count, count x [start interval hi, lo, note] }  (only notes != root)
 //   "EOF"
+//   "SYN5" + 10 x [the 20 values of synth::pack: sound, LFO, AMP, filter type] + "EOF"   (v1.13;
+//          "SYN2" from v1.12 has the first 10 values, "SYN1" from v1.11 the first 7; both still
+//          read, as are the v1.13 test builds' "SYN3"/"SYN4")
+//   "SLD1" + 10 layers x 5 banks x { count, count x [start interval hi, lo] } + "EOF"   (v1.12)
+//   "HLD1" + 10 layers x 5 banks x { count, count x [start hi, lo, hold length hi, lo] } + "EOF"
+//          (v1.13: notes recorded with PAD HOLD; older readers stop before it)
+// Mode 2 (SYNTH) is read as DRUM by v1.09/v1.10, which stop at the first "EOF".
 // Notes are matched to beats by start interval on load (positions are unique within a bank),
 // so the file never depends on slot order. Older firmware never opens it.
 
@@ -1603,10 +1621,11 @@ SdResult Controller::sd_saveNotes(uint8_t fileNum_) {
     for (uint8_t l = 0; (l < kLayerLibrarySize) && !needed; l++) {
         const Layer& layer = layerLibrary[l];
         if ((layer.toneMode != tone::kModeDrum) || (layer.toneRoot != 0) || (layer.toneScale != tone::kDefaultScale) || (layer.toneGlide != 0)) needed = true;
+        if (!synth::isDefault(layer.synth)) needed = true;
         for (uint8_t b = 0; (b < kBankLibrarySize) && !needed; b++) {
             const Bank& bank = layer.bankLibrary[b];
             for (int16_t k = 0; k <= bank.lastActiveBeatNum; k++) {
-                if (bank.beatLibrary[k].getActive() && (bank.beatLibrary[k].getNote() != 0)) {
+                if (bank.beatLibrary[k].getActive() && ((bank.beatLibrary[k].getNote() != 0) || bank.beatLibrary[k].getSlide() || (bank.beatLibrary[k].getHold() != 0))) {
                     needed = true;
                     break;
                 }
@@ -1656,6 +1675,57 @@ SdResult Controller::sd_saveNotes(uint8_t fileNum_) {
     }
 
     if (sd_write("EOF", 3) != FR_OK) errorCount += 1;
+
+    // v1.11+: the SYNTH sound of every layer, after the part v1.09/v1.10 read (they stop at
+    // "EOF" and see a SYNTH layer as a DRUM layer with its notes intact).
+    uint8_t sound[kLayerLibrarySize * kSynthFileParams];
+    for (uint8_t l = 0; l < kLayerLibrarySize; l++) synth::pack(layerLibrary[l].synth, &sound[l * kSynthFileParams]);
+    if (sd_write(kSynthFileRef, strlen(kSynthFileRef)) != FR_OK) errorCount += 1;
+    if (sd_write(sound, sizeof(sound)) != FR_OK) errorCount += 1;
+    if (sd_write("EOF", 3) != FR_OK) errorCount += 1;
+
+    // v1.12+: beats with SLIDE, as start intervals per layer and bank.
+    if (sd_write(kSlideFileRef, strlen(kSlideFileRef)) != FR_OK) errorCount += 1;
+    uint8_t slides[1 + (kBeatLibrarySize * 2)];
+    for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+        for (uint8_t b = 0; b < kBankLibrarySize; b++) {
+            const Bank& bank = layerLibrary[l].bankLibrary[b];
+            uint8_t count = 0;
+            for (int16_t k = 0; (k <= bank.lastActiveBeatNum) && (count < kBeatLibrarySize); k++) {
+                const Beat& beat = bank.beatLibrary[k];
+                if (!beat.getActive() || !beat.getSlide()) continue;
+                slides[1 + (count * 2) + 0] = static_cast<uint8_t>(beat.getStartInterval() >> 8);
+                slides[1 + (count * 2) + 1] = static_cast<uint8_t>(beat.getStartInterval() & 0xFF);
+                count++;
+            }
+            slides[0] = count;
+            if (sd_write(slides, 1 + (count * 2)) != FR_OK) errorCount += 1;
+        }
+    }
+    if (sd_write("EOF", 3) != FR_OK) errorCount += 1;
+
+    // v1.13+: notes recorded with PAD HOLD, as start interval + length per layer and bank.
+    if (sd_write(kHoldFileRef, strlen(kHoldFileRef)) != FR_OK) errorCount += 1;
+    uint8_t holds[1 + (kBeatLibrarySize * 4)];
+    for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+        for (uint8_t b = 0; b < kBankLibrarySize; b++) {
+            const Bank& bank = layerLibrary[l].bankLibrary[b];
+            uint8_t count = 0;
+            for (int16_t k = 0; (k <= bank.lastActiveBeatNum) && (count < kBeatLibrarySize); k++) {
+                const Beat& beat = bank.beatLibrary[k];
+                if (!beat.getActive() || (beat.getHold() == 0)) continue;
+                holds[1 + (count * 4) + 0] = static_cast<uint8_t>(beat.getStartInterval() >> 8);
+                holds[1 + (count * 4) + 1] = static_cast<uint8_t>(beat.getStartInterval() & 0xFF);
+                holds[1 + (count * 4) + 2] = static_cast<uint8_t>(beat.getHold() >> 8);
+                holds[1 + (count * 4) + 3] = static_cast<uint8_t>(beat.getHold() & 0xFF);
+                count++;
+            }
+            holds[0] = count;
+            if (sd_write(holds, 1 + (count * 4)) != FR_OK) errorCount += 1;
+        }
+    }
+    if (sd_write("EOF", 3) != FR_OK) errorCount += 1;
+
     if (f_close(&sd.file) != FR_OK) errorCount += 1;
     return (errorCount == 0) ? SD_OK : SD_ERROR;
 }
@@ -1677,7 +1747,7 @@ void Controller::sd_loadNotes(uint8_t fileNum_) {
         // Settings, range-checked so a damaged file can never index outside a table.
         for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
             Layer& layer = layerLibrary[l];
-            layer.toneMode = (settings[(l * 4) + 0] == tone::kModeTone) ? tone::kModeTone : tone::kModeDrum;
+            layer.toneMode = (settings[(l * 4) + 0] < tone::kModeCount) ? settings[(l * 4) + 0] : tone::kModeDrum;
             layer.toneRoot = (settings[(l * 4) + 1] < tone::kRootCount) ? settings[(l * 4) + 1] : 0;
             layer.toneScale = tone::safeScale(settings[(l * 4) + 2]);
             tone_setGlide(l, settings[(l * 4) + 3]);
@@ -1711,8 +1781,98 @@ void Controller::sd_loadNotes(uint8_t fileNum_) {
                 }
             }
         }
+
+        // SYNTH sounds after the notes' "EOF": "SYN4" (v1.13, 15 values with the LFO), "SYN2"
+        // (v1.12, 10) or "SYN1" (v1.11, 7). "SYN3" was a v1.13 test build (11; its 11th value, a
+        // global-LFO slot, is ignored). Files from v1.09/v1.10 end there: default sounds.
+        char eof[3];
+        char tag[5] = {};
+        uint8_t sound[kLayerLibrarySize * kSynthFileParams];
+        uint8_t perLayer = 0;
+        uint8_t used = 0;
+        if (ok && (sd_read(eof, 3) == FR_OK) && (sd_read(tag, 4) == FR_OK)) {
+            if (strncmp(tag, "SYN6", 4) == 0) perLayer = used = 21;
+            if (strncmp(tag, "SYN5", 4) == 0) perLayer = used = 20;
+            if (strncmp(tag, "SYN4", 4) == 0) perLayer = used = 15;
+            if (strncmp(tag, "SYN3", 4) == 0) { perLayer = 11; used = 10; }
+            if (strncmp(tag, "SYN2", 4) == 0) perLayer = used = 10;
+            if (strncmp(tag, "SYN1", 4) == 0) perLayer = used = 7;
+        }
+        static_assert(kSynthFileParams == 21, "SYN6 holds 21 values per layer");
+        if ((perLayer > 0) && (sd_read(sound, kLayerLibrarySize * perLayer) == FR_OK)) {
+            for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+                layerLibrary[l].synth = synth::unpack(&sound[l * perLayer], used);  // sanitized
+            }
+
+            // Beats with SLIDE (v1.12+), after the sounds' "EOF".
+            char slideTag[sizeof(kSlideFileRef)] = {};
+            if ((sd_read(eof, 3) == FR_OK) && (sd_read(slideTag, strlen(kSlideFileRef)) == FR_OK) &&
+                (strncmp(slideTag, kSlideFileRef, strlen(kSlideFileRef)) == 0)) {
+                bool slidesOk = true;
+                for (uint8_t l = 0; (l < kLayerLibrarySize) && slidesOk; l++) {
+                    for (uint8_t b = 0; (b < kBankLibrarySize) && slidesOk; b++) {
+                        Bank& bank = layerLibrary[l].bankLibrary[b];
+                        uint8_t count = 0;
+                        if ((sd_read(&count, 1) != FR_OK) || (count > kBeatLibrarySize)) {
+                            slidesOk = false;
+                            break;
+                        }
+                        for (uint8_t e = 0; e < count; e++) {
+                            uint8_t entry[2];
+                            if (sd_read(entry, 2) != FR_OK) {
+                                slidesOk = false;
+                                break;
+                            }
+                            const uint16_t start = static_cast<uint16_t>((entry[0] << 8) | entry[1]);
+                            for (int16_t k = 0; k <= bank.lastActiveBeatNum; k++) {
+                                if (bank.beatLibrary[k].getActive() && (bank.beatLibrary[k].getStartInterval() == start)) {
+                                    bank.beatLibrary[k].setSlide(true);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Notes recorded with PAD HOLD (v1.13+), after the slides' "EOF".
+                char holdTag[sizeof(kHoldFileRef)] = {};
+                if (slidesOk && (sd_read(eof, 3) == FR_OK) && (sd_read(holdTag, strlen(kHoldFileRef)) == FR_OK) &&
+                    (strncmp(holdTag, kHoldFileRef, strlen(kHoldFileRef)) == 0)) {
+                    bool holdsOk = true;
+                    for (uint8_t l = 0; (l < kLayerLibrarySize) && holdsOk; l++) {
+                        for (uint8_t b = 0; (b < kBankLibrarySize) && holdsOk; b++) {
+                            Bank& bank = layerLibrary[l].bankLibrary[b];
+                            uint8_t count = 0;
+                            if ((sd_read(&count, 1) != FR_OK) || (count > kBeatLibrarySize)) {
+                                holdsOk = false;
+                                break;
+                            }
+                            for (uint8_t e = 0; e < count; e++) {
+                                uint8_t entry[4];
+                                if (sd_read(entry, 4) != FR_OK) {
+                                    holdsOk = false;
+                                    break;
+                                }
+                                const uint16_t start = static_cast<uint16_t>((entry[0] << 8) | entry[1]);
+                                const uint16_t hold = static_cast<uint16_t>((entry[2] << 8) | entry[3]);
+                                for (int16_t k = 0; k <= bank.lastActiveBeatNum; k++) {
+                                    if (bank.beatLibrary[k].getActive() && (bank.beatLibrary[k].getStartInterval() == start)) {
+                                        bank.beatLibrary[k].setHold(hold);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
     f_close(&sd.file);
+    for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+        synthPresetIndex[l] = -1;       // a loaded sound is named by what it is
+        lcd_drawLayerTab_InstData(l);   // SYNTH layers show their sound's name
+    }
 }
 
 SdResult Controller::sd_checkDrumkit(uint8_t kitNum_) {
@@ -1943,6 +2103,9 @@ SdResult Controller::sd_loadDrumkit(uint8_t kitNum_) {
                         layerInst_setStyle(i, (bool)data[offset + 22]);
                     }
 
+                    // MODE + SYNTH sounds (v1.13 kits only; older kits leave them as they are)
+                    sd_loadDrumkitSynth(drumkitName);
+
                     // 5.4 ASSET REFERENCE EXTRACTION
                     // Extract instrument/sample names and activation markers per layer.
                     char instName[kLayerLibrarySize][kFileNameSize + 1];
@@ -2074,6 +2237,94 @@ SdResult Controller::sd_loadDrumkit(uint8_t kitNum_) {
     // Re-enable keyboard interrupts before returning to caller.
     keyboard_enable();
     return result;
+}
+
+// System/Preset/SynthUser.rws: "RWSYNUS2" + 16 x [used, 21 values of synth::pack] + "EOF".
+// ("RWSYNUSR" from a v1.13 test build has 20 values per slot and is still read.) Written whole on
+// every save (363 bytes). No file = all USER slots empty.
+
+void Controller::sd_loadSynthUser() {
+    for (uint8_t i = 0; i < synth::kUserPresetCount; i++) {
+        synthUserUsed[i] = false;
+        synthUserPresets[i] = synth::Params{};
+    }
+    if (f_open(&sd.file, kSynthUserFile, FA_READ) != FR_OK) return;
+    char ref[sizeof(kSynthUserRef)] = {};
+    uint8_t data[synth::kUserPresetCount * (1 + synth::kPackedSize)];
+    uint8_t values = 0;  // per slot; "RWSYNUSR" (test build) had 20
+    if (sd_read(ref, strlen(kSynthUserRef)) == FR_OK) {
+        if (strncmp(ref, kSynthUserRef, strlen(kSynthUserRef)) == 0) values = synth::kPackedSize;
+        if (strncmp(ref, "RWSYNUSR", 8) == 0) values = 20;
+    }
+    const bool ok = (values > 0) && (sd_read(data, synth::kUserPresetCount * (1 + values)) == FR_OK);
+    f_close(&sd.file);
+    if (!ok) return;
+    for (uint8_t i = 0; i < synth::kUserPresetCount; i++) {
+        const uint8_t* d = &data[i * (1 + values)];
+        synthUserUsed[i] = (d[0] == 1);
+        if (synthUserUsed[i]) synthUserPresets[i] = synth::unpack(d + 1, values);  // sanitized
+    }
+}
+
+SdResult Controller::sd_saveSynthUser() {
+    uint8_t data[synth::kUserPresetCount * (1 + synth::kPackedSize)];
+    for (uint8_t i = 0; i < synth::kUserPresetCount; i++) {
+        uint8_t* d = &data[i * (1 + synth::kPackedSize)];
+        d[0] = synthUserUsed[i] ? 1 : 0;
+        synth::pack(synthUserPresets[i], d + 1);
+    }
+    keyboard_disable();  // as for the other SD writes: no I2C keyboard traffic meanwhile
+    f_close(&sd.file);
+    if (HAL_SD_GetState(&hsd2) != HAL_SD_STATE_READY) HAL_SD_Abort(&hsd2);
+    SdResult result = SD_ERROR;
+    if (f_open(&sd.file, kSynthUserFile, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK) {
+        if ((sd_write(kSynthUserRef, strlen(kSynthUserRef)) == FR_OK) && (sd_write(data, sizeof(data)) == FR_OK) && (sd_write("EOF", 3) == FR_OK)) {
+            result = SD_OK;
+        }
+        if (f_close(&sd.file) != FR_OK) result = SD_ERROR;
+    }
+    keyboard_enable();
+    return result;
+}
+
+void Controller::sd_loadDrumkitSynth(const char* drumkitName_) {
+    /// @brief Reads the "SYK1" tail of a drumkit (MODE + SYNTH sound per layer, v1.13+). A kit
+    /// saved by older firmware has none: its layers keep their current MODE and sound, so loading
+    /// an old drum kit never wipes a synth line. Values are range-checked (sanitized).
+
+    if (f_open(&sd.file, drumkitName_, FA_READ) != FR_OK) return;
+    char tag[sizeof(kDrumkitSynthRef)] = {};
+    uint8_t tail[kLayerLibrarySize * (1 + synth::kPackedSize)];
+    uint8_t perLayer = 0;  // bytes per layer: MODE + sound values
+    uint8_t used = 0;      // sound values to take
+    if ((f_lseek(&sd.file, strlen(kDrumkitRef) + kDrumkitByteSize + 3) == FR_OK) &&  // + "EOF"
+        (sd_read(tag, strlen(kDrumkitSynthRef)) == FR_OK)) {
+        if (strncmp(tag, "SYK4", 4) == 0) {
+            perLayer = 1 + synth::kPackedSize;
+            used = synth::kPackedSize;
+        } else if (strncmp(tag, "SYK3", 4) == 0) {  // v1.13 test build: 20 values (no PAD HOLD)
+            perLayer = 21;
+            used = 20;
+        } else if (strncmp(tag, "SYK2", 4) == 0) {  // v1.13 test build: 15 values (no AMP page yet)
+            perLayer = 16;
+            used = 15;
+        } else if (strncmp(tag, "SYK1", 4) == 0) {  // v1.13 test build: 11 values, the 11th is ignored
+            perLayer = 12;
+            used = 10;
+        }
+    }
+    const bool ok = (perLayer > 0) && (sd_read(tail, kLayerLibrarySize * perLayer) == FR_OK);
+    f_close(&sd.file);
+    if (!ok) return;
+
+    for (uint8_t i = 0; i < kLayerLibrarySize; i++) {
+        const uint8_t* d = &tail[i * perLayer];
+        if (layerLibrary[i].toneMode == tone::kModeSynth) synth_silence(i);  // the sound changes under it
+        layerLibrary[i].synth = synth::unpack(d + 1, used);
+        synthPresetIndex[i] = -1;  // the name comes from the sound itself now
+        tone_setMode(i, (d[0] < tone::kModeCount) ? d[0] : tone::kModeDrum);
+        lcd_drawLayerTab_InstData(i);
+    }
 }
 
 SdResult Controller::sd_saveDrumkit(uint8_t kitNum_) {
@@ -2296,7 +2547,18 @@ SdResult Controller::sd_saveDrumkit(uint8_t kitNum_) {
                 // Commit EOF marker only when all previous writes succeeded.
                 if (errorCount == 0) {
                     if (sd_write(eof, strlen(eof)) == FR_OK) {
-                        result = SD_OK;
+                        // 5.4 SYNTH TAIL (v1.13): MODE + SYNTH sound of every layer after the
+                        // "EOF". Older firmware reads a fixed size and never sees it.
+                        uint8_t tail[kLayerLibrarySize * (1 + synth::kPackedSize)];
+                        for (uint8_t i = 0; i < kLayerLibrarySize; i++) {
+                            uint8_t* d = &tail[i * (1 + synth::kPackedSize)];
+                            d[0] = layerLibrary[i].toneMode;
+                            synth::pack(layerLibrary[i].synth, d + 1);
+                        }
+                        if ((sd_write(kDrumkitSynthRef, strlen(kDrumkitSynthRef)) == FR_OK) && (sd_write(tail, sizeof(tail)) == FR_OK) &&
+                            (sd_write(eof, strlen(eof)) == FR_OK)) {
+                            result = SD_OK;
+                        }
                     }
                 }
             }
@@ -2586,7 +2848,7 @@ void Controller::sd_debug(const char* msg, FRESULT res) {
 
     // 1. UI STYLING
     // Configure high-contrast text style for readability.
-    lcd.setForeColor(MAGENTA);
+    lcd.setForeColor(kAccent2Color);
     lcd.setBackColor(BLACK);
     lcd.setAlignment(LEFT);
     lcd.setFont(FONT_07x09);

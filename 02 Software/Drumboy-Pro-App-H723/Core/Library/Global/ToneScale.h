@@ -20,7 +20,12 @@
 namespace tone {
 
 constexpr uint8_t kModeDrum = 0;
-constexpr uint8_t kModeTone = 1;
+constexpr uint8_t kModeTone = 1;   // the sample, played at each beat's note
+constexpr uint8_t kModeSynth = 2;  // the built-in synth voice (SynthVoice.h), played at each beat's note
+constexpr uint8_t kModeCount = 3;
+
+// TONE and SYNTH layers both play notes (scale, glide, transpose, pad keyboard, generator).
+inline bool playsNotes(uint8_t mode) { return (mode == kModeTone) || (mode == kModeSynth); }
 
 constexpr uint8_t kRootCount = 12;
 
@@ -57,8 +62,29 @@ constexpr uint8_t kMaxGlide = 100;
 
 inline uint8_t safeScale(uint8_t scale) { return (scale < kScaleCount) ? scale : kDefaultScale; }
 
-// Two octaves of the scale either way: +-24 (chromatic), +-14 (7-note), +-10 (pentatonic).
-inline int8_t maxDegree(uint8_t scale) { return static_cast<int8_t>(2 * kScales[safeScale(scale)].size); }
+// A beat's note byte: the scale degree as a 7-bit signed number (-64..63) in bits 0-5 plus bit 7
+// (its top bit), and bit 6 the SLIDE flag (the note slides in from the previous one, 303 style).
+// Keeping both in the one spare byte of Beat costs no RAM. Files store the degree and the slides
+// separately. (v1.09-v1.12 used bits 0-5 only, -32..31; the byte is never stored on SD.)
+constexpr uint8_t kNoteDegreeMask = 0x3F;
+constexpr uint8_t kNoteSlideBit = 0x40;
+constexpr uint8_t kNoteDegreeHighBit = 0x80;
+
+inline int8_t unpackDegree(uint8_t data) {
+    const int v = (data & kNoteDegreeMask) | ((data & kNoteDegreeHighBit) >> 1);  // 7 bits
+    return static_cast<int8_t>((v & 0x40) ? (v - 128) : v);
+}
+inline bool unpackSlide(uint8_t data) { return (data & kNoteSlideBit) != 0; }
+inline uint8_t packNote(int degree, bool slide) {
+    if (degree > 63) degree = 63;
+    if (degree < -64) degree = -64;
+    const unsigned d = static_cast<unsigned>(degree) & 0x7F;
+    return static_cast<uint8_t>((d & kNoteDegreeMask) | ((d & 0x40) << 1) | (slide ? kNoteSlideBit : 0));
+}
+
+// Five octaves of the scale either way (v1.13; was two): +-60 (chromatic), +-35 (7-note),
+// +-25 (pentatonic). What is actually heard is also limited by the playback speed (1/16x..8x).
+inline int8_t maxDegree(uint8_t scale) { return static_cast<int8_t>(5 * kScales[safeScale(scale)].size); }
 inline int8_t minDegree(uint8_t scale) { return static_cast<int8_t>(-maxDegree(scale)); }
 
 inline int8_t clampDegree(int degree, uint8_t scale) {
@@ -146,8 +172,10 @@ inline uint8_t mutateMelody(int8_t* notes, uint8_t count, uint8_t scale, uint32_
 
 // Pads as a scale keyboard: pad 0..9 plays degree octave * size + pad. Octaves -2..+1 keep at
 // least one full octave of the scale inside the two-octave range for every scale.
-constexpr int8_t kMinKeysOctave = -2;
-constexpr int8_t kMaxKeysOctave = 1;
+// UP/DOWN on the NOTE page: 4 octaves down and 3 up (v1.13; was 2 down, 1 up). With PITCH at
+// 1.00 that spans C0 .. about C8 (the playback speed limits clip the very ends).
+constexpr int8_t kMinKeysOctave = -4;
+constexpr int8_t kMaxKeysOctave = 3;
 constexpr uint8_t kKeyCount = 10;
 
 inline int8_t keyDegree(uint8_t pad, int8_t octave, uint8_t scale) {

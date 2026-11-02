@@ -925,6 +925,7 @@ void Lcd::initialize() {
 }
 
 void Lcd::clearScreen() {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Clears the full screen using the current background color.
 
     // 1. BACKGROUND CLEAR
@@ -933,6 +934,7 @@ void Lcd::clearScreen() {
 }
 
 void Lcd::fillScreen() {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Fills the full screen using the current foreground color.
 
     // 1. FOREGROUND FILL
@@ -941,6 +943,7 @@ void Lcd::fillScreen() {
 }
 
 void Lcd::fillScreen(RGB16Color color) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Fills the full screen with a specified RGB565 color.
 
     // 1. FULL-SCREEN COLOR FILL
@@ -951,6 +954,7 @@ void Lcd::fillScreen(RGB16Color color) {
 }
 
 void Lcd::drawPixel(uint16_t x, uint16_t y) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Draws a single pixel at the given coordinates.
 
     // 1. SINGLE PIXEL DRAW
@@ -967,6 +971,7 @@ void Lcd::drawPixel(uint16_t x, uint16_t y) {
 }
 
 void Lcd::drawHLine(uint16_t x, uint16_t y, int16_t l) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Draws a horizontal line with clipping support.
 
     if (l == 0 || y >= height) return;
@@ -992,6 +997,7 @@ void Lcd::drawHLine(uint16_t x, uint16_t y, int16_t l) {
 }
 
 void Lcd::drawVLine(uint16_t x, uint16_t y, int16_t l) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Draws a vertical line with clipping support.
 
     if (l == 0 || x >= width) return;
@@ -1017,6 +1023,7 @@ void Lcd::drawVLine(uint16_t x, uint16_t y, int16_t l) {
 }
 
 void Lcd::drawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Draws a line segment between two points using Bresenham rasterization.
 
     // 1. BRESENHAM LINE DRAW
@@ -1046,6 +1053,7 @@ void Lcd::drawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1) {
 }
 
 void Lcd::drawRect(uint16_t x, uint16_t y, uint32_t w, uint32_t h) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Draws a rectangle outline.
 
     // 1. RECTANGLE OUTLINE DRAW
@@ -1061,6 +1069,7 @@ void Lcd::drawRect(uint16_t x, uint16_t y, uint32_t w, uint32_t h) {
 }
 
 void Lcd::fillRect(uint16_t x, uint16_t y, uint32_t w, uint32_t h) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Fills a rectangular area with foreground color.
 
     // 1. RECTANGLE AREA FILL
@@ -1075,6 +1084,7 @@ void Lcd::fillRect(uint16_t x, uint16_t y, uint32_t w, uint32_t h) {
 }
 
 void Lcd::drawCircle(uint16_t x, uint16_t y, uint16_t r) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Draws a circle outline centered at the given coordinates.
 
     // 1. MIDPOINT CIRCLE DRAW
@@ -1109,6 +1119,7 @@ void Lcd::drawCircle(uint16_t x, uint16_t y, uint16_t r) {
 }
 
 void Lcd::drawCircleHelper(uint16_t x, uint16_t y, uint16_t r, uint8_t cornername) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Draws selected circle quadrants based on a corner mask.
 
     // 1. CIRCLE QUADRANT DRAW
@@ -1147,6 +1158,7 @@ void Lcd::drawCircleHelper(uint16_t x, uint16_t y, uint16_t r, uint8_t cornernam
 }
 
 void Lcd::drawQuarterCircle(uint16_t x, uint16_t y, uint16_t r, uint8_t quarter) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Draws one quarter arc of a circle.
 
     // 1. QUARTER ARC RASTER SETUP
@@ -1211,6 +1223,7 @@ void Lcd::drawQuarterCircle(uint16_t x, uint16_t y, uint16_t r, uint8_t quarter)
 }
 
 void Lcd::drawHalfCircle(uint16_t x, uint16_t y, uint16_t r, uint8_t half) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Draws one half of a circle by combining two quarter arcs.
 
     // 1. HALF SELECT MAPPING
@@ -1247,6 +1260,7 @@ void Lcd::drawHalfCircle(uint16_t x, uint16_t y, uint16_t r, uint8_t half) {
 }
 
 void Lcd::fillCircle(uint16_t x, uint16_t y, uint16_t r) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Fills a circle area centered at the given coordinates.
 
     // 1. CIRCLE AREA FILL
@@ -1256,6 +1270,7 @@ void Lcd::fillCircle(uint16_t x, uint16_t y, uint16_t r) {
 }
 
 void Lcd::fillCircleHelper(uint16_t x, uint16_t y, uint16_t r, uint8_t cornername, uint16_t delta) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Fills selected circle sectors with vertical spans.
 
     // 1. FILL HELPER SETUP
@@ -1289,6 +1304,7 @@ void Lcd::fillCircleHelper(uint16_t x, uint16_t y, uint16_t r, uint8_t cornernam
 }
 
 void Lcd::drawTriangle(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Draws a triangle outline from three vertices.
 
     // 1. TRIANGLE OUTLINE DRAW
@@ -1299,6 +1315,7 @@ void Lcd::drawTriangle(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint1
 }
 
 void Lcd::fillTriangle(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Fills a triangle using scanline rasterization.
 
     // 1. SCANLINE TRIANGLE FILL
@@ -1365,6 +1382,7 @@ void Lcd::fillTriangle(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint1
 }
 
 void Lcd::drawText(const char text[], uint16_t textLength, uint16_t x, uint16_t y) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Renders text at the specified position using current font settings.
 
     // 1. TEXT METRICS CALCULATION
@@ -1470,6 +1488,7 @@ uint16_t Lcd::getTextScaledWidth(uint16_t textLength, uint8_t scale) const {
 }
 
 void Lcd::drawTextScaled(const char text[], uint16_t textLength, uint16_t x, uint16_t y, uint8_t scale) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Draws text with the current font enlarged by an integer factor (each font pixel
     /// becomes a scale x scale block in the foreground color). The background is left untouched,
     /// so clear the area first. Alignment and spacing follow the current settings; spacing is
@@ -1511,6 +1530,7 @@ void Lcd::drawTextScaled(const char text[], uint16_t textLength, uint16_t x, uin
 }
 
 void Lcd::drawNumber(int32_t num, uint8_t numSize, uint16_t x, uint16_t y) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Formats a signed number and renders it as fixed-width text.
 
     // 1. BUFFER INITIALIZATION
@@ -1562,6 +1582,7 @@ void Lcd::drawNumber(int32_t num, uint8_t numSize, uint16_t x, uint16_t y) {
 }
 
 void Lcd::clearHLine(uint16_t x, uint16_t y, uint16_t l) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Clears a horizontal segment using background color.
 
     // 1. HORIZONTAL CLEAR
@@ -1575,6 +1596,7 @@ void Lcd::clearHLine(uint16_t x, uint16_t y, uint16_t l) {
 }
 
 void Lcd::clearVLine(uint16_t x, uint16_t y, uint16_t l) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Clears a vertical segment using background color.
 
     // 1. VERTICAL CLEAR
@@ -1588,6 +1610,7 @@ void Lcd::clearVLine(uint16_t x, uint16_t y, uint16_t l) {
 }
 
 void Lcd::clearRect(uint16_t x, uint16_t y, uint32_t w, uint32_t h) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Clears a rectangular region using background color.
 
     // 1. RECTANGLE CLEAR
@@ -1602,6 +1625,7 @@ void Lcd::clearRect(uint16_t x, uint16_t y, uint32_t w, uint32_t h) {
 }
 
 void Lcd::drawRGB16Image(const RGB16Color* indexPtr, const uint8_t* pixelPtr, uint8_t indexSize, uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Draws an indexed RGB565 image.
 
     // 1. DRAW WINDOW SETUP
@@ -1631,6 +1655,7 @@ void Lcd::drawRGB16Image(const RGB16Color* indexPtr, const uint8_t* pixelPtr, ui
 }
 
 void Lcd::drawRGB16Image(const RGB16Color* indexPtr, const uint8_t* pixelPtr, uint8_t indexSize, uint8_t alpha, uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Draws an indexed RGB565 image with alpha applied to its palette.
 
     // 1. PALETTE ALPHA PRECOMPUTE
@@ -1665,6 +1690,7 @@ void Lcd::drawRGB16Image(const RGB16Color* indexPtr, const uint8_t* pixelPtr, ui
 }
 
 void Lcd::drawRGB16ImagePartial(const RGB16Color* indexPtr, const uint8_t* pixelPtr, uint8_t indexSize, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t xStart, uint16_t xWidth) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Draws a horizontal slice of an indexed RGB565 image.
 
     // 1. SOURCE RANGE CLAMP
@@ -1698,6 +1724,7 @@ void Lcd::drawRGB16ImagePartial(const RGB16Color* indexPtr, const uint8_t* pixel
 }
 
 void Lcd::drawRGB24Image(const RGB24RawColor* indexPtr, const uint8_t* pixelPtr, uint8_t indexSize, uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Draws an indexed RGB24 image after RGB565 conversion.
 
     // 1. PALETTE COLOR CONVERSION
@@ -1732,6 +1759,7 @@ void Lcd::drawRGB24Image(const RGB24RawColor* indexPtr, const uint8_t* pixelPtr,
 }
 
 void Lcd::drawRGB24Image(const RGB24RawColor* indexPtr, const uint8_t* pixelPtr, uint8_t indexSize, uint8_t alpha, uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Draws an indexed RGB24 image with alpha-adjusted palette conversion.
 
     // 1. PALETTE ALPHA CONVERSION
@@ -1766,6 +1794,7 @@ void Lcd::drawRGB24Image(const RGB24RawColor* indexPtr, const uint8_t* pixelPtr,
 }
 
 void Lcd::fadeRGB16Image(const RGB16Color* indexPtr, const uint8_t* pixelPtr, uint8_t indexSize, uint16_t x, uint16_t y, uint16_t w, uint16_t h, bool mode, uint8_t step, uint16_t delay) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Fades an indexed RGB565 image in or out over multiple steps.
 
     // 1. WORKSPACE PREPARATION
@@ -1809,6 +1838,7 @@ void Lcd::fadeRGB16Image(const RGB16Color* indexPtr, const uint8_t* pixelPtr, ui
 }
 
 void Lcd::fadeRGB24Image(const RGB24RawColor* indexPtr, const uint8_t* pixelPtr, uint8_t indexSize, uint16_t x, uint16_t y, uint16_t w, uint16_t h, bool mode, uint8_t step, uint16_t delay) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Fades an indexed RGB24 image in or out over multiple steps.
 
     // 1. WORKSPACE PREPARATION
@@ -1852,6 +1882,7 @@ void Lcd::fadeRGB24Image(const RGB24RawColor* indexPtr, const uint8_t* pixelPtr,
 }
 
 void Lcd::drawInitSdAlert(SdResult sdResult) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Draws the startup SD-card alert panel for the given status.
 
     // 1. ICON COLOR PREPARATION
@@ -1963,6 +1994,7 @@ void Lcd::drawInitSdAlert(SdResult sdResult) {
 }
 
 void Lcd::drawInitSdReadAlert() {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Draws the startup SD-card reading status message.
 
     // 1. READ STATUS RENDER
@@ -1976,6 +2008,7 @@ void Lcd::drawInitSdReadAlert() {
 }
 
 void Lcd::clearInitSdAlert() {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Clears the startup SD-card alert region.
 
     // 1. ALERT AREA CLEAR

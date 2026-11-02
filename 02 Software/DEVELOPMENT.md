@@ -114,7 +114,9 @@ conversion used by the sample loader and the preview), tested by `test_sample_fo
 `Global/EuclidPattern.h` (Euclidean rhythms for the Layer Song EUCLID page), tested by
 `test_euclid.cpp`, `Global/SongChain.h` (song mode chain), tested by `test_song_chain.cpp`, and
 `Global/ToneScale.h` (TONE layers: scales, pitch, note names, glide, TRANSPOSE, the melody
-generator and the pad keyboard), tested by `test_tone_scale.cpp`. CI compiles and runs every
+generator and the pad keyboard), tested by `test_tone_scale.cpp`, and `Global/SynthVoice.h`
+(the SYNTH voice that runs in the audio ISR: oscillators, filter, envelopes, gate, glide), tested
+by `test_synth_voice.cpp`. CI compiles and runs every
 `02 Software/Tests/test_*.cpp` with `-Wall -Wextra -Werror`.
 
 ```sh
@@ -156,7 +158,7 @@ keep the Controller method as thin glue (snapshot → pure function → write ba
    (projects), `System/Drumkit/` and `System/Preset/` hold the user's own data.
 2. **Verify the package** you are about to install:
    ```sh
-   python3 "02 Software/Firmware/make_fw_package.py" --verify build/firmware/Drumboy_Pro_Fw_Moffe_01_10.bin
+   python3 "02 Software/Firmware/make_fw_package.py" --verify build/firmware/Drumboy_Pro_Fw_Moffe_02_00.bin
    ```
 3. **Copy only the package** to the **root** of the card. Do not touch anything else.
    Make sure there is only one `Drumboy_Pro_Fw*.bin` in the root.

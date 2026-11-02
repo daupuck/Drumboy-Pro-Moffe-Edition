@@ -18,7 +18,9 @@ struct BeatSnapshot {
     uint8_t fillPattern;
     uint8_t fillTime;
     uint8_t fillLevel;
-    int8_t note;  // TONE layers (last, so brace-initialised snapshots default to the root)
+    int8_t note;  // TONE layers (last two, so brace-initialised snapshots default to the root...)
+    bool slide;   // ...without SLIDE)
+    uint16_t hold;  // recorded PAD HOLD length in intervals (0 = GATE)
 };
 
 namespace layersong {

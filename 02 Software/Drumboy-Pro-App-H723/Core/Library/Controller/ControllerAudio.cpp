@@ -175,6 +175,9 @@ void Controller::stop() {
         lcd_drawSongBankTab(activeSongBank, false);
     }
 
+    // Recorded held notes: no countdown survives into the next start.
+    for (uint8_t i = 0; i < kLayerLibrarySize; i++) toneHoldLeft[i] = 0;
+
     // 4. TRANSPORT FLAG RESET
     // Put transport into fully stopped state.
     stopFlag = false;
@@ -573,6 +576,35 @@ void Controller::processAudioLayer() {
         // Reset the audio buffer for the current layer
         memset(audioLayer[i], 0, I2S_BLOCK_SIZE * sizeof(float));
 
+        // --- SYNTH layer: the voice replaces the sample path (SynthVoice.h) ---
+        if (layerLibrary[i].toneMode == tone::kModeSynth) {
+            synth::Voice& voice = synthVoice[i];
+            if (synthPendingFlag[i]) {
+                synthPendingFlag[i] = false;
+                synth::start(voice, synthPending[i]);
+                io.midi.txTriggerNoteOn[i] = true;
+            }
+            if (synthReleasePending[i]) {
+                // PAD HOLD: the pad was released, so the held note goes into its RELEASE now.
+                synthReleasePending[i] = false;
+                if (voice.active && (voice.gateLeft > 1)) voice.gateLeft = 1;
+            }
+            aBD.mixerInMode = layerLibrary[i].mixerInMode;  // routing (EQ / filter / effect / reverb) as for samples
+            // The layer's own LFO (LFO page), locked to the tempo; it keeps running between notes.
+            const float lfoIncrement = synth_lfoIncrement(i);
+            if (voice.active) {
+                const uint8_t events = synth::render(voice, layerLibrary[i].synth, audioLayer[i], I2S_BLOCK_SIZE, kAudioSampleRate, lfoIncrement);
+                if (events & synth::kGateEnded) io.midi.txTriggerNoteOff[i] = true;
+                if (events & synth::kVoiceEnded) {
+                    lD.beatStartFlag = false;
+                    lD.beatEndFlag = true;
+                }
+            } else {
+                synth::advanceLfo(voice, lfoIncrement, I2S_BLOCK_SIZE);
+            }
+            continue;
+        }
+
         // --- Handle Sample Retriggering ---
         if (aBD.newBeatFlag) {
             if (aBD.counterFade >= 49 || !aBD.active) {
@@ -594,6 +626,16 @@ void Controller::processAudioLayer() {
 
         // Skip processing if the layer is inactive
         if (!aBD.active) continue;
+
+        // PAD HOLD on a TONE layer: the pad was released, so the sample fades out (~1 ms, the
+        // same fade a retrigger uses) instead of playing to its end.
+        if (toneReleasePending[i]) {
+            toneReleasePending[i] = false;
+            if (!aBD.newBeatFlag) {
+                aBD.fadeAction = true;
+                aBD.fadeFlag = true;
+            }
+        }
 
         float* targetBuffer = audioLayer[i];
 
@@ -654,7 +696,10 @@ void Controller::processAudioLayer() {
 
             // Update sample counter and check for playback end
             aBD.counter += (float)copySize;
-            if (copySize < I2S_BLOCK_SIZE) {
+            // Faded out completely (PAD HOLD release) and nothing new waiting: end the note now,
+            // as the slow path does, instead of playing silence to the end of the sample.
+            const bool fadedOut = aBD.fadeAction && (aBD.counterFade >= 49) && !aBD.newBeatFlag;
+            if ((copySize < I2S_BLOCK_SIZE) || fadedOut) {
                 lD.beatStartFlag = false;
                 lD.beatEndFlag = true;
                 aBD.active = false;
@@ -1164,6 +1209,22 @@ void Controller::processAudioSend(uint32_t* outputBuffer) {
         return;
     }
 
+    // VISUALS mode: per-layer levels for the meters (only while the visuals are on).
+    const bool visCapture = visualActive;
+    if (visCapture) {
+        for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+            float m = 0.0f;
+            for (uint16_t j = 0; j < I2S_BLOCK_SIZE; j++) {
+                const float a = fabsf(audioLayer[l][j]);
+                if (a > m) m = a;
+            }
+            if (m > visTap.layerPeak[l]) visTap.layerPeak[l] = m;
+        }
+    }
+    uint32_t visPos = visTap.pos;
+    float visPeakL = 0.0f;
+    float visPeakR = 0.0f;
+
     // 3. FINAL OUTPUT FORMATTING
     // Apply gain/LPF/peak/clipping and write interleaved I2S samples.
     for (uint16_t i = 0; i < I2S_BLOCK_SIZE; i++) {
@@ -1184,6 +1245,16 @@ void Controller::processAudioSend(uint32_t* outputBuffer) {
         if (absAudioMax_L > audioPeak_L) audioPeak_L = absAudioMax_L;
         if (absAudioMax_R > audioPeak_R) audioPeak_R = absAudioMax_R;
 
+        // VISUALS mode: the output for the scope / spectrum (one branch per sample otherwise).
+        if (visCapture) {
+            const uint32_t w = visPos & (vis::kScopeSize - 1);
+            visTap.scopeL[w] = outL;
+            visTap.scopeR[w] = outR;
+            visPos++;
+            if (absAudioMax_L > visPeakL) visPeakL = absAudioMax_L;
+            if (absAudioMax_R > visPeakR) visPeakR = absAudioMax_R;
+        }
+
         // Apply soft knee clipping to prevent digital distortion
         outL = softKneeClip(outL);
         outR = softKneeClip(outR);
@@ -1195,6 +1266,12 @@ void Controller::processAudioSend(uint32_t* outputBuffer) {
         // Write final samples to the interleaved I2S output buffer
         outputBuffer[i * 2] = static_cast<uint32_t>(sampleL);
         outputBuffer[i * 2 + 1] = static_cast<uint32_t>(sampleR);
+    }
+
+    if (visCapture) {
+        visTap.pos = visPos;
+        if (visPeakL > visTap.peakL) visTap.peakL = visPeakL;
+        if (visPeakR > visTap.peakR) visTap.peakR = visPeakR;
     }
 }
 
