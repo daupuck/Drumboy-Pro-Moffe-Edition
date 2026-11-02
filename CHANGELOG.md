@@ -29,6 +29,19 @@ menu. Pads, transport, MUTE/FILL/STYLE and the home-screen knobs keep working.
 - Also in this version: recording with PAD HOLD keeps the held note lengths (see v1.13 below;
   it was added after the v1.13 test build).
 
+**SYNTH presets: 66, alphabetical.** 34 new factory sounds (ALIEN SPA, BEE SWARM, BIG FUZZ,
+COWBELL!, DEEP SPACE, DISCO DUCK, FAIRY DUST, HYPERDRIVE, KAZOO KING, NINJA STAR, TOY PIANO,
+UFO LANDED, VIKING, ZOMBIE, …); the PRESET knob lists them A–Z, then USER 01..16. EMPTY MIND is
+still the default sound (found by `synth::defaultPresetIndex()`, no longer index 0). Presets
+are not stored by index anywhere, so old projects are unaffected.
+
+**Track list shows the synth sound.** A SYNTH layer's row on the main screen shows its sound
+like a sample name: the preset name (`USER nn` for a saved sound), `NAME*` once edited, `SYNTH`
+for a sound of its own. Found by comparing the sound with the presets (`synth::sameSound`,
+PAD HOLD ignored), so it also works after loading a project or drumkit; the PRESET knob and the
+SOUND page start from that preset too. Updated on preset/random/undo/knob changes, MODE
+changes, paste, project and drumkit loading.
+
 ## v1.13
 
 **SYNTH: presets, random sounds, AMP envelope, filter types, its own LFO page, synth sounds in

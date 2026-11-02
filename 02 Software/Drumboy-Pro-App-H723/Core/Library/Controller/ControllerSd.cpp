@@ -1858,6 +1858,10 @@ void Controller::sd_loadNotes(uint8_t fileNum_) {
         }
     }
     f_close(&sd.file);
+    for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+        synthPresetIndex[l] = -1;       // a loaded sound is named by what it is
+        lcd_drawLayerTab_InstData(l);   // SYNTH layers show their sound's name
+    }
 }
 
 SdResult Controller::sd_checkDrumkit(uint8_t kitNum_) {
@@ -2306,7 +2310,9 @@ void Controller::sd_loadDrumkitSynth(const char* drumkitName_) {
         const uint8_t* d = &tail[i * perLayer];
         if (layerLibrary[i].toneMode == tone::kModeSynth) synth_silence(i);  // the sound changes under it
         layerLibrary[i].synth = synth::unpack(d + 1, used);
+        synthPresetIndex[i] = -1;  // the name comes from the sound itself now
         tone_setMode(i, (d[0] < tone::kModeCount) ? d[0] : tone::kModeDrum);
+        lcd_drawLayerTab_InstData(i);
     }
 }
 

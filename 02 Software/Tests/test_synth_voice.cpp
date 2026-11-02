@@ -764,11 +764,21 @@ static void testFilterTypes() {
 
 static void testPresetsAndRandom() {
     // Every factory sound: a name that fits the display, sane values, audible and bounded.
-    CHECK(kFactoryPresetCount >= 30, "at least 30 factory sounds: %d", kFactoryPresetCount);
-    CHECK(isDefault(kFactoryPresets[0].params), "the first preset is the default sound");
+    CHECK(kFactoryPresetCount >= 60, "at least 60 factory sounds: %d", kFactoryPresetCount);
+    const int16_t def = defaultPresetIndex();
+    CHECK(isDefault(kFactoryPresets[def].params), "the default sound is a preset");
+    CHECK(std::strcmp(kFactoryPresets[def].name, "EMPTY MIND") == 0, "the default sound is EMPTY MIND: %s", kFactoryPresets[def].name);
+    Params defaultHeld;
+    defaultHeld.padHold = 1;
+    CHECK(findFactoryPreset(defaultHeld) == def, "PAD HOLD does not hide which preset a sound is");
+    Params edited;
+    edited.cutoff = static_cast<uint8_t>(edited.cutoff + 1);
+    CHECK(findFactoryPreset(edited) == -1 || std::strcmp(kFactoryPresets[findFactoryPreset(edited)].name, "EMPTY MIND") != 0, "an edited sound is not EMPTY MIND");
     for (uint8_t i = 0; i < kFactoryPresetCount; i++) {
         const Preset& pr = kFactoryPresets[i];
         CHECK(std::strlen(pr.name) >= 3 && std::strlen(pr.name) <= 10, "preset %d name length: %s", i, pr.name);
+        if (i > 0) CHECK(std::strcmp(kFactoryPresets[i - 1].name, pr.name) < 0, "alphabetical: %s before %s", kFactoryPresets[i - 1].name, pr.name);
+        CHECK(findFactoryPreset(pr.params) == i, "preset %s is a sound of its own", pr.name);
         for (uint8_t j = 0; j < i; j++) CHECK(std::strcmp(pr.name, kFactoryPresets[j].name) != 0, "preset %d name unique", i);
         uint8_t a[kPackedSize], b[kPackedSize];
         pack(pr.params, a);

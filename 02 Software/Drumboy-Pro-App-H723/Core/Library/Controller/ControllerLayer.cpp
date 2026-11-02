@@ -2023,7 +2023,9 @@ void Controller::layerInst_paste() {
         const bool wasSynth = synthLayerSelected();
         if (wasSynth) synth_silence(layerNum);
         layerLibrary[layerNum].synth = synth::sanitize(layerInstCopy.synth);
+        synthPresetIndex[layerNum] = -1;  // named by the pasted sound itself
         tone_setMode(layerNum, layerInstCopy.toneMode);
+        lcd_drawLayerTab_InstData(layerNum);
 
         // 4. REDRAW: a change between sample and SYNTH layer swaps the whole page and its knobs.
         const bool inLayerInst = (menu == LAYER_INST_0_MENU) || (menu == LAYER_INST_1_MENU) || (menu == LAYER_INST_2_MENU);
@@ -2468,6 +2470,8 @@ void Controller::synth_change(EncoderFunc function_, bool up_) {
     if (function_ == ENC_SYNTH_PRESET) {
         const int16_t total = synth::kFactoryPresetCount + synth::kUserPresetCount;
         int16_t index = synthPresetIndex[selectedLayerNum];
+        // Not loaded with the knob (new layer, loaded project): start from the preset the sound is.
+        if (index < 0) index = synth_matchPreset(static_cast<uint8_t>(selectedLayerNum));
         // Step to the next preset that exists (empty USER slots are skipped).
         for (int16_t tries = 0; tries < total; tries++) {
             index = static_cast<int16_t>(up_ ? index + 1 : index - 1);
@@ -2520,6 +2524,7 @@ void Controller::synth_change(EncoderFunc function_, bool up_) {
         const uint8_t slot = synthSlotOf(function_);
         if ((slot != 0xFF) && synthInstPageActive()) lcd_drawSynthData(slot);
         if ((function_ != ENC_SYNTH_LFO_RETRIG) && (function_ != ENC_SYNTH_PAD_HOLD)) lcd_drawSynthGraph();
+        if (function_ != ENC_SYNTH_PAD_HOLD) lcd_drawLayerTab_InstData(static_cast<uint8_t>(selectedLayerNum));  // "*" = edited
         if ((function_ == ENC_SYNTH_WAVE) || (function_ == ENC_SYNTH_FILTER_TYPE)) note_audition();
         return;
     }
@@ -2552,6 +2557,7 @@ void Controller::synth_change(EncoderFunc function_, bool up_) {
     }
     const uint8_t slot = synthSlotOf(function_);
     if (slot != 0xFF) lcd_drawSynthData(slot);
+    lcd_drawLayerTab_InstData(static_cast<uint8_t>(selectedLayerNum));  // track list: "*" once edited
     // Graphs that show this value; redrawn every few steps so fast turning stays smooth.
     const bool graphValue = (function_ == ENC_SYNTH_DECAY) || (function_ == ENC_SYNTH_GATE) || (function_ == ENC_SYNTH_ENVAMT) ||
                             (function_ == ENC_SYNTH_ATTACK) || (function_ == ENC_SYNTH_AMP_DECAY) || (function_ == ENC_SYNTH_SUSTAIN) ||
@@ -2582,10 +2588,43 @@ void Controller::synth_undo() {
 
 void Controller::synth_soundChanged() {
     /// @brief After the whole sound changed (preset, random, undo): redraw the visible synth page
-    /// and play a note so you hear it.
+    /// and the layer's name in the track list, and play a note so you hear it.
 
     if (synthInstPageActive()) lcd_drawSynthPage(static_cast<uint8_t>(selectedLayerNum));
+    if (selectedLayerNum != -1) lcd_drawLayerTab_InstData(static_cast<uint8_t>(selectedLayerNum));
     note_audition();
+}
+
+int16_t Controller::synth_matchPreset(uint8_t layerNum_) const {
+    /// @brief The preset (factory index, or kFactoryPresetCount + USER slot) whose sound the layer
+    /// has exactly (PAD HOLD aside), or -1. Works after loading a project too, where the PRESET
+    /// knob position is not stored.
+
+    const synth::Params& p = layerLibrary[layerNum_].synth;
+    const int16_t factory = synth::findFactoryPreset(p);
+    if (factory >= 0) return factory;
+    for (uint8_t u = 0; u < synth::kUserPresetCount; u++) {
+        if (synthUserUsed[u] && synth::sameSound(p, synthUserPresets[u])) return static_cast<int16_t>(synth::kFactoryPresetCount + u);
+    }
+    return -1;
+}
+
+void Controller::synth_soundName(uint8_t layerNum_, char* name_, size_t size_) const {
+    /// @brief Name of a SYNTH layer's sound for the track list: the preset name ("USER 03" for a
+    /// user slot); with a "*" when it was edited after loading that preset; "SYNTH" for a sound
+    /// of its own (random, or edited and then reloaded).
+
+    const int16_t match = synth_matchPreset(layerNum_);
+    const int16_t loaded = synthPresetIndex[layerNum_];
+    const int16_t index = (match >= 0) ? match : loaded;
+    const char* star = (match >= 0) ? "" : "*";
+    if ((index >= 0) && (index < synth::kFactoryPresetCount)) {
+        snprintf(name_, size_, "%s%s", synth::kFactoryPresets[index].name, star);
+    } else if ((index >= synth::kFactoryPresetCount) && (index < synth::kFactoryPresetCount + synth::kUserPresetCount)) {
+        snprintf(name_, size_, "USER %02d%s", index - synth::kFactoryPresetCount + 1, star);
+    } else {
+        snprintf(name_, size_, "SYNTH");
+    }
 }
 
 void Controller::synth_loadPreset(int16_t index_) {
@@ -2621,6 +2660,7 @@ void Controller::synth_saveUser() {
         snprintf(synthStatus, sizeof(synthStatus), "SAVE ERROR");
     }
     if (synthInstPageActive()) lcd_drawSynthPage(static_cast<uint8_t>(selectedLayerNum));
+    lcd_drawLayerTab_InstData(static_cast<uint8_t>(selectedLayerNum));  // now "USER nn"
 }
 
 void Controller::synth_randomize(bool fresh_) {
@@ -2916,6 +2956,7 @@ void Controller::tone_setMode(uint8_t layerNum_, uint8_t mode_) {
     }
     layer.toneMode = mode_;
     layerPlayData[layerNum_].toneLastIncrement = 0.0f;
+    lcd_drawLayerTab_InstData(layerNum_);  // track list: sample name <-> synth sound name
 }
 
 void Controller::tone_resetAll() {

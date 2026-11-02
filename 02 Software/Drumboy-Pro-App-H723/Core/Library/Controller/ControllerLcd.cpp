@@ -1654,7 +1654,16 @@ void Controller::lcd_drawLayerTab_InstData(uint8_t layerNum_) {
     Layer& layer = layerLibrary[layerNum_];
 
     // 3. VALUE DRAW
-    // Draw loaded instrument short label.
+    // Draw loaded instrument short label. A SYNTH layer plays no sample: it shows its sound's
+    // preset name instead (v1.14), padded so a longer old name is fully overwritten.
+    if (layer.toneMode == tone::kModeSynth) {
+        char name[16];
+        synth_soundName(layerNum_, name, sizeof(name));
+        char field[13];
+        snprintf(field, sizeof(field), "%-12.12s", name);
+        lcd.drawText(field, 12, kLayerTextInstX, kLayerTextY[layerNum_]);
+        return;
+    }
     lcd.drawText(layer.instLoadedData.nameShortL, 12, kLayerTextInstX, kLayerTextY[layerNum_]);
 }
 

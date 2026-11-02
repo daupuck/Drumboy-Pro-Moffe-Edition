@@ -3910,7 +3910,8 @@ void Controller::lcd_drawSynthData(uint8_t slot_) {
     char buffer[12];
     switch (f) {
         case ENC_SYNTH_PRESET: {
-            const int16_t index = synthPresetIndex[selectedLayerNum];
+            int16_t index = synthPresetIndex[selectedLayerNum];
+            if (index < 0) index = synth_matchPreset(static_cast<uint8_t>(selectedLayerNum));  // e.g. after loading
             if (index < 0) {
                 name = "OWN SOUND";
             } else if (index < synth::kFactoryPresetCount) {
@@ -3962,7 +3963,8 @@ void Controller::lcd_drawSynthSoundGraph() {
     /// last message (saved / random / undone), plus what ADD and CLEAR do here.
 
     const synth::Params p = synth::sanitize(layerLibrary[selectedLayerNum].synth);
-    const int16_t index = synthPresetIndex[selectedLayerNum];
+    int16_t index = synthPresetIndex[selectedLayerNum];
+    if (index < 0) index = synth_matchPreset(static_cast<uint8_t>(selectedLayerNum));  // e.g. after loading
     char line[40];
     lcd.setFont(FONT_05x07);
     lcd.setAlignment(LEFT);

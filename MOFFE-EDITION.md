@@ -258,7 +258,8 @@ scale and octave as on the NOTE page, where UP/DOWN sets the octave):
 
 | | What it does |
 |---|---|
-| **PRESET** (SOUND page, knob 1) | 32 factory sounds with names to match their egos: `EMPTY MIND` (the default), `ACID TRIP`, `EARTHQUAKE`, `THICC BASS`, `RUBBERDUCK`, `DARK LORD`, `WUBZILLA`, `SAWSOME`, `SQUARE GUY`, `BANSHEE`, `TUMBLEWEED`, `PIXEL HERO`, `ZEN PLUCK`, `DING DONG`, `COCONUTS`, `LOUNGE LIZ`, `CHURCH BOI`, `WARM HUG`, `EPIC MOVIE`, `MORDOR`, `STARGATE`, `BRASS GOD`, `ROBO CHOIR`, `BOOMSTICK` (kick), `SNARE WARS`, `TSS TSS` (hi-hat), `PEW PEW`, `R2 DEEDOO`, `SEASICK`, `STORMBORN`, `COIN GET`, `DRAGONROAR` – then your own USER sounds. Turning plays a note so you hear each one. |
+| **PRESET** (SOUND page, knob 1) | 66 factory sounds in **alphabetical order**, with names to match their egos: `ACID TRIP`, `ALIEN SPA`, `BAD PENNY`, `BANSHEE`, `BEE SWARM`, `BIG FUZZ`, `BLIP BLOOP`, `BOOMSTICK` (kick), `BRASS GOD`, `BUBBLEGUM`, `CAT WALK`, `CHURCH BOI`, `CLOUD NINE`, `COCONUTS`, `COIN GET`, `COWBELL!`, `DAD STEP`, `DARK LORD`, `DEEP SPACE`, `DING DONG`, `DISCO DUCK`, `DIZZY BOT`, `DRAGONROAR`, `EARTHQUAKE`, `EMPTY MIND` (the default), `EPIC MOVIE`, `FAIRY DUST`, `FOGHORN`, `GHOST TOWN`, `GLASS HARP`, `GOLD RUSH`, `HONKY BONK`, `HYPERDRIVE`, `JELLYFISH`, `KAZOO KING`, `LASER CAT`, `LOUNGE LIZ`, `MOON BASS`, `MORDOR`, `NINJA STAR`, `NOODLE ARM`, `OCTOPUS`, `PANIC BOT`, `PEW PEW`, `PIXEL HERO`, `R2 DEEDOO`, `ROBO CHOIR`, `RUBBERDUCK`, `SAWSOME`, `SEASICK`, `SNARE WARS`, `SPACE TAXI`, `SQUARE GUY`, `STARGATE`, `STORMBORN`, `SUNNY DAY`, `THICC BASS`, `TOY PIANO`, `TSS TSS` (hi-hat), `TUMBLEWEED`, `UFO LANDED`, `VIKING`, `WARM HUG`, `WUBZILLA`, `ZEN PLUCK`, `ZOMBIE` – then your own sounds, `USER 01`…`USER 16`. Turning plays a note so you hear each one. (66 and alphabetical since v1.14; 32 before.) |
+| **Track list name** | A SYNTH layer shows its sound in the layer list on the main screen, like a sample name: the preset name, `USER 03` for a saved sound, a `*` after the name once you have changed it, or `SYNTH` for a sound of its own (e.g. a random one). Also after loading a project or drumkit. (v1.14) |
 | **ADD** on the SOUND page | Saves the current sound into the USER slot shown by **SAVE TO** (knob 2; `*` = slot already used, it is overwritten). Kept on the SD card (`System/Preset/SynthUser.rws`) for all projects. |
 | **ADD hold** on OSC / FILTER / AMP / LFO | A **random sound** when you let go: a bass, lead, pluck, pad or effect, always in useful ranges. |
 | **ADD tap** on those pages | A **variation**: three settings move a little, now and then the waveform changes. Tap again and again. |
@@ -403,7 +404,7 @@ A line at the top shows the style, the theme and the keys for a few seconds afte
 | v1.11 | SYNTH layers: a built-in synth voice with filter, envelope, gate and accent |
 | v1.12 | SYNTH: DETUNE, SUB, NOISE, WAVE = SAMPLE (single-cycle WAVs); SLIDE per beat; stronger DRIVE |
 | v1.13 | SYNTH: 32 presets + 16 USER slots, random sounds and variations, AMP envelope (ADSR), filter types, own LFO page; pads play the synth on its pages; synth sounds in drumkits and the instrument copy. NOTE page: pads only play while stopped (ADD + pad = step entry), wider octave range |
-| v1.14 | VISUALS: seven full-screen music visuals (HOME on the home screen) with six colour themes; recording with PAD HOLD keeps the held note lengths |
+| v1.14 | VISUALS: seven full-screen music visuals (HOME on the home screen) with six colour themes; SYNTH: 66 presets in alphabetical order, the synth sound's name in the track list; recording with PAD HOLD keeps the held note lengths |
 
 ## Coming next
 

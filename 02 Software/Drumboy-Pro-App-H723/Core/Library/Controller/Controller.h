@@ -1171,6 +1171,8 @@ class Controller {
     void note_padReleased(uint8_t pad_);
     void note_releaseHeld();
     void note_finishHoldRec();
+    int16_t synth_matchPreset(uint8_t layerNum_) const;
+    void synth_soundName(uint8_t layerNum_, char* name_, size_t size_) const;
     uint16_t layerSong_quantizeStart(uint16_t interval_) const;
 
     // VISUALS mode (v1.14): full-screen music visuals. HOME (CENTER) on the home screen turns it
