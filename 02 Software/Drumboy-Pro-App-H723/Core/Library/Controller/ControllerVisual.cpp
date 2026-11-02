@@ -33,10 +33,10 @@ constexpr uint32_t kHintMs = 3500;
 constexpr uint8_t kSceneCount = 13;
 const char* const kSceneNames[kSceneCount] = {"SHOWTIME", "ORBIT", "PHASE", "SPECTRUM", "SPECTRO", "TUNNEL", "METERS",
                                               "RAIN", "FIREWORKS", "MANDALA", "DISCO", "RIDGES", "LIFE"};
-constexpr uint8_t kThemeCount = 6;
-const char* const kThemeNames[kThemeCount] = {"SYNTHWAVE", "ACID", "OCEAN", "FIRE", "ICE", "RAINBOW"};
-const uint8_t kThemeBase[kThemeCount] = {213, 60, 110, 0, 140, 0};
-const uint8_t kThemeSpread[kThemeCount] = {100, 50, 70, 45, 50, 255};
+constexpr uint8_t kThemeCount = 7;
+const char* const kThemeNames[kThemeCount] = {"BUMBLEBEE", "SYNTHWAVE", "ACID", "OCEAN", "FIRE", "ICE", "RAINBOW"};
+const uint8_t kThemeBase[kThemeCount] = {30, 213, 60, 110, 0, 140, 0};
+const uint8_t kThemeSpread[kThemeCount] = {22, 100, 50, 70, 45, 50, 255};
 
 constexpr uint16_t kScopeCols = 432;    // 2 px each, x 48..911
 constexpr uint16_t kPhasePoints = 360;
@@ -860,7 +860,7 @@ void Controller::visual_sceneSpectro(bool init_) {
     const int x = kX0 + (s.col * 3);
     for (uint8_t b = 0; b < 64; b++) {
         const uint8_t v = to8(s.band64[b]);
-        const uint16_t c = (t == 0) ? vis::heat(v) : themeColor(t, v, v);
+        const uint16_t c = (t == 1) ? vis::heat(v) : themeColor(t, v, v);  // SYNTHWAVE: the classic heat map
         box(d, x, kBottom - ((b + 1) * kCell), 3, kCell, c);
     }
     box(d, x, kBottom + 4, 3, 8, BLACK);

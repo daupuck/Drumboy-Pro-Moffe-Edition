@@ -2837,7 +2837,7 @@ void Controller::sd_debug(const char* msg, FRESULT res) {
 
     // 1. UI STYLING
     // Configure high-contrast text style for readability.
-    lcd.setForeColor(MAGENTA);
+    lcd.setForeColor(kAccent2Color);
     lcd.setBackColor(BLACK);
     lcd.setAlignment(LEFT);
     lcd.setFont(FONT_07x09);

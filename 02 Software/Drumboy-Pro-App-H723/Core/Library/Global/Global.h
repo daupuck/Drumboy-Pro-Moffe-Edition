@@ -631,12 +631,18 @@ const RGB16Color GRAY_85                            = 0xDEDB;
 const RGB16Color GRAY_90                            = 0xE73C;
 const RGB16Color GRAY_95                            = 0xF79E;
 
+// Moffe Edition palette (v1.14 "Bumblebee"): one yellow accent where the factory UI used cyan,
+// white where it used magenta, and black-on-yellow chips for the footer labels.
+const RGB16Color kMoffeYellow                       = 0xFEA0;  // #FFD400
+const RGB16Color kAccentColor                       = kMoffeYellow;
+const RGB16Color kAccent2Color                      = WHITE;
+
 /*----------------------------------------------------------------------------*/
 
 const RGB16Color kLayerColorPalette[]               = {WHITE, GRAY_75, WHITE, GRAY_75, WHITE, GRAY_75, WHITE, GRAY_75, WHITE, GRAY_75};
 
-const RGB16Color kBeatSelectedColor                 = MAGENTA;
-const RGB16Color kLayerSelectedColor                = CYAN;
+const RGB16Color kBeatSelectedColor                 = kAccentColor;
+const RGB16Color kLayerSelectedColor                = kAccentColor;
 
 const RGB16Color kMenuHLineColor                    = GRAY_50;
 const RGB16Color kMenuVLineColor                    = GRAY_50;
@@ -680,7 +686,7 @@ const uint16_t kPlayX                               = 305;
 const uint16_t kPlayY                               = 115;
 
 const RGB16Color kPlayColor0                        = BLACK;
-const RGB16Color kPlayColor1                        = CYAN;
+const RGB16Color kPlayColor1                        = kAccentColor;
 
 const uint16_t kImageLogoWidth                      = 170;
 const uint16_t kImageLogoHeight                     = 170;
@@ -723,13 +729,19 @@ const uint16_t kSdDataY                             = 460;  // was 440; below th
    eyes centred at (52,108) and (119,108)). */
 const char kEditionName[]                           = "MOFFE";
 const char kEditionLabel[]                          = "EDITION";
-const RGB16Color kEditionAccentColor                = MAGENTA;
+const RGB16Color kEditionAccentColor                = kAccentColor;
 const uint8_t kEditionNameScale                     = 3;      // FONT_14x18 x 3 = 42 x 54 px glyphs
 const uint8_t kEditionNameSpacing                   = 2;      // font units, scaled with the text
 const uint8_t kEditionLabelSpacing                  = 10;
 const uint16_t kEditionCenterX                      = 480;
 const uint16_t kEditionNameY                        = kImageLogoY + 190;
 const uint16_t kEditionLabelY                       = kImageLogoY + 256;
+// v1.14 "Bumblebee" boot screen: the name in black on a yellow block, hazard stripes above and below.
+const uint16_t kEditionBlockPad                     = 8;
+const uint16_t kEditionStripeTopY                   = 40;
+const uint16_t kEditionStripeBottomY                = 486;
+const uint16_t kEditionStripeHeight                 = 18;
+const uint16_t kEditionStripeWidth                  = 16;
 const uint16_t kEditionShadesTop                    = 96;     // logo rows covered by the shades: 96..120
 const uint16_t kEditionShadesBottom                 = 120;
 const int16_t kEditionShadesDrop[]                  = {-90, -64, -44, -28, -16, -8, -3, 0};  // eased slide-in (logo rows)
@@ -780,10 +792,10 @@ const uint16_t kLayerTextInstX                      = 66;
 
 /*----------------------------------------------------------------------------*/
 
-const RGB16Color kEncoderGlobalActiveColor          = CYAN;
+const RGB16Color kEncoderGlobalActiveColor          = kAccentColor;
 const RGB16Color kEncoderGlobalInactiveColor        = GRAY_50;
 
-const RGB16Color kEncoderLocalActiveColor           = CYAN;
+const RGB16Color kEncoderLocalActiveColor           = kAccentColor;
 const RGB16Color kEncoderLocalInactiveColor         = GRAY_50;
 
 /*----------------------------------------------------------------------------*/
@@ -873,8 +885,8 @@ const uint8_t kMenuSignTextSize                     = 3;
 const uint8_t kTextBoxWidth                         = 29;
 const uint8_t kTextBoxHeight                        = 14;
 
-const RGB16Color kGlobalMenuHeaderColor             = CYAN;
-const RGB16Color kLocalMenuHeaderColor              = CYAN;
+const RGB16Color kGlobalMenuHeaderColor             = kAccentColor;
+const RGB16Color kLocalMenuHeaderColor              = kAccentColor;
 
 const RGB16Color kGlobalMenuDataColor               = WHITE;
 const RGB16Color kLocalMenuDataColor                = WHITE;

@@ -1183,7 +1183,7 @@ void Controller::layerInst_setSampleLoaded(uint8_t layerNum_) {
 
             // UI Feedback: Show Magenta Loading indicator
             if (((menu == LAYER_INST_0_MENU) || (menu == LAYER_INST_1_MENU) || (menu == LAYER_INST_2_MENU)) && (layerNum_ == selectedLayerNum)) {
-                lcd_setMenuNumState(MAGENTA);
+                lcd_setMenuNumState(kAccent2Color);
                 lcd.drawText("    LOADING", 11, kMenuSignBoxX[1], kMenuSignBoxY[1]);
             }
 
@@ -4387,7 +4387,7 @@ void Controller::preview_showIndicator(bool show_) {
                          (previewLayer == selectedLayerNum);
     if (show_) {
         if (visible) {
-            lcd_setMenuNumState(CYAN);
+            lcd_setMenuNumState(kAccentColor);
             lcd.drawText("    PREVIEW", 11, kMenuSignBoxX[1], kMenuSignBoxY[1]);
             previewIndicator = true;
         }
