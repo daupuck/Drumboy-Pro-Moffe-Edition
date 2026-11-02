@@ -277,6 +277,40 @@ static void testDetuneSubNoise() {
     CHECK(std::fabs(sum / 100000.0) < 0.02, "noise mean %f", sum / 100000.0);
 }
 
+static void testDetuneIsAudible() {
+    // Regression (v1.12 hardware test: "DETUNE does not seem to work"): at DETUNE 100 a 110 Hz bass
+    // must beat at least ~4.5 Hz, so it is heard within one short note, and the note stays in tune.
+    const float spread = kMaxDetuneCents * 0.0005778f;
+    const float dt = 110.0f / kFs;
+    const float dt1 = dt * (1.0f - spread), dt2 = dt * (1.0f + spread);
+    const float beatHz = (dt2 - dt1) * kFs;
+    CHECK(beatHz >= 4.5f, "beating at 110 Hz: %.2f Hz", beatHz);
+    const float centreCents = 1200.0f * std::log2(std::sqrt(dt1 * dt2) / dt);
+    CHECK(std::fabs(centreCents) < 0.5f, "detuned pair stays in tune (%.3f cents)", centreCents);
+
+    // The second oscillator starts at a different, random phase on every new note.
+    Voice v;
+    float phases[8];
+    for (int i = 0; i < 8; i++) {
+        start(v, note(110.0f, 44100));
+        phases[i] = v.phase2;
+        CHECK(phases[i] >= 0.0f && phases[i] < 1.0f, "phase in [0,1)");
+    }
+    int distinct = 0;
+    for (int i = 1; i < 8; i++) distinct += (std::fabs(phases[i] - phases[i - 1]) > 0.01f) ? 1 : 0;
+    CHECK(distinct >= 6, "random start phases (%d of 7 differ)", distinct);
+
+    // ...but a SLIDE (legato) keeps it running continuously.
+    Params p;
+    float block[kBlock];
+    for (int i = 0; i < 10; i++) render(v, p, block, kBlock, kFs);
+    const float before = v.phase2;
+    NoteOn s = note(165.0f, 44100);
+    s.legato = true;
+    start(v, s);
+    CHECK(v.phase2 == before, "legato keeps the second oscillator's phase");
+}
+
 static void testSampleTable() {
     // A 600-sample sine cycle (like a single-cycle WAV) reproduces a sine at the note's pitch.
     std::vector<float> table(600);
@@ -340,6 +374,7 @@ static void testLegato() {
 }
 
 int main() {
+    testDetuneIsAudible();
     testDetuneSubNoise();
     testSampleTable();
     testLegato();

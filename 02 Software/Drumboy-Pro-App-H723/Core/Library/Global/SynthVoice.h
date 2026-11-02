@@ -36,13 +36,16 @@ struct Params {
     uint8_t decay = 35;
     uint8_t gate = 50;   // % of the time until the next beat
     uint8_t drive = 25;
-    uint8_t detune = 0;  // 0 = one oscillator; 1..100 = a second one, up to 25 cents sharper
+    uint8_t detune = 0;  // 0 = one oscillator; 1..100 = two, spread up to +-40 cents around the note
     uint8_t sub = 0;     // level of a square one octave down
     uint8_t noise = 0;   // level of white noise
 };
 
 constexpr uint8_t kMaxParam = 100;
-constexpr float kMaxDetuneCents = 25.0f;
+// DETUNE 100 = the two oscillators 40 cents below and above the note (80 cents apart): about
+// 5 Hz of beating on a 110 Hz bass. (v1.12's first take was 25 cents in one direction, which was
+// too subtle to hear on short bass notes.)
+constexpr float kMaxDetuneCents = 40.0f;
 
 inline Params sanitize(const Params& p) {
     Params s = p;
@@ -118,6 +121,13 @@ inline void start(Voice& v, const NoteOn& n) {
     v.gateLeft = (n.gateSamples > 0) ? n.gateSamples : 1;
     v.filterEnv = 1.0f;
     v.active = true;
+
+    // DETUNE: the second oscillator starts at a random phase (like a free-running analog
+    // oscillator), so the two never start in unison and the sound is thick from the first cycle.
+    v.noiseState ^= v.noiseState << 13;
+    v.noiseState ^= v.noiseState >> 17;
+    v.noiseState ^= v.noiseState << 5;
+    v.phase2 = static_cast<float>(v.noiseState >> 8) * (1.0f / 16777216.0f);  // [0, 1)
 }
 
 inline void stop(Voice& v) { v = Voice{}; }
@@ -232,10 +242,13 @@ inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t co
     const float releaseCoef = expf(-1.0f / (0.012f * sampleRate));  // 12 ms
     const float dt = v.increment;
 
-    // Oscillator mix: DETUNE adds a second oscillator (both then at 0.6), SUB a square one octave
-    // down, NOISE white noise. Parts that are off cost nothing per sample.
+    // Oscillator mix: DETUNE adds a second oscillator, the two spread symmetrically below and above
+    // the note so it stays in tune (both then at 0.6); SUB a square one octave down, NOISE white
+    // noise. Parts that are off cost nothing per sample.
     const bool detuneOn = (p.detune > 0);
-    const float dt2 = dt * (1.0f + ((static_cast<float>(p.detune) / 100.0f) * kMaxDetuneCents * 0.0005778f));  // 2^(c/1200)
+    const float spread = (static_cast<float>(p.detune) / 100.0f) * kMaxDetuneCents * 0.0005778f;  // ~ln(2)/1200 per cent
+    const float dt1 = detuneOn ? dt * (1.0f - spread) : dt;
+    const float dt2 = dt * (1.0f + spread);
     const float mainLevel = detuneOn ? 0.6f : 1.0f;
     const float subLevel = (static_cast<float>(p.sub) / 100.0f) * 0.8f;
     const float noiseLevel = (static_cast<float>(p.noise) / 100.0f) * 0.6f;
@@ -243,8 +256,8 @@ inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t co
 
     // 2. SAMPLE LOOP
     for (uint16_t i = 0; i < count; i++) {
-        float osc = voiceOscillator(v, p.wave, v.phase, dt) * mainLevel;
-        v.phase += dt;
+        float osc = voiceOscillator(v, p.wave, v.phase, dt1) * mainLevel;
+        v.phase += dt1;
         if (v.phase >= 1.0f) v.phase -= 1.0f;
         if (detuneOn) {
             osc += voiceOscillator(v, p.wave, v.phase2, dt2) * 0.6f;

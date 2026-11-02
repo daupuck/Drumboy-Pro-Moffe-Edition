@@ -247,7 +247,7 @@ a SYNTH layer:
 | Control | What it does |
 |---|---|
 | **WAVE** | Saw (bright, the classic bass), square (hollow), triangle (soft), sine (pure, sub-bass), or **SAMPLE** (v1.12): the layer's loaded sample as one cycle of the waveform – see below. |
-| **DETUNE** | 0 = one oscillator. Higher values add a second one, up to 25 cents sharper: a thicker, chorus-like sound. (v1.12) |
+| **DETUNE** | 0 = one oscillator. Higher values use two, spread up to 40 cents below and above the note (it stays in tune): from a slight thickening to a wide, chorus-like beating. (v1.12) |
 | **LEVEL / PITCH** | As for samples, including their LFOs. PITCH 1.00 = the notes as shown on the NOTE page. |
 | **SUB** | Adds a square wave one octave below: more weight for basses. (v1.12) |
 | **NOISE** | Adds white noise: breath, grit, hi-hat-like textures with a short GATE. (v1.12) |

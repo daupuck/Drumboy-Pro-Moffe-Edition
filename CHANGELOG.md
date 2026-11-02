@@ -8,7 +8,8 @@ SD-card package is named after it). Rolling back = installing an older package.
 **SYNTH: DETUNE, SUB, NOISE, SLIDE and sample waveforms (steps 4b + 4c)**
 
 - **OSC page** (Layer Instrument page 1 of a SYNTH layer) now uses all its knobs: **1 WAVE**,
-  **2 DETUNE** (a second oscillator up to 25 cents sharper: thick, chorus-like), **5 LEVEL**,
+  **2 DETUNE** (two oscillators spread up to ±40 cents around the note, the second one starting
+  at a random phase like a free-running analog oscillator: thick, chorus-like), **5 LEVEL**,
   **6 PITCH**, **7 SUB** (a square one octave down), **8 NOISE**.
 - **WAVE = SAMPLE:** the layer's loaded sample is played as one cycle of the waveform, so any
   single-cycle WAV on the card becomes an oscillator (load it while the layer is in TONE or DRUM
