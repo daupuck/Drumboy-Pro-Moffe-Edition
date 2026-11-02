@@ -25,9 +25,29 @@ compared with the factory firmware: what each feature does and how to use it on 
 > TRANSPOSE, and the CPU meter (v1.09: CPU PEAK about 42 % with all 10 layers playing, two of them
 > TONE, and chorus, delay, reverb and both filters on); the pad keyboard and the melody generator
 > (v1.10); SYNTH layers and erasing on the EUCLID/NOTE pages (v1.11); DETUNE, SUB, NOISE, DRIVE,
-> GLIDE, WAVE = SAMPLE and SLIDE (v1.12). Not yet tested on a device: the synth LFO page and synth
-> sounds in drumkits and the instrument copy (v1.13). Each release says what has been tested on
-> hardware.
+> GLIDE, WAVE = SAMPLE and SLIDE (v1.12). **Not yet tested on a device:** everything new in v1.13
+> and v1.14 (presets, random sounds, AMP and LFO pages, PAD HOLD, VISUALS, the new look). Each
+> release says what has been tested on hardware; please report anything odd in
+> [Issues](../../issues).
+
+## What's new in v1.14 – the big one
+
+The biggest update yet: the Drumboy Pro gets **a real synthesizer, a light show and a new look**.
+
+| | New | What it means for you |
+|---|---|---|
+| 🎛️ | **[SYNTH layers](#7-synth-layers--a-built-in-synth-voice-v111)** | Any layer can be a synth: saw, square, triangle, sine or your own single-cycle WAVs, detune, sub oscillator, noise, a resonant filter (4 types) with envelope, DRIVE, slides and glide. Acid basslines, pads and leads without a single sample. |
+| 🎁 | **[66 presets](#7-synth-layers--a-built-in-synth-voice-v111)** | From `ACID TRIP` to `ZOMBIE`, alphabetical, plus 16 USER slots for your own sounds. The track list shows each synth layer's sound by name. |
+| 🎲 | **[Random sounds](#7-synth-layers--a-built-in-synth-voice-v111)** | Hold ADD: a brand-new sound that makes musical sense. Tap ADD: a small variation. Tap CLEAR: undo. |
+| 📈 | **[AMP envelope and LFO](#7-synth-layers--a-built-in-synth-voice-v111)** | ATTACK, DECAY, SUSTAIN, RELEASE, and a tempo-synced LFO for wobbles, vibrato and tremolo. |
+| 🎹 | **[PAD HOLD](#7-synth-layers--a-built-in-synth-voice-v111)** | Notes sound as long as you hold the pad, like a keyboard, and recorded notes play back just as long. |
+| 🌈 | **[VISUALS](#8-visuals--full-screen-music-visuals-v114)** | 13 full-screen visuals that dance to your music: fireworks for every hit, a Game of Life seeded by your drums, a spectrum skyline, digital rain, a kaleidoscope and more. Press HOME on the home screen. |
+| 🐝 | **[The Moffe Edition look](#9-the-moffe-edition-look-v114)** | A bold black-and-yellow "bumblebee" style throughout, and a new boot screen with hazard stripes. |
+
+Coming from v1.10 or older? Also new since then: the [NOTE page](#6-melody-layers--note-page-in-layer-song-v109)
+plays pads without touching your track (ADD + pad = step entry) and has a wider keyboard range,
+per-beat **SLIDE**, and synth sounds travel with **drumkits** and the instrument **copy/paste**.
+Every detail per version: [CHANGELOG.md](CHANGELOG.md).
 
 ## Knob numbering
 
@@ -63,7 +83,10 @@ where you want it.
 ## 2. Moffe Edition boot screen (v1.04)
 
 At power-on the logo fades in and **pixel sunglasses** slide down over its eyes. Then **MOFFE**
-appears in large magenta letters, one at a time, and **EDITION** fades in below.
+appears letter by letter, and **EDITION** fades in below. Since v1.14 it wears the
+[Moffe Edition look](#9-the-moffe-edition-look-v114): MOFFE in black on a yellow block between
+two bands of yellow-and-black hazard stripes, with a yellow rim on the sunglasses (before v1.14:
+large magenta letters).
 
 - Drawn by the firmware, so the SD card and the logo file are unchanged and any card works.
 - Boot time is unchanged: the animation runs inside the pause that already followed the logo.
@@ -332,7 +355,7 @@ PLAY/STOP/REC, MUTE/FILL/STYLE + pad and the home-screen knobs all work while it
 |---|---|
 | **HOME** (centre key) on the home screen | VISUALS on. (HOME in any other menu still goes to the home screen, as before.) |
 | **LEFT / RIGHT** | The previous / next style (13). |
-| **UP / DOWN** | The colour theme: SYNTHWAVE, ACID, OCEAN, FIRE, ICE, RAINBOW. |
+| **UP / DOWN** | The colour theme: BUMBLEBEE (the default), SYNTHWAVE, ACID, OCEAN, FIRE, ICE, RAINBOW. |
 | **HOME** | VISUALS off, back to the home screen. |
 | **Any menu key** (right-hand panel) | Leaves VISUALS and opens that menu. |
 
@@ -361,6 +384,23 @@ A line at the top shows the style, the theme and the keys for a few seconds afte
 - **CPU:** the audio engine only copies its output for the visuals (well under 1 %); the drawing
   runs between the other work, about 30 frames per second.
 
+---
+
+## 9. The Moffe Edition look (v1.14)
+
+The whole interface wears **black and bumblebee yellow** (#FFD400) instead of the factory cyan
+and magenta:
+
+- **Yellow** for knob names, the selected layer, the play bar, active values and highlights.
+- **White** where the factory used magenta (indicators such as MUTE and the rhythm locks).
+- **KNOB** and **SONG** at the bottom of the screen are black-on-yellow chips.
+- **Boot screen:** MOFFE in black on a yellow block between two bands of hazard stripes, a yellow
+  rim on the sunglasses and EDITION in white (see [the boot screen](#2-moffe-edition-boot-screen-v104)).
+- **VISUALS** starts in the matching BUMBLEBEE colour theme.
+
+Nothing to install for it: the firmware repaints the parts of the SD card's panel images that
+were coloured, so any card works. The factory test screens keep their original colours. For
+developers: the colours are kAccentColor and kAccent2Color in the app's Global.h.
 ---
 
 ## Improvements and fixes
@@ -410,7 +450,7 @@ A line at the top shows the style, the theme and the keys for a few seconds afte
 | v1.11 | SYNTH layers: a built-in synth voice with filter, envelope, gate and accent |
 | v1.12 | SYNTH: DETUNE, SUB, NOISE, WAVE = SAMPLE (single-cycle WAVs); SLIDE per beat; stronger DRIVE |
 | v1.13 | SYNTH: 32 presets + 16 USER slots, random sounds and variations, AMP envelope (ADSR), filter types, own LFO page; pads play the synth on its pages; synth sounds in drumkits and the instrument copy. NOTE page: pads only play while stopped (ADD + pad = step entry), wider octave range |
-| v1.14 | VISUALS: 13 full-screen music visuals (HOME on the home screen) with six colour themes; SYNTH: 66 presets in alphabetical order, the synth sound's name in the track list; recording with PAD HOLD keeps the held note lengths |
+| v1.14 | VISUALS: 13 full-screen music visuals (HOME on the home screen) with seven colour themes; the black-and-yellow Moffe Edition look and a new boot screen; SYNTH: 66 presets in alphabetical order, the synth sound's name in the track list; recording with PAD HOLD keeps the held note lengths |
 
 ## Coming next
 

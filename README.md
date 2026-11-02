@@ -23,22 +23,47 @@ rolled back to the factory firmware the same way.
 > SD card first** and keep the factory firmware for rolling back. Modifying the firmware may affect
 > your warranty with Randomwaves.
 
-## What you get
+## 🐝 New in v1.14: a synth, a light show and a new look
+
+The biggest Moffe Edition update yet. Highlights:
+
+- 🎛️ **A real synthesizer on any layer.** Saw, square, triangle, sine or your own single-cycle
+  WAVs, with detune, sub oscillator, noise, a resonant filter in four flavours, DRIVE, an ADSR
+  envelope, a tempo-synced LFO, 303-style slides and glide.
+- 🎁 **66 presets with names that make you smile**, `ACID TRIP` to `ZOMBIE` (try `WUBZILLA`,
+  `COWBELL!` and `DING DONG`), plus 16 slots for your own. Your synth layers show their sound by
+  name in the track list.
+- 🎲 **Endless new sounds:** hold ADD for a random sound that still makes musical sense, tap it for
+  a variation, tap CLEAR to undo.
+- 🎹 **Play it like a keyboard:** the pads play the synth in your scale, PAD HOLD keeps a note
+  sounding while you hold the pad, and recorded notes keep their length.
+- 🌈 **VISUALS:** 13 full-screen visuals that dance to your music. Fireworks for every hit, a Game of
+  Life seeded by your drums, digital rain, a kaleidoscope, a disco floor, "Unknown Pleasures" ridges,
+  spectrum, oscilloscope, VU needles and more. Press **HOME** on the home screen.
+- 🖤💛 **The Moffe Edition look:** bold black and bumblebee yellow throughout, and a boot screen with
+  hazard stripes. Works with any SD card.
+
+→ **[What's new, explained](MOFFE-EDITION.md#whats-new-in-v114--the-big-one)** ·
+**[Full user guide](MOFFE-EDITION.md)** · **[Changelog](CHANGELOG.md)**
+
+> [!NOTE]
+> The v1.13–v1.14 features are built, unit-tested and verified by CI, but have not yet been tried on
+> a device by the maintainer. Please report anything odd in [Issues](../../issues).
+
+## Everything you get
 
 | | Feature | In one sentence |
 |---|---|---|
+| 🎛️ | [**SYNTH layers**](MOFFE-EDITION.md#7-synth-layers--a-built-in-synth-voice-v111) | A built-in synth on any layer with 66 presets, random sounds, envelope, LFO, filter types and PAD HOLD. Acid basslines without a single sample. |
+| 🌈 | [**VISUALS**](MOFFE-EDITION.md#8-visuals--full-screen-music-visuals-v114) | 13 full-screen music visuals in 7 colour themes; keep playing while they run. |
+| 🎹 | [**Melody layers**](MOFFE-EDITION.md#6-melody-layers--note-page-in-layer-song-v109) | Turn any layer into an instrument: give each beat a note in a key and scale, add glide and slides, play the pads as a keyboard, or hold ADD and let it write a melody. Your kick just became an 808 bassline. |
 | 🥁 | [**Euclidean rhythms**](MOFFE-EDITION.md#4-euclidean-rhythms--euclid-page-in-layer-song-v106) | Pick steps and hits, turn a knob, hear the pattern change live. |
-| 🎹 | [**Melody layers**](MOFFE-EDITION.md#6-melody-layers--note-page-in-layer-song-v109) | Turn any layer into an instrument: give each beat a note in a key and scale, add glide, play the pads as a keyboard, or hold ADD and let it write a melody. Your kick just became an 808 bassline. |
-| 🎛️ | [**SYNTH layers**](MOFFE-EDITION.md#7-synth-layers--a-built-in-synth-voice-v111) | A built-in synth on any layer: saw, square, triangle, sine or your own single-cycle WAVs, with detune, sub, noise, a resonant filter with envelope, and 303-style slides. Acid basslines without a single sample. |
 | 🎼 | [**Song mode**](MOFFE-EDITION.md#5-song-mode--arrange-parts-into-a-song-v107) | Chain the 5 song banks into intro → verse → chorus, with repeats, looped or played once. |
 | 🎯 | [**Precise beat placement**](MOFFE-EDITION.md#1-place-beats-precisely--layer-song-menu-v103) | Move a single beat, shift a whole layer, or add one beat exactly where you want it. |
 | 🎧 | [**Sample preview**](MOFFE-EDITION.md#3-sample-preview--layer-instrument-menu-v105) | Hear a sample *before* you load it. Your ears will thank you. |
 | 📊 | [**CPU meter**](MOFFE-EDITION.md#audio-cpu-meter-v109) | See how busy the audio engine is (IO menu), so you know how much room is left. |
 | 🛟 | [**Safer saving and fixes**](MOFFE-EDITION.md#improvements-and-fixes) | A full card or a failed save no longer leaves half-written files, plus a stack of bug fixes. |
-| 😎 | [**Boot screen**](MOFFE-EDITION.md#2-moffe-edition-boot-screen-v104) | Purely cosmetic. Deeply important. |
-
-Full guide to every feature: **[MOFFE-EDITION.md](MOFFE-EDITION.md)** ·
-Version history: **[CHANGELOG.md](CHANGELOG.md)**
+| 🐝 | [**The look and the boot screen**](MOFFE-EDITION.md#9-the-moffe-edition-look-v114) | Black and bumblebee yellow, sunglasses and hazard stripes. Purely cosmetic. Deeply important. |
 
 ## Install
 
@@ -109,8 +134,8 @@ Put the card back in the Drumboy Pro and switch it on. You should see:
 
 1. **UPDATING FIRMWARE** with the version (e.g. **V1.14**) and a line that fills up.
 2. **FIRMWARE UPDATED** for a few seconds.
-3. The normal start-up, now with **sunglasses and MOFFE EDITION** on the logo. If you see the
-   sunglasses, it worked. The sunglasses don't lie.
+3. The normal start-up, now with **sunglasses, hazard stripes and MOFFE EDITION** on the logo. If
+   you see the sunglasses, it worked. The sunglasses don't lie.
 
 The bootloader then moves the package to `System/Firmware/` on the card, so the next start-ups are
 normal and quick. That's it, go make some noise.
@@ -134,7 +159,8 @@ Still stuck? Open an [issue](../../issues) with the firmware version and what th
 Download **`Drumboy_Pro_Fw_01_01.bin`** from the release Assets (it is also in
 [`02 Software/Firmware/`](<02 Software/Firmware>)) and install it exactly like steps 3–4, with the
 Moffe package removed from the root. Your projects keep working; the factory firmware simply
-ignores the new song-mode and preview settings. No hard feelings.
+ignores the new song-mode and preview settings, and plays SYNTH and TONE layers as normal drum
+layers (the extra `.rwn` file next to a project is left alone). No hard feelings.
 
 ## Where to find things
 

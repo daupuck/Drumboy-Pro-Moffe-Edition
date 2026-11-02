@@ -5,6 +5,21 @@ SD-card package is named after it). Rolling back = installing an older package.
 
 ## v1.14
 
+The biggest update so far, released together with everything since v1.10 (v1.11 SYNTH layers,
+v1.12 synth sound design, v1.13 presets / envelope / LFO / PAD HOLD; see below). New in v1.14:
+VISUALS, the Moffe Edition look, 66 alphabetical presets, synth names in the track list and
+recorded PAD HOLD lengths.
+
+**The Moffe Edition look ("Bumblebee").** `kAccentColor` (#FFD400, `0xFEA0`) replaces the
+factory cyan everywhere in the UI (menu headers, selected layer, play bar, active values) and
+`kAccent2Color` (white) replaces magenta. The KNOB / SONG footer labels are black-on-yellow
+chips (`lcd_drawLabelChip`). The SD card's panel images still carry the factory cyan play bar
+and magenta footer labels; `lcd_drawPage` paints over them, so no new images are needed. Boot
+screen: MOFFE in black on a yellow block between two bands of hazard stripes
+(`lcd_drawHazardStripes`), yellow shades rim, EDITION fading in to white (`kEditionStripe*`,
+`kEditionBlockPad`). The factory test screens are unchanged. VISUALS gets a BUMBLEBEE theme
+(now the default; seven themes).
+
 **VISUALS mode: full-screen music visuals.** HOME (CENTER) on the home screen turns it on;
 LEFT/RIGHT = style, UP/DOWN = colour theme, HOME = off, any menu-panel key leaves and opens its
 menu. Pads, transport, MUTE/FILL/STYLE and the home-screen knobs keep working.
