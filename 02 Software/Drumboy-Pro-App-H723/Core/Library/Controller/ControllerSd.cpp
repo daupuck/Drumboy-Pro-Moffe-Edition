@@ -1582,9 +1582,9 @@ SdResult Controller::sd_clearFile(uint8_t fileNum_) {
 //   10 x [mode, root, scale, glide]
 //   10 layers x 5 banks x { count, count x [start interval hi, lo, note] }  (only notes != root)
 //   "EOF"
-//   "SYN3" + 10 x [wave, cutoff, resonance, env amount, decay, gate, drive, detune, sub, noise,
-//                  LFO on cutoff] + "EOF"   (v1.13; "SYN2" from v1.12 has the first 10 values,
-//          "SYN1" from v1.11 the first 7; both still read)
+//   "SYN4" + 10 x [wave, cutoff, resonance, env amount, decay, gate, drive, detune, sub, noise,
+//                  LFO shape, rate, depth, target, retrig] + "EOF"   (v1.13; "SYN2" from v1.12
+//          has the first 10 values, "SYN1" from v1.11 the first 7; both still read)
 //   "SLD1" + 10 layers x 5 banks x { count, count x [start interval hi, lo] } + "EOF"   (v1.12)
 // Mode 2 (SYNTH) is read as DRUM by v1.09/v1.10, which stop at the first "EOF".
 // Notes are matched to beats by start interval on load (positions are unique within a bank),
@@ -1747,21 +1747,24 @@ void Controller::sd_loadNotes(uint8_t fileNum_) {
             }
         }
 
-        // SYNTH sounds after the notes' "EOF": "SYN3" (v1.13, 11 values), "SYN2" (v1.12, 10) or
-        // "SYN1" (v1.11, 7). Files from v1.09/v1.10 end there: their layers keep the default sound.
+        // SYNTH sounds after the notes' "EOF": "SYN4" (v1.13, 15 values with the LFO), "SYN2"
+        // (v1.12, 10) or "SYN1" (v1.11, 7). "SYN3" was a v1.13 test build (11; its 11th value, a
+        // global-LFO slot, is ignored). Files from v1.09/v1.10 end there: default sounds.
         char eof[3];
         char tag[5] = {};
         uint8_t sound[kLayerLibrarySize * kSynthFileParams];
         uint8_t perLayer = 0;
+        uint8_t used = 0;
         if (ok && (sd_read(eof, 3) == FR_OK) && (sd_read(tag, 4) == FR_OK)) {
-            if (strncmp(tag, "SYN3", 4) == 0) perLayer = 11;
-            if (strncmp(tag, "SYN2", 4) == 0) perLayer = 10;
-            if (strncmp(tag, "SYN1", 4) == 0) perLayer = 7;
+            if (strncmp(tag, "SYN4", 4) == 0) perLayer = used = 15;
+            if (strncmp(tag, "SYN3", 4) == 0) { perLayer = 11; used = 10; }
+            if (strncmp(tag, "SYN2", 4) == 0) perLayer = used = 10;
+            if (strncmp(tag, "SYN1", 4) == 0) perLayer = used = 7;
         }
-        static_assert(kSynthFileParams == 11, "SYN3 holds 11 values per layer");
+        static_assert(kSynthFileParams == 15, "SYN4 holds 15 values per layer");
         if ((perLayer > 0) && (sd_read(sound, kLayerLibrarySize * perLayer) == FR_OK)) {
             for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
-                layerLibrary[l].synth = synth::unpack(&sound[l * perLayer], perLayer);  // sanitized
+                layerLibrary[l].synth = synth::unpack(&sound[l * perLayer], used);  // sanitized
             }
 
             // Beats with SLIDE (v1.12+), after the sounds' "EOF".
@@ -2171,16 +2174,26 @@ void Controller::sd_loadDrumkitSynth(const char* drumkitName_) {
     if (f_open(&sd.file, drumkitName_, FA_READ) != FR_OK) return;
     char tag[sizeof(kDrumkitSynthRef)] = {};
     uint8_t tail[kLayerLibrarySize * (1 + synth::kPackedSize)];
-    const bool ok = (f_lseek(&sd.file, strlen(kDrumkitRef) + kDrumkitByteSize + 3) == FR_OK) &&  // + "EOF"
-                    (sd_read(tag, strlen(kDrumkitSynthRef)) == FR_OK) && (strncmp(tag, kDrumkitSynthRef, strlen(kDrumkitSynthRef)) == 0) &&
-                    (sd_read(tail, sizeof(tail)) == FR_OK);
+    uint8_t perLayer = 0;  // bytes per layer: MODE + sound values
+    uint8_t used = 0;      // sound values to take
+    if ((f_lseek(&sd.file, strlen(kDrumkitRef) + kDrumkitByteSize + 3) == FR_OK) &&  // + "EOF"
+        (sd_read(tag, strlen(kDrumkitSynthRef)) == FR_OK)) {
+        if (strncmp(tag, "SYK2", 4) == 0) {
+            perLayer = 1 + synth::kPackedSize;
+            used = synth::kPackedSize;
+        } else if (strncmp(tag, "SYK1", 4) == 0) {  // v1.13 test build: 11 values, the 11th is ignored
+            perLayer = 12;
+            used = 10;
+        }
+    }
+    const bool ok = (perLayer > 0) && (sd_read(tail, kLayerLibrarySize * perLayer) == FR_OK);
     f_close(&sd.file);
     if (!ok) return;
 
     for (uint8_t i = 0; i < kLayerLibrarySize; i++) {
-        const uint8_t* d = &tail[i * (1 + synth::kPackedSize)];
+        const uint8_t* d = &tail[i * perLayer];
         if (layerLibrary[i].toneMode == tone::kModeSynth) synth_silence(i);  // the sound changes under it
-        layerLibrary[i].synth = synth::unpack(d + 1, synth::kPackedSize);
+        layerLibrary[i].synth = synth::unpack(d + 1, used);
         tone_setMode(i, (d[0] < tone::kModeCount) ? d[0] : tone::kModeDrum);
     }
 }

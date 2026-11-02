@@ -27,7 +27,39 @@ enum Wave : uint8_t { kSaw = 0, kSquare, kTriangle, kSine, kSample, kWaveCount }
 
 inline constexpr const char* kWaveNames[kWaveCount] = {"SAW", "SQUARE", "TRIANGLE", "SINE", "SAMPLE"};
 
-// Sound settings of a layer (0..100 except wave). Saved in the project's .rwn file.
+// The layer's own LFO (Layer Instrument LFO page of a SYNTH layer, v1.13).
+enum LfoShape : uint8_t { kLfoSine = 0, kLfoTriangle, kLfoSaw, kLfoSquare, kLfoRandom, kLfoShapeCount };
+inline constexpr const char* kLfoShapeNames[kLfoShapeCount] = {"SINE", "TRIANGLE", "SAW DOWN", "SQUARE", "RANDOM"};
+
+// What the LFO moves. PITCH = vibrato, LEVEL = tremolo.
+enum LfoTarget : uint8_t { kLfoCutoff = 0, kLfoPitch, kLfoLevel, kLfoTargetCount };
+inline constexpr const char* kLfoTargetNames[kLfoTargetCount] = {"CUTOFF", "PITCH", "LEVEL"};
+
+// RATE: one LFO cycle lasts this many quarter notes, or bars (bars follow the Rhythm menu's
+// MEASURE setting), so it always locks to the tempo.
+struct LfoRate {
+    const char* name;
+    float amount;
+    bool bars;
+};
+inline constexpr LfoRate kLfoRates[] = {
+    {"1/32", 0.125f, false}, {"1/16", 0.25f, false}, {"1/8T", 1.0f / 3.0f, false}, {"1/8", 0.5f, false},
+    {"1/4T", 2.0f / 3.0f, false}, {"1/4", 1.0f, false}, {"1/2", 2.0f, false}, {"1 BAR", 1.0f, true},
+    {"2 BARS", 2.0f, true}, {"4 BARS", 4.0f, true}, {"8 BARS", 8.0f, true}};
+constexpr uint8_t kLfoRateCount = sizeof(kLfoRates) / sizeof(kLfoRates[0]);
+
+// Phase step per sample for a RATE at a tempo (BPM) and bar length (quarter notes per bar).
+inline float lfoIncrement(uint8_t rate, float bpm, float quartersPerBar, float sampleRate) {
+    if (rate >= kLfoRateCount) rate = 5;
+    if (!(bpm >= 1.0f)) bpm = 120.0f;  // also catches NaN
+    if (!(quartersPerBar >= 1.0f)) quartersPerBar = 4.0f;
+    const float quarters = kLfoRates[rate].amount * (kLfoRates[rate].bars ? quartersPerBar : 1.0f);
+    const float samplesPerQuarter = (60.0f / bpm) * sampleRate;
+    return 1.0f / (quarters * samplesPerQuarter);
+}
+
+// Sound settings of a layer (0..100 except the choices). Saved in the project's .rwn file and
+// in drumkits.
 struct Params {
     uint8_t wave = kSaw;
     uint8_t cutoff = 35;
@@ -39,23 +71,18 @@ struct Params {
     uint8_t detune = 0;  // 0 = one oscillator; 1..100 = two, spread up to +-40 cents around the note
     uint8_t sub = 0;     // level of a square one octave down
     uint8_t noise = 0;   // level of white noise
-    uint8_t lfoCutoff = 0;  // 0 = none, 1..10 = which global LFO moves CUTOFF (the voice only sees
-                            // the result, as render()'s cutoffModOctaves)
+    uint8_t lfoShape = kLfoTriangle;
+    uint8_t lfoRate = 5;           // index into kLfoRates (1/4)
+    uint8_t lfoDepth = 0;          // 0 = LFO off
+    uint8_t lfoTarget = kLfoCutoff;
+    uint8_t lfoRetrig = 0;         // 0 = FREE (keeps running), 1 = NOTE (restarts with every note)
 };
 
 constexpr uint8_t kMaxParam = 100;
-constexpr uint8_t kMaxLfoAssign = 10;  // the device has 10 global LFOs
-// An LFO at depth 100 moves the cutoff this many octaves down and up (6 octaves of sweep).
+// LFO depth 100: CUTOFF +-3 octaves; PITCH +-12 semitones with a cubic curve (depth 20 is a
+// gentle vibrato of +-0.1, 50 is +-1.5); LEVEL from full down to silence.
 constexpr float kLfoCutoffOctaves = 3.0f;
-
-// Cutoff offset in octaves for a global LFO value (0..1, 0.5 = centre) at depth 0..1.
-inline float lfoCutoffOctaves(float lfoValue, float depth) {
-    if (!(lfoValue >= 0.0f)) lfoValue = 0.0f;  // also catches NaN
-    if (lfoValue > 1.0f) lfoValue = 1.0f;
-    if (!(depth >= 0.0f)) depth = 0.0f;
-    if (depth > 1.0f) depth = 1.0f;
-    return (lfoValue - 0.5f) * 2.0f * depth * kLfoCutoffOctaves;
-}
+constexpr float kLfoPitchSemitones = 12.0f;
 // DETUNE 100 = the two oscillators 40 cents below and above the note (80 cents apart): about
 // 5 Hz of beating on a 110 Hz bass. (v1.12's first take was 25 cents in one direction, which was
 // too subtle to hear on short bass notes.)
@@ -64,18 +91,43 @@ constexpr float kMaxDetuneCents = 40.0f;
 inline Params sanitize(const Params& p) {
     Params s = p;
     if (s.wave >= kWaveCount) s.wave = kSaw;
-    uint8_t* fields[9] = {&s.cutoff, &s.resonance, &s.envAmount, &s.decay, &s.gate, &s.drive, &s.detune, &s.sub, &s.noise};
+    uint8_t* fields[10] = {&s.cutoff, &s.resonance, &s.envAmount, &s.decay, &s.gate, &s.drive, &s.detune, &s.sub, &s.noise, &s.lfoDepth};
     for (uint8_t* f : fields) {
         if (*f > kMaxParam) *f = kMaxParam;
     }
-    if (s.lfoCutoff > kMaxLfoAssign) s.lfoCutoff = 0;
+    if (s.lfoShape >= kLfoShapeCount) s.lfoShape = kLfoTriangle;
+    if (s.lfoRate >= kLfoRateCount) s.lfoRate = 5;
+    if (s.lfoTarget >= kLfoTargetCount) s.lfoTarget = kLfoCutoff;
+    if (s.lfoRetrig > 1) s.lfoRetrig = 0;
     return s;
 }
 
-// File layout of one layer's sound (project .rwn "SYN3" and drumkit "SYK1" sections):
-// wave, cutoff, resonance, env amount, decay, gate, drive, detune, sub, noise, LFO on cutoff.
+// LFO shape value in [-1, 1] at phase 0..1 (RANDOM: the value held for this cycle). Phase 0 is
+// where a retriggered LFO starts: SINE/TRIANGLE at the centre going up, SAW DOWN and SQUARE at
+// the top (so on CUTOFF they open the filter and then close it, like an extra envelope).
+inline float lfoValue(uint8_t shape, float phase, float hold) {
+    switch (shape) {
+        case kLfoSine:
+            return sinf(6.2831853f * phase);
+        case kLfoSaw:
+            return 1.0f - (2.0f * phase);
+        case kLfoSquare:
+            return (phase < 0.5f) ? 1.0f : -1.0f;
+        case kLfoRandom:
+            return hold;
+        case kLfoTriangle:
+        default:
+            if (phase < 0.25f) return 4.0f * phase;
+            if (phase < 0.75f) return 2.0f - (4.0f * phase);
+            return (4.0f * phase) - 4.0f;
+    }
+}
+
+// File layout of one layer's sound (project .rwn "SYN4" and drumkit "SYK2" sections):
+// wave, cutoff, resonance, env amount, decay, gate, drive, detune, sub, noise,
+// LFO shape, rate, depth, target, retrig.
 // Older files hold fewer values ("SYN1" 7, "SYN2" 10); the rest keep their defaults.
-constexpr uint8_t kPackedSize = 11;
+constexpr uint8_t kPackedSize = 15;
 
 inline void pack(const Params& p, uint8_t* d) {
     d[0] = p.wave;
@@ -88,14 +140,18 @@ inline void pack(const Params& p, uint8_t* d) {
     d[7] = p.detune;
     d[8] = p.sub;
     d[9] = p.noise;
-    d[10] = p.lfoCutoff;
+    d[10] = p.lfoShape;
+    d[11] = p.lfoRate;
+    d[12] = p.lfoDepth;
+    d[13] = p.lfoTarget;
+    d[14] = p.lfoRetrig;
 }
 
-// Reads `count` values (7..11); never trusts them (sanitized: a damaged file can't index a table).
+// Reads `count` values (7..15); never trusts them (sanitized: a damaged file can't index a table).
 inline Params unpack(const uint8_t* d, uint8_t count) {
     Params p;
-    uint8_t* fields[kPackedSize] = {&p.wave, &p.cutoff, &p.resonance, &p.envAmount, &p.decay, &p.gate,
-                                    &p.drive, &p.detune, &p.sub, &p.noise, &p.lfoCutoff};
+    uint8_t* fields[kPackedSize] = {&p.wave, &p.cutoff, &p.resonance, &p.envAmount, &p.decay, &p.gate, &p.drive, &p.detune,
+                                    &p.sub, &p.noise, &p.lfoShape, &p.lfoRate, &p.lfoDepth, &p.lfoTarget, &p.lfoRetrig};
     for (uint8_t i = 0; (i < count) && (i < kPackedSize); i++) *fields[i] = d[i];
     return sanitize(p);
 }
@@ -121,6 +177,7 @@ struct NoteOn {
     bool legato = false;       // SLIDE: if the previous note is still held, keep its envelopes and only glide
     const float* table = nullptr;  // WAVE = SAMPLE: one cycle (the layer's sample in SDRAM)
     uint32_t tableLength = 0;
+    bool lfoRetrig = false;        // LFO RETRIG = NOTE: the LFO restarts with this note (not on a slide)
 };
 
 struct Voice {
@@ -137,7 +194,12 @@ struct Voice {
     uint32_t gateLeft = 0;  // samples until release
     float amp = 0.0f;       // amp envelope 0..1
     float filterEnv = 0.0f; // filter envelope 0..1
-    float cutoffMod = 0.0f; // LFO offset in octaves, smoothed per block (no zipper on square LFOs)
+    // LFO: keeps running between notes (FREE), so it is kept when a note ends.
+    float lfoPhase = 0.0f;
+    float lfoHold = 0.0f;   // RANDOM: value of the current cycle
+    float lfoSmooth = 0.0f; // shape value smoothed per block (no zipper on SQUARE/RANDOM steps)
+    float lfoGain = 1.0f;   // LEVEL target: gain at the end of the last block (ramped per sample)
+    bool lfoJump = false;   // retriggered: take the new value at once instead of smoothing to it
     float s1 = 0.0f, s2 = 0.0f, s3 = 0.0f, s4 = 0.0f;  // filter stages
     const float* table = nullptr;
     uint32_t tableLength = 0;
@@ -185,6 +247,27 @@ inline void start(Voice& v, const NoteOn& n) {
     v.noiseState ^= v.noiseState >> 17;
     v.noiseState ^= v.noiseState << 5;
     v.phase2 = static_cast<float>(v.noiseState >> 8) * (1.0f / 16777216.0f);  // [0, 1)
+
+    // LFO RETRIG = NOTE: every new note (not a slide, see above) starts the LFO cycle again.
+    if (n.lfoRetrig) {
+        v.lfoPhase = 0.0f;
+        v.lfoHold = (v.phase2 * 2.0f) - 1.0f;  // a fresh random value for RANDOM
+        v.lfoJump = true;
+    }
+}
+
+// Moves the LFO on by `samples` (also between notes, so a FREE LFO keeps its place in time).
+// Returns true when a new cycle began (RANDOM then holds a new value).
+inline bool advanceLfo(Voice& v, float increment, uint16_t samples) {
+    if (!(increment > 0.0f) || (increment > 0.5f)) return false;  // also catches NaN
+    v.lfoPhase += increment * static_cast<float>(samples);
+    if (v.lfoPhase < 1.0f) return false;
+    v.lfoPhase -= static_cast<float>(static_cast<uint32_t>(v.lfoPhase));
+    v.noiseState ^= v.noiseState << 13;
+    v.noiseState ^= v.noiseState >> 17;
+    v.noiseState ^= v.noiseState << 5;
+    v.lfoHold = (static_cast<float>(v.noiseState >> 8) * (2.0f / 16777216.0f)) - 1.0f;
+    return true;
 }
 
 inline void stop(Voice& v) { v = Voice{}; }
@@ -270,8 +353,8 @@ inline float decayBlockCoef(uint8_t decay, float blocksPerSecond) {
 }
 
 // Renders `count` samples into out (overwriting). Returns kGateEnded / kVoiceEnded flags.
-// cutoffModOctaves: CUTOFF offset from the layer's LFO (see lfoCutoffOctaves), 0 = none.
-inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t count, float sampleRate, float cutoffModOctaves = 0.0f) {
+// lfoIncrement: the layer LFO's phase step per sample (lfoIncrement() from RATE and tempo).
+inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t count, float sampleRate, float lfoIncrement = 0.0f) {
     uint8_t events = 0;
     if (!v.active) {
         for (uint16_t i = 0; i < count; i++) out[i] = 0.0f;
@@ -288,11 +371,31 @@ inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t co
             v.glideCoef = 0.0f;
         }
     }
-    if (!(cutoffModOctaves >= -kLfoCutoffOctaves)) cutoffModOctaves = -kLfoCutoffOctaves;  // also NaN
-    if (cutoffModOctaves > kLfoCutoffOctaves) cutoffModOctaves = kLfoCutoffOctaves;
-    v.cutoffMod += (cutoffModOctaves - v.cutoffMod) * 0.5f;
+    // LFO: one value per block (32 samples = 0.7 ms), smoothed so SQUARE/RANDOM steps don't click.
+    // A retriggered LFO (RETRIG = NOTE) starts on its new value at once.
+    advanceLfo(v, lfoIncrement, count);
+    const float lfoRaw = lfoValue(p.lfoShape, v.lfoPhase, v.lfoHold);
+    v.lfoSmooth = v.lfoJump ? lfoRaw : (v.lfoSmooth + ((lfoRaw - v.lfoSmooth) * 0.5f));
+    v.lfoJump = false;
+    const float lfoDepth = static_cast<float>(p.lfoDepth) / 100.0f;
+    float cutoffLfo = 0.0f;
+    float pitchRatio = 1.0f;
+    float lfoGainEnd = 1.0f;
+    if (p.lfoDepth > 0) {
+        if (p.lfoTarget == kLfoCutoff) {
+            cutoffLfo = v.lfoSmooth * lfoDepth * kLfoCutoffOctaves;
+        } else if (p.lfoTarget == kLfoPitch) {
+            pitchRatio = exp2f((v.lfoSmooth * lfoDepth * lfoDepth * lfoDepth * kLfoPitchSemitones) / 12.0f);
+        } else {
+            lfoGainEnd = 1.0f - (lfoDepth * 0.5f * (1.0f - v.lfoSmooth));  // 1 at the top, 1 - depth at the bottom
+        }
+    }
+    const float lfoGainStart = v.lfoGain;
+    const float lfoGainStep = (lfoGainEnd - lfoGainStart) / static_cast<float>(count);
+    v.lfoGain = lfoGainEnd;
+
     const float envOctaves = (static_cast<float>(p.envAmount) / 100.0f) * 6.0f * v.filterEnv * (0.4f + (0.6f * v.velocity));
-    float fc = cutoffHz(p.cutoff, envOctaves + v.cutoffMod);
+    float fc = cutoffHz(p.cutoff, envOctaves + cutoffLfo);
     const float maxFc = sampleRate * 0.42f;
     if (fc > maxFc) fc = maxFc;
     const float w = 6.2831853f * fc / sampleRate;
@@ -312,7 +415,8 @@ inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t co
 
     const float attackStep = 1.0f / (0.002f * sampleRate);  // 2 ms
     const float releaseCoef = expf(-1.0f / (0.012f * sampleRate));  // 12 ms
-    const float dt = v.increment;
+    float dt = v.increment * pitchRatio;  // LFO on PITCH = vibrato
+    if (dt > 0.45f) dt = 0.45f;            // stays below Nyquist even at the top of a big swing
 
     // Oscillator mix: DETUNE adds a second oscillator, the two spread symmetrically below and above
     // the note so it stays in tune (both then at 0.6); SUB a square one octave down, NOISE white
@@ -359,17 +463,22 @@ inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t co
         }
         float y = v.s4 * makeup;
         if (postDriveOn) y += postWet * ((saturate(y * postGain) * postNorm) - y);
-        out[i] = y * v.amp * v.gain;
+        out[i] = y * v.amp * v.gain * (lfoGainStart + (lfoGainStep * static_cast<float>(i + 1)));
     }
+
+    // Between notes: idle voices are not rendered, so the controller calls advanceLfo() for them.
 
     // 3. END OF NOTE
     if ((v.gateLeft == 0) && (v.amp < 0.0001f)) {
         const float phase = v.phase, phase2 = v.phase2, phaseSub = v.phaseSub;
         const float pitch = v.incrementTarget;  // where the note ended up (after any glide)
         const uint32_t noiseState = v.noiseState;
-        const float cutoffMod = v.cutoffMod;
+        const float lfoPhase = v.lfoPhase, lfoHold = v.lfoHold, lfoSmooth = v.lfoSmooth, lfoGain = v.lfoGain;
         stop(v);
-        v.cutoffMod = cutoffMod;  // the LFO keeps its place for the next note
+        v.lfoPhase = lfoPhase;  // the LFO keeps its place for the next note (FREE)
+        v.lfoHold = lfoHold;
+        v.lfoSmooth = lfoSmooth;
+        v.lfoGain = lfoGain;
         v.phase = phase;  // oscillators keep running in phase: no click on the next note
         v.phase2 = phase2;
         v.phaseSub = phaseSub;

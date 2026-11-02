@@ -383,6 +383,12 @@ void Controller::update() {
         // IO menu: refresh the audio CPU meter.
         cpu_service();
 
+        // SYNTH LFO page: move the position marker (25 times per second, only when it moved).
+        if (synthLfoPageActive() && ((HAL_GetTick() - synthLfoCursorTick) >= 40)) {
+            synthLfoCursorTick = HAL_GetTick();
+            lcd_updateSynthLfoCursor();
+        }
+
         // 3. OUTPUT & UI REFRESH
         // Refresh LED outputs and LCD frame content.
         led_action();

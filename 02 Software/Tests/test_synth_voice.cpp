@@ -425,49 +425,176 @@ static void testDriveIsAudible() {
     }
 }
 
-static void testCutoffLfo() {
-    // Mapping: centre = 0, ends = +-3 octaves at full depth, scaled by depth, clamped, NaN-safe.
-    CHECK(std::fabs(lfoCutoffOctaves(0.5f, 1.0f)) < 1e-6f, "centre is no offset");
-    CHECK(std::fabs(lfoCutoffOctaves(1.0f, 1.0f) - kLfoCutoffOctaves) < 1e-6f, "top = +3 octaves");
-    CHECK(std::fabs(lfoCutoffOctaves(0.0f, 1.0f) + kLfoCutoffOctaves) < 1e-6f, "bottom = -3 octaves");
-    CHECK(std::fabs(lfoCutoffOctaves(1.0f, 0.5f) - (kLfoCutoffOctaves * 0.5f)) < 1e-6f, "depth scales");
-    CHECK(lfoCutoffOctaves(1.0f, 0.0f) == 0.0f, "depth 0 = off");
-    CHECK(std::fabs(lfoCutoffOctaves(7.0f, 9.0f)) <= kLfoCutoffOctaves, "clamped");
-    CHECK(lfoCutoffOctaves(NAN, NAN) == -0.0f || std::fabs(lfoCutoffOctaves(NAN, NAN)) <= kLfoCutoffOctaves, "NaN safe");
-
-    // The voice gets brighter with the LFO up and darker with it down (high-frequency energy:
-    // first difference of the output), and garbage modulation is clamped.
-    auto brightness = [](float mod) {
-        Params p;
-        p.cutoff = 20;  // ~110 Hz: the +-3 octaves sweep 14 Hz .. 900 Hz
-        p.envAmount = 0;
-        p.drive = 0;
-        Voice v;
-        start(v, note(110.0f, 44100));
-        std::vector<float> out;
-        float block[kBlock];
-        for (int b = 0; b < 400; b++) {
-            render(v, p, block, kBlock, kFs, mod);
-            for (uint16_t i = 0; i < kBlock; i++) {
-                CHECK(std::isfinite(block[i]), "finite with mod %f", mod);
-                out.push_back(block[i]);
-            }
+static void testLfoShapesAndRates() {
+    // Every shape stays in [-1, 1] and starts where documented; rates lock to the tempo.
+    for (uint8_t s = 0; s < kLfoShapeCount; s++) {
+        for (int i = 0; i < 1000; i++) {
+            const float v = lfoValue(s, i / 1000.0f, 0.3f);
+            CHECK(v >= -1.0001f && v <= 1.0001f, "shape %d in range at %d: %f", s, i, v);
         }
-        double e = 0.0;
-        for (size_t i = out.size() / 2; i < out.size(); i++) e += std::fabs(out[i] - out[i - 1]);
-        return e;
-    };
-    const double down = brightness(-3.0f), mid = brightness(0.0f), up = brightness(3.0f);
-    CHECK(up > mid * 1.5 && mid > down * 1.5, "LFO opens/closes the filter: %f %f %f", down, mid, up);
-    CHECK(std::isfinite(brightness(1e30f)) && std::isfinite(brightness(-1e30f)) && std::isfinite(brightness(NAN)), "extreme mod is clamped");
+    }
+    CHECK(std::fabs(lfoValue(kLfoSine, 0.0f, 0.0f)) < 1e-6f && std::fabs(lfoValue(kLfoTriangle, 0.0f, 0.0f)) < 1e-6f, "sine/triangle start at the centre");
+    CHECK(lfoValue(kLfoSaw, 0.0f, 0.0f) == 1.0f && lfoValue(kLfoSquare, 0.0f, 0.0f) == 1.0f, "saw/square start at the top");
+    CHECK(std::fabs(lfoValue(kLfoTriangle, 0.25f, 0.0f) - 1.0f) < 1e-6f && std::fabs(lfoValue(kLfoTriangle, 0.75f, 0.0f) + 1.0f) < 1e-6f, "triangle peaks");
+    CHECK(lfoValue(kLfoRandom, 0.4f, -0.7f) == -0.7f, "random holds its value");
 
-    // Smoothing: a jump in the LFO (square LFO) reaches the target within a few blocks.
-    Params p;
+    // 1/4 at 120 BPM = 2 cycles per second; 1 BAR in 4/4 = 0.5; 1 BAR in 3/4 = 2/3.
+    const float quarter = lfoIncrement(5, 120.0f, 4.0f, kFs) * kFs;
+    const float bar44 = lfoIncrement(7, 120.0f, 4.0f, kFs) * kFs;
+    const float bar34 = lfoIncrement(7, 120.0f, 3.0f, kFs) * kFs;
+    CHECK(std::fabs(quarter - 2.0f) < 1e-3f, "1/4 at 120 = 2 Hz: %f", quarter);
+    CHECK(std::fabs(bar44 - 0.5f) < 1e-3f && std::fabs(bar34 - (2.0f / 3.0f)) < 1e-3f, "bars follow MEASURE: %f %f", bar44, bar34);
+    for (uint8_t r = 0; r < kLfoRateCount; r++) {
+        const float inc = lfoIncrement(r, 300.0f, 16.0f, kFs);
+        CHECK(inc > 0.0f && inc < 0.01f && std::isfinite(inc), "rate %d sane", r);
+    }
+    CHECK(std::isfinite(lfoIncrement(200, NAN, NAN, kFs)) && lfoIncrement(200, NAN, NAN, kFs) > 0.0f, "garbage in -> defaults");
+
+    // advanceLfo wraps, picks a new random value per cycle, ignores bad increments.
     Voice v;
-    start(v, note(110.0f, 44100));
+    const float before = v.lfoHold;
+    CHECK(advanceLfo(v, 0.01f, 150) && v.lfoPhase >= 0.0f && v.lfoPhase < 1.0f, "wraps: %f", v.lfoPhase);
+    CHECK(v.lfoHold != before && v.lfoHold >= -1.0f && v.lfoHold <= 1.0f, "new random value");
+    const float phase = v.lfoPhase;
+    CHECK(!advanceLfo(v, NAN, 32) && !advanceLfo(v, -1.0f, 32) && !advanceLfo(v, 2.0f, 32) && v.lfoPhase == phase, "bad increments ignored");
+}
+
+// Renders a held 110 Hz note for `blocks` blocks and returns the output.
+static std::vector<float> renderHeld(const Params& p, float lfoInc, int blocks, bool retrig = false) {
+    Voice v;
+    NoteOn n = note(110.0f, 1000000);
+    n.lfoRetrig = retrig;
+    start(v, n);
+    std::vector<float> out;
     float block[kBlock];
-    for (int b = 0; b < 12; b++) render(v, p, block, kBlock, kFs, 2.0f);
-    CHECK(std::fabs(v.cutoffMod - 2.0f) < 0.01f, "smoothed mod settles: %f", v.cutoffMod);
+    for (int b = 0; b < blocks; b++) {
+        render(v, p, block, kBlock, kFs, lfoInc);
+        for (uint16_t i = 0; i < kBlock; i++) {
+            CHECK(std::isfinite(block[i]), "finite LFO output");
+            out.push_back(block[i]);
+        }
+    }
+    return out;
+}
+
+static void testLfoTargets() {
+    const float inc = lfoIncrement(5, 120.0f, 4.0f, kFs);  // 2 Hz
+    const int blocks = static_cast<int>(kFs / kBlock);      // 1 s = 2 LFO cycles
+
+    // Brightness (first difference) per 1/8 s window: with the LFO on CUTOFF it swings a lot,
+    // with DEPTH 0 it stays flat.
+    auto swing = [&](const Params& p) {
+        const std::vector<float> out = renderHeld(p, inc, blocks);
+        const size_t window = static_cast<size_t>(kFs / 8);
+        double lo = 1e30, hi = 0.0;
+        for (size_t w = 1; (w + 1) * window <= out.size(); w++) {
+            double e = 0.0;
+            for (size_t i = w * window + 1; i < (w + 1) * window; i++) e += std::fabs(out[i] - out[i - 1]);
+            lo = std::fmin(lo, e);
+            hi = std::fmax(hi, e);
+        }
+        return hi / lo;
+    };
+    Params p;
+    p.cutoff = 25;
+    p.envAmount = 0;
+    p.drive = 0;
+    p.lfoTarget = kLfoCutoff;
+    p.lfoShape = kLfoSine;
+    p.lfoDepth = 0;
+    const double flat = swing(p);
+    p.lfoDepth = 100;
+    const double moving = swing(p);
+    CHECK(flat < 1.1 && moving > 3.0, "CUTOFF LFO is audible: flat %f, moving %f", flat, moving);
+
+    // LEVEL: tremolo between full and silent at depth 100 (envelope of |x| per window).
+    Params t;
+    t.wave = kSine;  // smooth by itself, so any big sample-to-sample step would be the tremolo's
+    t.cutoff = 100;
+    t.envAmount = 0;
+    t.drive = 0;
+    t.lfoTarget = kLfoLevel;
+    t.lfoShape = kLfoSquare;
+    t.lfoDepth = 100;
+    const std::vector<float> trem = renderHeld(t, inc, blocks);
+    const size_t window = static_cast<size_t>(kFs / 16);
+    double lo = 1e30, hi = 0.0;
+    for (size_t w = 1; (w + 1) * window <= trem.size(); w++) {
+        double peak = 0.0;
+        for (size_t i = w * window; i < (w + 1) * window; i++) peak = std::fmax(peak, std::fabs(trem[i]));
+        lo = std::fmin(lo, peak);
+        hi = std::fmax(hi, peak);
+    }
+    CHECK(lo < hi * 0.05, "LEVEL LFO chops: %f vs %f", lo, hi);
+    // No clicks: the gain is ramped per sample, so the biggest step stays small.
+    double step = 0.0;
+    for (size_t i = 1; i < trem.size(); i++) step = std::fmax(step, std::fabs(trem[i] - trem[i - 1]));
+    CHECK(step < 0.06, "tremolo has no click steps: %f", step);
+
+    // PITCH: zero crossings per window vary (vibrato); depth 100 = up to an octave each way, and
+    // the oscillator never exceeds Nyquist even at high notes.
+    Params vib;
+    vib.cutoff = 100;
+    vib.envAmount = 0;
+    vib.drive = 0;
+    vib.wave = kSine;
+    vib.lfoTarget = kLfoPitch;
+    vib.lfoShape = kLfoSquare;
+    vib.lfoDepth = 100;
+    const std::vector<float> out = renderHeld(vib, inc, blocks);
+    auto crossings = [&](size_t from, size_t to) {
+        int c = 0;
+        for (size_t i = from + 1; i < to; i++) c += ((out[i - 1] < 0.0f) != (out[i] < 0.0f));
+        return c;
+    };
+    const size_t quarter = static_cast<size_t>(kFs / 4);  // square LFO at 2 Hz: up for 1/4 s, down for 1/4 s
+    const int up = crossings(quarter / 4, quarter - (quarter / 4));
+    const int down = crossings(quarter + (quarter / 4), (2 * quarter) - (quarter / 4));
+    CHECK(up > down * 3, "PITCH LFO bends an octave each way: %d vs %d crossings", up, down);
+    Voice hi8;
+    start(hi8, note(15000.0f, 100000));
+    float block[kBlock];
+    for (int b = 0; b < 300; b++) {
+        render(hi8, vib, block, kBlock, kFs, inc);
+        for (uint16_t i = 0; i < kBlock; i++) CHECK(std::isfinite(block[i]), "vibrato on a very high note stays finite");
+    }
+}
+
+static void testLfoRetrigAndFree() {
+    // RETRIG = NOTE: every note starts the LFO at phase 0 (SAW DOWN = top = filter open).
+    // FREE: the phase keeps going, also between notes (advanceLfo), and through a note's end.
+    const float inc = lfoIncrement(5, 120.0f, 4.0f, kFs);
+    Voice v;
+    v.lfoPhase = 0.6f;
+    NoteOn n = note(110.0f, 2000);
+    n.lfoRetrig = true;
+    start(v, n);
+    CHECK(v.lfoPhase == 0.0f && v.lfoJump, "retrig restarts the LFO");
+    Params p;
+    p.lfoDepth = 100;
+    p.lfoShape = kLfoSaw;
+    float block[kBlock];
+    render(v, p, block, kBlock, kFs, inc);
+    CHECK(v.lfoSmooth > 0.95f, "retrig takes the new value at once: %f", v.lfoSmooth);
+
+    Voice f;
+    f.lfoPhase = 0.6f;
+    NoteOn free = note(110.0f, 2000);
+    start(f, free);
+    CHECK(std::fabs(f.lfoPhase - 0.6f) < 1e-6f, "FREE keeps the phase on a new note");
+    uint8_t flags = 0;
+    for (int b = 0; (b < 2000) && !(flags & kVoiceEnded); b++) flags |= render(f, p, block, kBlock, kFs, inc);
+    CHECK((flags & kVoiceEnded) && f.lfoPhase != 0.6f, "the LFO survived the end of the note: %f", f.lfoPhase);
+
+    // A slide (legato) never retriggers.
+    Voice s;
+    start(s, note(110.0f, 100000));
+    s.lfoPhase = 0.4f;
+    NoteOn slide = note(220.0f, 2000);
+    slide.legato = true;
+    slide.lfoRetrig = true;
+    start(s, slide);
+    CHECK(std::fabs(s.lfoPhase - 0.4f) < 1e-6f, "slide keeps the LFO running");
 }
 
 static void testPackUnpack() {
@@ -483,7 +610,11 @@ static void testPackUnpack() {
     p.detune = 7;
     p.sub = 8;
     p.noise = 9;
-    p.lfoCutoff = 10;
+    p.lfoShape = kLfoRandom;
+    p.lfoRate = 10;
+    p.lfoDepth = 77;
+    p.lfoTarget = kLfoLevel;
+    p.lfoRetrig = 1;
     uint8_t d[kPackedSize];
     pack(p, d);
     const Params q = unpack(d, kPackedSize);
@@ -494,22 +625,26 @@ static void testPackUnpack() {
     CHECK(same, "pack/unpack round trip");
     CHECK(!isDefault(p) && isDefault(Params{}), "isDefault");
 
-    const Params v12 = unpack(d, 10);  // "SYN2": no LFO byte -> none
-    CHECK(v12.noise == 9 && v12.lfoCutoff == 0, "SYN2 record");
+    const Params v12 = unpack(d, 10);  // "SYN2" (and the 10 used values of "SYN3"): LFO off
+    CHECK(v12.noise == 9 && v12.lfoDepth == 0 && v12.lfoShape == kLfoTriangle, "SYN2 record");
     const Params v11 = unpack(d, 7);   // "SYN1": DETUNE/SUB/NOISE keep defaults
     CHECK(v11.drive == 6 && v11.detune == 0 && v11.sub == 0 && v11.noise == 0, "SYN1 record");
 
     uint8_t junk[kPackedSize];
     for (uint8_t i = 0; i < kPackedSize; i++) junk[i] = 0xEE;
     const Params j = unpack(junk, kPackedSize);
-    CHECK(j.wave == kSaw && j.cutoff == kMaxParam && j.lfoCutoff == 0, "junk is sanitized");
+    CHECK(j.wave == kSaw && j.cutoff == kMaxParam && j.lfoShape == kLfoTriangle && j.lfoRate == 5 && j.lfoDepth == kMaxParam &&
+              j.lfoTarget == kLfoCutoff && j.lfoRetrig == 0,
+          "junk is sanitized");
     Params lfoOnly;
-    lfoOnly.lfoCutoff = 3;
+    lfoOnly.lfoDepth = 30;
     CHECK(!isDefault(lfoOnly), "an LFO alone makes the sound non-default (file is saved)");
 }
 
 int main() {
-    testCutoffLfo();
+    testLfoShapesAndRates();
+    testLfoTargets();
+    testLfoRetrigAndFree();
     testPackUnpack();
     testDriveIsAudible();
     testDetuneIsAudible();

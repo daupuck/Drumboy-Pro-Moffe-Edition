@@ -1128,7 +1128,13 @@ class Controller {
     void synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_, uint8_t beatFlags_);
     void note_setSlide(bool slide_);             // NOTE page: ADD + UP / DOWN on the selected beat
     void synth_change(EncoderFunc function_, bool up_);
-    float synth_cutoffMod(uint8_t layerNum_) const;  // filter LFO, octaves (audio ISR, per block)
+    float synth_lfoIncrement(uint8_t layerNum_) const;  // layer LFO phase step per sample (audio ISR)
+    bool synthLfoPage = false;                           // Layer Inst page 3 of a SYNTH layer shows the LFO (not routing)
+    bool synthLfoPageActive() const;
+    void lcd_drawSynthLfoGraph();
+    void lcd_updateSynthLfoCursor();                     // main loop: the moving position on the LFO page
+    int16_t synthLfoCursorX = -1;
+    uint32_t synthLfoCursorTick = 0;
     void synth_silence(uint8_t layerNum_);       // stops the voice (mode change, reset)
     void lcd_drawSynthPage(uint8_t layerNum_);
     void lcd_drawSynthData(uint8_t slot_);

@@ -25,7 +25,7 @@ compared with the factory firmware: what each feature does and how to use it on 
 > TRANSPOSE, and the CPU meter (v1.09: CPU PEAK about 42 % with all 10 layers playing, two of them
 > TONE, and chorus, delay, reverb and both filters on); the pad keyboard and the melody generator
 > (v1.10); SYNTH layers and erasing on the EUCLID/NOTE pages (v1.11); DETUNE, SUB, NOISE, DRIVE,
-> GLIDE, WAVE = SAMPLE and SLIDE (v1.12). Not yet tested on a device: the filter LFO and synth
+> GLIDE, WAVE = SAMPLE and SLIDE (v1.12). Not yet tested on a device: the synth LFO page and synth
 > sounds in drumkits and the instrument copy (v1.13). Each release says what has been tested on
 > hardware.
 
@@ -235,14 +235,16 @@ keyboard, melody generator) and goes through EQ, filters, effects, reverb and th
 other layer.
 
 **The sound** is set in the Layer Instrument menu (**I + layer key**), which shows synth pages for
-a SYNTH layer:
+a SYNTH layer. Press the layer key again to go to the next page:
 
 ```
- Page 1 OSC:     [1 WAVE]    [2 DETUNE]   [ waveform ]
-                 [5 LEVEL]   [6 PITCH]    [7 SUB]      [8 NOISE]
- Page 2 FILTER:  [1 CUTOFF]  [2 RESO]     [ filter envelope + gate ]
-                 [5 ENV AMT] [6 DECAY]    [7 GATE]     [8 DRIVE]
- Page 3:         routing to EQ / FILTER / EFFECT / REVERB, as for samples
+ Page 1 OSC:     [1 WAVE]      [2 DETUNE]     [ waveform ]
+                 [5 LEVEL]     [6 PITCH]      [7 SUB]        [8 NOISE]
+ Page 2 FILTER:  [1 CUTOFF]    [2 RESO]       [ filter envelope + gate ]
+                 [5 ENV AMT]   [6 DECAY]      [7 GATE]       [8 DRIVE]
+ Page 3 LFO:     [1 LFO SHAPE] [2 LFO RATE]   [ LFO wave + position ]          (v1.13)
+                 [5 LFO DEPTH] [6 LFO TARGET] [7 LFO RETRIG]
+ Page 4:         routing to EQ / FILTER / EFFECT / REVERB, as for samples
 ```
 
 | Control | What it does |
@@ -252,12 +254,17 @@ a SYNTH layer:
 | **LEVEL / PITCH** | As for samples, including their LFOs. PITCH 1.00 = the notes as shown on the NOTE page. |
 | **SUB** | Adds a square wave one octave below: more weight for basses. (v1.12) |
 | **NOISE** | Adds white noise: breath, grit, hi-hat-like textures with a short GATE. (v1.12) |
-| **CUTOFF** | How open the filter is when no envelope is applied. **ADD + CUTOFF** (hold ADD and turn CUTOFF) picks one of the 10 LFOs to sweep it (the box under CUTOFF shows which, `--` = none); set its speed, shape and depth in the LFO menu. Depth 100 = 3 octaves down and up. (v1.13) |
+| **CUTOFF** | How open the filter is when no envelope is applied. |
 | **RESONANCE** | The peak at the cutoff: from smooth to squelchy. |
 | **ENV AMT** | How far each note opens the filter. With a low CUTOFF this gives the "wow" of acid basslines. |
 | **DECAY** | How fast the filter closes again after each note, from 20 ms (a pluck) to 2 s (a slow sweep). |
 | **GATE** | How long each note is held: a share of the time until the next beat. Low = short staccato, 100 = notes run into each other. |
 | **DRIVE** | Saturation in and after the filter: 0 = clean, 25–50 warm and thick, 75–100 loud and square-ish. It also makes the sound louder, so lower LEVEL a bit at high values. |
+| **LFO SHAPE** | SINE, TRIANGLE, SAW DOWN, SQUARE or RANDOM (a new random value every cycle: the classic "sample & hold" bleeps). (v1.13) |
+| **LFO RATE** | How long one LFO cycle lasts, locked to the tempo: 1/32 to 1/2 (with 1/8T and 1/4T triplets), or 1, 2, 4, 8 bars. (v1.13) |
+| **LFO DEPTH** | How strongly it moves its target. **OFF (0) by default**: turn this up first. (v1.13) |
+| **LFO TARGET** | **CUTOFF** (wobble/sweep, up to 3 octaves each way), **PITCH** (vibrato: gentle at low depth, up to an octave each way at 100) or **LEVEL** (tremolo, down to silence at 100). (v1.13) |
+| **LFO RETRIG** | **FREE**: the LFO runs on by itself, across notes. **NOTE**: it starts again with every note (not on a SLIDE): with SAW DOWN on CUTOFF every note gets its own filter sweep. (v1.13) |
 
 - **Your own waveforms (WAVE = SAMPLE):** put single-cycle WAVs (one period of a waveform,
   typically 600 samples; free collections exist online) in an instrument folder on the card. Load
@@ -274,9 +281,12 @@ a SYNTH layer:
 - **A first acid bass:** EUCLID E(7,16) on a layer → NOTE page: MODE SYNTH, ROOT A, SCALE MINOR,
   hold ADD → Layer Instrument: WAVE SAW, CUTOFF 20, RESONANCE 70, ENV AMT 70, DECAY 25, GATE 40.
   Then turn CUTOFF and RESONANCE while it plays.
-- **A filter wobble:** in the LFO menu, turn LFO 1 on (SINE, rate 1/4); on the synth layer's
-  FILTER page hold **ADD** and turn **CUTOFF** until it shows ` 01`. CUTOFF sets the centre,
-  the LFO's DEPTH how far it swings. (v1.13)
+- **A filter wobble** (v1.13): on the synth layer's LFO page (I + layer key, press the layer key
+  twice more) set LFO SHAPE SINE, LFO RATE 1/4, LFO TARGET CUTOFF and turn **LFO DEPTH** up. The
+  wave on screen moves with it. CUTOFF on the FILTER page sets the centre it swings around. For a
+  dubstep-style wobble try 1/8 or 1/8T; for RANDOM bleeps, SHAPE RANDOM at 1/16.
+- The global LFOs in the LFO menu still work on LEVEL and PITCH as before (hold ADD and turn the
+  knob); the synth's own LFO is separate and needs no setup elsewhere.
 - **Saved with the project** (in the `.rwn` file). Older Moffe versions open the project with the
   layer as a DRUM layer and its notes intact. CLEAR (hold) in the Layer Instrument menu resets the
   sound.
@@ -333,7 +343,7 @@ a SYNTH layer:
 | v1.10 | Pads as a scale keyboard (step entry, live recording); melody generator and variations |
 | v1.11 | SYNTH layers: a built-in synth voice with filter, envelope, gate and accent |
 | v1.12 | SYNTH: DETUNE, SUB, NOISE, WAVE = SAMPLE (single-cycle WAVs); SLIDE per beat; stronger DRIVE |
-| v1.13 | SYNTH: filter LFO (ADD + CUTOFF); synth sounds in drumkits and the instrument copy |
+| v1.13 | SYNTH: own LFO page (cutoff / pitch / level, tempo-synced); synth sounds in drumkits and the instrument copy |
 
 ## Coming next
 

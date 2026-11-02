@@ -2681,6 +2681,11 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
         case ENC_SYNTH_DETUNE:
         case ENC_SYNTH_SUB:
         case ENC_SYNTH_NOISE:
+        case ENC_SYNTH_LFO_SHAPE:
+        case ENC_SYNTH_LFO_RATE:
+        case ENC_SYNTH_LFO_DEPTH:
+        case ENC_SYNTH_LFO_TARGET:
+        case ENC_SYNTH_LFO_RETRIG:
             synth_change(encoder[encoderNum_].function, true);
             break;
 
@@ -3290,6 +3295,11 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
         case ENC_SYNTH_DETUNE:
         case ENC_SYNTH_SUB:
         case ENC_SYNTH_NOISE:
+        case ENC_SYNTH_LFO_SHAPE:
+        case ENC_SYNTH_LFO_RATE:
+        case ENC_SYNTH_LFO_DEPTH:
+        case ENC_SYNTH_LFO_TARGET:
+        case ENC_SYNTH_LFO_RETRIG:
             synth_change(encoder[encoderNum_].function, false);
             break;
 

@@ -386,6 +386,7 @@ void Controller::layerInst_select(uint8_t layerNum_) {
         preMenuTab = menuTab;
         menuTab = 0;
         menu = LAYER_INST_0_MENU;
+        synthLfoPage = false;
 
         // 3. TARGET LAYER SNAPSHOT
         // Mirror loaded inst/sample fields into selected-edit buffers.
@@ -440,11 +441,18 @@ void Controller::layerInst_select(uint8_t layerNum_) {
         } else if (menu == LAYER_INST_1_MENU) {
             preMenu = menu;
             menu = LAYER_INST_2_MENU;
+            synthLfoPage = synthLayerSelected();  // a SYNTH layer shows its LFO page first
 
             // Animate transition and render page-2.
             lcd_transitionMenu();
 
             // Refresh encoder bindings for new page.
+            encoder_update();
+            lcd_drawLayerInst2Menu(layerNum_);
+        } else if ((menu == LAYER_INST_2_MENU) && synthLfoPageActive()) {
+            // SYNTH: LFO page -> routing page (same menu, other knobs).
+            synthLfoPage = false;
+            lcd_transitionMenu();
             encoder_update();
             lcd_drawLayerInst2Menu(layerNum_);
         } else if (menu == LAYER_INST_2_MENU) {
@@ -2009,6 +2017,7 @@ void Controller::layerInst_paste() {
         // 4. REDRAW: a change between sample and SYNTH layer swaps the whole page and its knobs.
         const bool inLayerInst = (menu == LAYER_INST_0_MENU) || (menu == LAYER_INST_1_MENU) || (menu == LAYER_INST_2_MENU);
         if (inLayerInst && (wasSynth != synthLayerSelected())) {
+            synthLfoPage = false;  // page 3 stays the routing page it was
             lcd_transitionMenu();
             if (menu == LAYER_INST_0_MENU) lcd_drawLayerInst0Menu(layerNum, true);
             if (menu == LAYER_INST_1_MENU) lcd_drawLayerInst1Menu(layerNum);
@@ -2302,11 +2311,18 @@ bool Controller::synthLayerSelected() const {
 }
 
 uint8_t Controller::layerInstPage() const {
+    // Row of kEncoderSynthFunction: 0 OSC, 1 FILTER, 2 routing, 3 LFO (a SYNTH layer's extra page
+    // between FILTER and routing; it shares LAYER_INST_2_MENU with routing).
+    if (synthLfoPageActive()) return 3;
     return (menu == LAYER_INST_1_MENU) ? 1 : ((menu == LAYER_INST_2_MENU) ? 2 : 0);
 }
 
 bool Controller::synthInstPageActive() const {
     return ((menu == LAYER_INST_0_MENU) || (menu == LAYER_INST_1_MENU) || (menu == LAYER_INST_2_MENU)) && synthLayerSelected();
+}
+
+bool Controller::synthLfoPageActive() const {
+    return synthLfoPage && (menu == LAYER_INST_2_MENU) && synthLayerSelected();
 }
 
 void Controller::synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_, uint8_t beatFlags_) {
@@ -2362,6 +2378,7 @@ void Controller::synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int
     n.velocity = (fillVolMultiplier_ >= 0.99f) ? 1.0f : 0.5f;  // FLAT = accent, GHOST = softer and darker
     n.gateSamples = gateSamples;
     n.glideCoef = (layer.toneGlide > 0) ? layer.toneGlideCoef : 0.0f;
+    n.lfoRetrig = (layer.synth.lfoRetrig != 0);  // a slide keeps the LFO going (start() ignores it then)
     if (slideIn) {
         n.legato = true;  // envelopes keep going, the pitch glides (GLIDE time, at least ~36 ms)
         n.glideCoef = (layer.toneGlide >= kSlideGlideMin) ? layer.toneGlideCoef : tone::glideBlockCoef(kSlideGlideMin, kAudioBlocksPerSecond);
@@ -2387,20 +2404,11 @@ void Controller::synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int
     __set_PRIMASK(primask);
 }
 
-float Controller::synth_cutoffMod(uint8_t layerNum_) const {
-    /// @brief CUTOFF offset in octaves from the layer's filter LFO (ADD + CUTOFF), 0 = none.
-    /// Called by the audio ISR once per block. Lives here, not in ControllerAudio.cpp: the 64 KB
-    /// LFO table is a header constant, so using it in another file would copy it into flash again.
+float Controller::synth_lfoIncrement(uint8_t layerNum_) const {
+    /// @brief Phase step per sample of the layer's own LFO: RATE locked to the current tempo
+    /// (bars follow the Rhythm menu's MEASURE). Called by the audio ISR once per block.
 
-    const uint8_t lfoNum = layerLibrary[layerNum_].synth.lfoCutoff;
-    if ((lfoNum == 0) || (lfoNum > kLfoLibrarySize) || !lfoLibrary[lfoNum - 1].active) return 0.0f;
-    const Lfo& lfo = lfoLibrary[lfoNum - 1];
-    if (lfo.type > kMaxLfoType) return 0.0f;
-    // The sequencer ISR can briefly leave the counter at 3200 before wrapping it.
-    const float counter = lfo.sampleCounter;
-    const uint16_t index = ((counter >= 0.0f) && (counter < kLfoSampleSize)) ? static_cast<uint16_t>(counter) : 0;
-    const uint8_t depth = (lfo.depth > kMaxLfoDepth) ? kMaxLfoDepth : lfo.depth;
-    return synth::lfoCutoffOctaves(kLfoDataLibrary[lfo.type][index], kNumberDataLibrary[depth].stdMultiplier);
+    return synth::lfoIncrement(layerLibrary[layerNum_].synth.lfoRate, static_cast<float>(rhythm.tempo), static_cast<float>(rhythm.measure), kAudioSampleRate);
 }
 
 void Controller::synth_silence(uint8_t layerNum_) {
@@ -2438,18 +2446,44 @@ void Controller::synth_change(EncoderFunc function_, bool up_) {
             lcd_drawSynthGraph();
             note_audition();
             return;
-        case ENC_SYNTH_CUTOFF:
-            if (keyboard.shiftKeyPress) {
-                // ADD + CUTOFF: which global LFO moves the filter (-- = none), wrapping like
-                // ADD + LEVEL / PITCH on sample layers.
-                if (up_) {
-                    p.lfoCutoff = (p.lfoCutoff < synth::kMaxLfoAssign) ? (p.lfoCutoff + 1) : 0;
-                } else {
-                    p.lfoCutoff = (p.lfoCutoff > 0) ? (p.lfoCutoff - 1) : synth::kMaxLfoAssign;
-                }
-                lcd_drawSynthData(0);
+        case ENC_SYNTH_LFO_SHAPE:
+        case ENC_SYNTH_LFO_RATE:
+        case ENC_SYNTH_LFO_TARGET:
+        case ENC_SYNTH_LFO_RETRIG: {
+            // LFO page choices: step through the list, no wrap.
+            uint8_t* choice = &p.lfoShape;
+            uint8_t count = synth::kLfoShapeCount;
+            uint8_t choiceSlot = 0;
+            if (function_ == ENC_SYNTH_LFO_RATE) {
+                choice = &p.lfoRate;
+                count = synth::kLfoRateCount;
+                choiceSlot = 1;
+            } else if (function_ == ENC_SYNTH_LFO_TARGET) {
+                choice = &p.lfoTarget;
+                count = synth::kLfoTargetCount;
+                choiceSlot = 5;
+            } else if (function_ == ENC_SYNTH_LFO_RETRIG) {
+                choice = &p.lfoRetrig;
+                count = 2;
+                choiceSlot = 6;
+            }
+            if (*choice >= count) *choice = 0;  // never index past a table
+            if (up_ && (*choice < count - 1)) {
+                (*choice)++;
+            } else if (!up_ && (*choice > 0)) {
+                (*choice)--;
+            } else {
                 return;
             }
+            lcd_drawSynthData(choiceSlot);
+            if (function_ != ENC_SYNTH_LFO_RETRIG) lcd_drawSynthGraph();
+            return;
+        }
+        case ENC_SYNTH_LFO_DEPTH:
+            value = &p.lfoDepth;
+            slot = 4;
+            break;
+        case ENC_SYNTH_CUTOFF:
             value = &p.cutoff;
             slot = 0;
             break;
@@ -2497,6 +2531,9 @@ void Controller::synth_change(EncoderFunc function_, bool up_) {
     }
     lcd_drawSynthData(slot);
     if ((function_ == ENC_SYNTH_DECAY) || (function_ == ENC_SYNTH_GATE) || (function_ == ENC_SYNTH_ENVAMT)) lcd_drawSynthGraph();
+    // LFO DEPTH: the graph's height, and OFF <-> on changes its label; redraw only when it matters
+    // visibly (every 10 %, and at 0/1) so fast turning stays smooth.
+    if ((function_ == ENC_SYNTH_LFO_DEPTH) && ((*value <= 1) || ((*value % 10) == 0))) lcd_drawSynthGraph();
 }
 
 void Controller::note_padPressed(uint8_t pad_) {

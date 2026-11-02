@@ -582,15 +582,17 @@ void Controller::processAudioLayer() {
                 io.midi.txTriggerNoteOn[i] = true;
             }
             aBD.mixerInMode = layerLibrary[i].mixerInMode;  // routing (EQ / filter / effect / reverb) as for samples
+            // The layer's own LFO (LFO page), locked to the tempo; it keeps running between notes.
+            const float lfoIncrement = synth_lfoIncrement(i);
             if (voice.active) {
-                // Filter LFO: one of the 10 global LFOs moves CUTOFF (SHIFT + CUTOFF assigns it).
-                const float cutoffMod = synth_cutoffMod(i);
-                const uint8_t events = synth::render(voice, layerLibrary[i].synth, audioLayer[i], I2S_BLOCK_SIZE, kAudioSampleRate, cutoffMod);
+                const uint8_t events = synth::render(voice, layerLibrary[i].synth, audioLayer[i], I2S_BLOCK_SIZE, kAudioSampleRate, lfoIncrement);
                 if (events & synth::kGateEnded) io.midi.txTriggerNoteOff[i] = true;
                 if (events & synth::kVoiceEnded) {
                     lD.beatStartFlag = false;
                     lD.beatEndFlag = true;
                 }
+            } else {
+                synth::advanceLfo(voice, lfoIncrement, I2S_BLOCK_SIZE);
             }
             continue;
         }

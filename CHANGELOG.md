@@ -5,31 +5,39 @@ SD-card package is named after it). Rolling back = installing an older package.
 
 ## v1.13
 
-**SYNTH: filter LFO, synth sounds in drumkits and the instrument copy (step 4d)**
+**SYNTH: its own LFO page, synth sounds in drumkits and the instrument copy (step 4d)**
 
-- **Filter LFO:** on the FILTER page of a SYNTH layer, **ADD + CUTOFF** (hold ADD and turn CUTOFF) assigns one of the 10
-  global LFOs to the cutoff (`--` = none), exactly like ADD + LEVEL / PITCH on sample layers.
-  The sign box under CUTOFF shows which one. The LFO's rate, shape, phase and depth (LFO menu)
-  apply; depth 100 sweeps the cutoff 3 octaves down and up. It moves the filter continuously,
-  also during long notes, and the step of a square or random LFO is smoothed over ~2 ms so it
-  does not click.
+- **LFO page** for SYNTH layers: pressing the layer key in the Layer Instrument menu now goes OSC
+  → FILTER → **LFO** → routing. Knobs: **1 LFO SHAPE** (SINE, TRIANGLE, SAW DOWN, SQUARE, RANDOM
+  = sample & hold), **2 LFO RATE** (tempo-synced: 1/32, 1/16, 1/8T, 1/8, 1/4T, 1/4, 1/2, 1, 2, 4,
+  8 bars; bars follow the Rhythm menu's MEASURE), **5 LFO DEPTH** (0 = OFF, the default),
+  **6 LFO TARGET** (CUTOFF ±3 octaves, PITCH vibrato up to ±12 semitones with a cubic curve so
+  low depths are a gentle vibrato, LEVEL tremolo down to silence), **7 LFO RETRIG** (FREE = runs
+  on across notes, NOTE = restarts with every note except slides). The display shows the wave,
+  as tall as DEPTH, with a marker that follows the voice's LFO.
+  Everything is on the synth's own page, so no setup in the global LFO menu is needed (an early
+  test build used ADD + CUTOFF to pick a global LFO, which needed switching on in the LFO menu
+  and was hard to discover; that was replaced before release).
+- The LFO runs per voice in the audio interrupt, once per 32-sample block, and keeps running
+  between notes; SQUARE/RANDOM steps are smoothed over ~2 blocks and LEVEL is ramped per sample,
+  so nothing clicks. PITCH never pushes the oscillator past Nyquist.
 - **Drumkits** now include each layer's MODE (DRUM / TONE / SYNTH) and its whole SYNTH sound,
-  filter LFO included. Saved as a "SYK1" section after the kit's "EOF": older firmware reads a
-  fixed size and never sees it. Kits saved by older versions have no such section: loading one
-  leaves the layers' MODE and synth sound as they are, so an old drum kit never wipes a synth line.
+  LFO included. Saved as a "SYK2" section after the kit's "EOF": older firmware reads a fixed
+  size and never sees it. Kits saved by older versions have no such section: loading one leaves
+  the layers' MODE and synth sound as they are, so an old drum kit never wipes a synth line.
 - **Instrument copy/paste** (Layer Instrument menu) carries MODE and the SYNTH sound too: a synth
   layer pastes as the same synth, and the page swaps between sample and synth pages if needed.
-- Projects: the `.rwn` sound section is now "SYN3" (11 values per layer, the 11th is the filter
+- Projects: the `.rwn` sound section is now "SYN4" (15 values per layer, the last 5 are the
   LFO). v1.12 ("SYN2") and v1.11 ("SYN1") projects still load.
 
 Under the hood: `synth::pack/unpack/isDefault` are the single place for the sound's file layout
-(project, drumkit), host-tested for round trips, old shorter records and junk; the voice takes
-the LFO as a per-block cutoff offset (`render(..., cutoffModOctaves)`), clamped and NaN-safe.
-`tone_setMode()` is now the one click-free way to switch a layer's MODE (NOTE page, drumkit load,
-paste). The LFO lookup lives in `ControllerLayer.cpp` because the 64 KB LFO table is a header
-constant and using it from `ControllerAudio.cpp` would put a second copy in flash. App +3.5 KB.
-No new compiler warnings.
-
+(project, drumkit), host-tested for round trips, old shorter records and junk. `SynthVoice.h`
+gained the LFO (`lfoValue`, `lfoIncrement`, `advanceLfo`; `render(..., lfoIncrement)`), tested
+for shape ranges, tempo lock (1/4 at 120 BPM = 2 Hz, bars in 3/4 and 4/4), audible effect on all
+three targets, click-free tremolo, retrigger/free/slide behaviour and bad input.
+`tone_setMode()` is now the one click-free way to switch a layer's MODE (NOTE page, drumkit
+load, paste). The LFO page shares `LAYER_INST_2_MENU` with routing (`synthLfoPage`), with its own
+knob row in `kEncoderSynthFunction`. RAM_D1 92.0 %, app +8.6 KB. No new compiler warnings.
 ## v1.12
 
 **SYNTH: DETUNE, SUB, NOISE, SLIDE and sample waveforms (steps 4b + 4c)**
