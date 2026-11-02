@@ -3824,10 +3824,11 @@ void Controller::lcd_drawNoteStrip() {
     // The pads' note range (they are a scale keyboard on a TONE layer; UP/DOWN moves it).
     lcd.setFont(FONT_05x07);
     if (toneOn) {
-        char low[8], high[8], keys[24];
+        char low[8], high[8], keys[32];
         tone::noteName(tone::semitones(tone::keyDegree(0, noteKeysOctave, layer.toneScale), layer.toneScale, layer.toneRoot), low, sizeof(low));
         tone::noteName(tone::semitones(tone::keyDegree(tone::kKeyCount - 1, noteKeysOctave, layer.toneScale), layer.toneScale, layer.toneRoot), high, sizeof(high));
-        snprintf(keys, sizeof(keys), "PADS %s-%s", low, high);
+        // PAD HOLD (knob 3): pad notes sound while the pad is pressed.
+        snprintf(keys, sizeof(keys), "PADS %s-%s%s", low, high, layer.synth.padHold ? "  HOLD" : "");
         lcd.setAlignment(LEFT);
         lcd.setForeColor(GRAY_50);
         lcd.drawText(keys, strlen(keys), kBeatGraphStartX, kBeatGraphEndY - 6);
@@ -3930,6 +3931,7 @@ void Controller::lcd_drawSynthData(uint8_t slot_) {
         case ENC_SYNTH_LFO_RATE: name = synth::kLfoRates[p.lfoRate].name; break;
         case ENC_SYNTH_LFO_TARGET: name = synth::kLfoTargetNames[p.lfoTarget]; break;
         case ENC_SYNTH_LFO_RETRIG: name = p.lfoRetrig ? "NOTE" : "FREE"; break;
+        case ENC_SYNTH_PAD_HOLD: name = p.padHold ? "ON" : "OFF"; break;
         case ENC_SYNTH_LFO_DEPTH:
             if (p.lfoDepth == 0) name = "OFF";
             value = p.lfoDepth;

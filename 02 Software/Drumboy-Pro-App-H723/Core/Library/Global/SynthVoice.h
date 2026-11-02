@@ -90,6 +90,9 @@ struct Params {
     uint8_t sustain = 100;         // level while the note is held after the decay
     uint8_t release = 13;          // 5 ms .. 5 s after the note ends
     uint8_t filterType = kLowPass24;
+    // PAD HOLD (v1.13): 1 = a pad note sounds while the pad is pressed (TONE and SYNTH layers);
+    // 0 = a short note as before. A playing setting, kept when presets or random sounds load.
+    uint8_t padHold = 0;
 };
 
 // Envelope times in seconds for AMP 0..100 (exponential: fine control at the short end).
@@ -115,6 +118,7 @@ inline Params sanitize(const Params& p) {
         if (*f > kMaxParam) *f = kMaxParam;
     }
     if (s.filterType >= kFilterTypeCount) s.filterType = kLowPass24;
+    if (s.padHold > 1) s.padHold = 0;
     if (s.lfoShape >= kLfoShapeCount) s.lfoShape = kLfoTriangle;
     if (s.lfoRate >= kLfoRateCount) s.lfoRate = 5;
     if (s.lfoTarget >= kLfoTargetCount) s.lfoTarget = kLfoCutoff;
@@ -145,9 +149,10 @@ inline float lfoValue(uint8_t shape, float phase, float hold) {
 
 // File layout of one layer's sound (project .rwn "SYN5", drumkit "SYK3", user presets):
 // wave, cutoff, resonance, env amount, decay, gate, drive, detune, sub, noise,
-// LFO shape, rate, depth, target, retrig, attack, amp decay, sustain, release, filter type.
-// Older files hold fewer values ("SYN1" 7, "SYN2" 10, test builds 15); the rest keep defaults.
-constexpr uint8_t kPackedSize = 20;
+// LFO shape, rate, depth, target, retrig, attack, amp decay, sustain, release, filter type,
+// pad hold. Older files hold fewer values ("SYN1" 7, "SYN2" 10, test builds 15/20); the rest
+// keep their defaults.
+constexpr uint8_t kPackedSize = 21;
 
 inline void pack(const Params& p, uint8_t* d) {
     d[0] = p.wave;
@@ -170,14 +175,15 @@ inline void pack(const Params& p, uint8_t* d) {
     d[17] = p.sustain;
     d[18] = p.release;
     d[19] = p.filterType;
+    d[20] = p.padHold;
 }
 
-// Reads `count` values (7..20); never trusts them (sanitized: a damaged file can't index a table).
+// Reads `count` values (7..21); never trusts them (sanitized: a damaged file can't index a table).
 inline Params unpack(const uint8_t* d, uint8_t count) {
     Params p;
-    uint8_t* fields[kPackedSize] = {&p.wave,     &p.cutoff,  &p.resonance, &p.envAmount, &p.decay,    &p.gate,     &p.drive,
-                                    &p.detune,   &p.sub,     &p.noise,     &p.lfoShape,  &p.lfoRate,  &p.lfoDepth, &p.lfoTarget,
-                                    &p.lfoRetrig, &p.attack, &p.ampDecay,  &p.sustain,   &p.release,  &p.filterType};
+    uint8_t* fields[kPackedSize] = {&p.wave,      &p.cutoff,  &p.resonance, &p.envAmount, &p.decay,   &p.gate,       &p.drive,
+                                    &p.detune,    &p.sub,     &p.noise,     &p.lfoShape,  &p.lfoRate, &p.lfoDepth,   &p.lfoTarget,
+                                    &p.lfoRetrig, &p.attack,  &p.ampDecay,  &p.sustain,   &p.release, &p.filterType, &p.padHold};
     for (uint8_t i = 0; (i < count) && (i < kPackedSize); i++) *fields[i] = d[i];
     return sanitize(p);
 }

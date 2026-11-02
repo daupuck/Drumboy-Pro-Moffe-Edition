@@ -248,7 +248,7 @@ scale and octave as on the NOTE page, where UP/DOWN sets the octave):
  Page 3 FILTER:  [1 CUTOFF]    [2 RESO]       [ filter envelope + type ]
                  [5 ENV AMT]   [6 DECAY]      [7 FILT TYPE]  [8 DRIVE]
  Page 4 AMP:     [1 ATTACK]    [2 AMP DECAY]  [ level envelope ]               (v1.13)
-                 [5 SUSTAIN]   [6 RELEASE]    [7 GATE]
+                 [5 SUSTAIN]   [6 RELEASE]    [7 GATE]       [8 PAD HOLD]
  Page 5 LFO:     [1 LFO SHAPE] [2 LFO RATE]   [ LFO wave + position ]          (v1.13)
                  [5 LFO DEPTH] [6 LFO TARGET] [7 LFO RETRIG]
  Page 6:         routing to EQ / FILTER / EFFECT / REVERB, as for samples
@@ -284,6 +284,7 @@ ADD used together with a knob (LFO on LEVEL/PITCH) or UP/DOWN never changes the 
 | **SUSTAIN** | The level while the note is held, after the decay. 100 = full (the old behaviour), 0 = a pluck that dies away. (v1.13) |
 | **RELEASE** | How long the note rings on after it ends: 5 ms to 5 s. Long values give pads and bells their tail. (v1.13) |
 | **GATE** | How long each note is held: a share of the time until the next beat. Low = short staccato, 100 = notes run into each other. (On the AMP page since v1.13.) |
+| **PAD HOLD** | **OFF**: a pad plays a short note, as before. **ON**: a pad note sounds **as long as you hold the pad** and goes into its RELEASE when you let go, like a keyboard. Pressing another pad switches to that note. Also on the NOTE page (knob 3, shown as `HOLD` in the strip), and for TONE layers there: the sample plays while held and fades out on release (it still stops at the end of the sample). Presets and random sounds keep it as it is. (v1.13) |
 | **LFO SHAPE** | SINE, TRIANGLE, SAW DOWN, SQUARE or RANDOM (a new random value every cycle: the classic "sample & hold" bleeps). (v1.13) |
 | **LFO RATE** | How long one LFO cycle lasts, locked to the tempo: 1/32 to 1/2 (with 1/8T and 1/4T triplets), or 1, 2, 4, 8 bars. (v1.13) |
 | **LFO DEPTH** | How strongly it moves its target. **OFF (0) by default**: turn this up first. (v1.13) |

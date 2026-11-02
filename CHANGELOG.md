@@ -25,6 +25,11 @@ drumkits and the instrument copy (step 4d)**
 - **AMP page:** **ATTACK** (1 ms–3 s), **AMP DECAY** (5 ms–5 s) to **SUSTAIN**, **RELEASE**
   (5 ms–5 s), and **GATE** (moved here from FILTER). The defaults reproduce the old fixed 2 ms /
   full / 12 ms envelope, so existing sounds are unchanged. The display draws the envelope.
+- **PAD HOLD** (AMP page knob 8; NOTE page knob 3 for TONE and SYNTH layers, shown as `HOLD` in
+  the strip): ON = a pad note sounds while the pad is pressed and is released when you let go
+  (SYNTH: gate held up to 60 s, then RELEASE; TONE: the sample fades out in ~1 ms). The newest
+  pad owns the note. Stored with the sound (21st value) but kept when presets, random sounds or
+  undo change the sound. Files: "SYN6", "SYK4", "RWSYNUS2" (older v1.13 test-build files load).
 - **FILT TYPE** (FILTER page, knob 7): LP 24 (as before), LP 12, BAND, HIGH, tapped from the same
   ladder (classic mode mixing), so it costs a few multiplies per sample.
 
@@ -58,8 +63,8 @@ drumkits and the instrument copy (step 4d)**
   either side of the root (was two), so TRANSPOSE and the NOTE knob reach as far. The beat's
   note byte now uses its spare bit 7: degrees -64..63 (host-tested packing; it is never stored on
   SD, the `.rwn` file keeps one signed byte per note as before).
-- Projects: the `.rwn` sound section is now "SYN5" (20 values per layer: sound, LFO, AMP,
-  filter type), drumkits "SYK3". v1.12 ("SYN2") and v1.11 ("SYN1") projects still load, as do
+- Projects: the `.rwn` sound section is now "SYN6" (21 values per layer: sound, LFO, AMP,
+  filter type, pad hold), drumkits "SYK4". v1.12 ("SYN2") and v1.11 ("SYN1") projects still load, as do
   the v1.13 test builds' files.
 
 Under the hood: `synth::pack/unpack/isDefault` are the single place for the sound's file layout

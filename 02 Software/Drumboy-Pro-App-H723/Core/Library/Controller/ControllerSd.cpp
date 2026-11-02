@@ -1756,13 +1756,14 @@ void Controller::sd_loadNotes(uint8_t fileNum_) {
         uint8_t perLayer = 0;
         uint8_t used = 0;
         if (ok && (sd_read(eof, 3) == FR_OK) && (sd_read(tag, 4) == FR_OK)) {
+            if (strncmp(tag, "SYN6", 4) == 0) perLayer = used = 21;
             if (strncmp(tag, "SYN5", 4) == 0) perLayer = used = 20;
             if (strncmp(tag, "SYN4", 4) == 0) perLayer = used = 15;
             if (strncmp(tag, "SYN3", 4) == 0) { perLayer = 11; used = 10; }
             if (strncmp(tag, "SYN2", 4) == 0) perLayer = used = 10;
             if (strncmp(tag, "SYN1", 4) == 0) perLayer = used = 7;
         }
-        static_assert(kSynthFileParams == 20, "SYN5 holds 20 values per layer");
+        static_assert(kSynthFileParams == 21, "SYN6 holds 21 values per layer");
         if ((perLayer > 0) && (sd_read(sound, kLayerLibrarySize * perLayer) == FR_OK)) {
             for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
                 layerLibrary[l].synth = synth::unpack(&sound[l * perLayer], used);  // sanitized
@@ -2167,8 +2168,9 @@ SdResult Controller::sd_loadDrumkit(uint8_t kitNum_) {
     return result;
 }
 
-// System/Preset/SynthUser.rws: "RWSYNUSR" + 16 x [used, 20 values of synth::pack] + "EOF".
-// Written whole on every save (it is 347 bytes). No file = all USER slots empty.
+// System/Preset/SynthUser.rws: "RWSYNUS2" + 16 x [used, 21 values of synth::pack] + "EOF".
+// ("RWSYNUSR" from a v1.13 test build has 20 values per slot and is still read.) Written whole on
+// every save (363 bytes). No file = all USER slots empty.
 
 void Controller::sd_loadSynthUser() {
     for (uint8_t i = 0; i < synth::kUserPresetCount; i++) {
@@ -2178,14 +2180,18 @@ void Controller::sd_loadSynthUser() {
     if (f_open(&sd.file, kSynthUserFile, FA_READ) != FR_OK) return;
     char ref[sizeof(kSynthUserRef)] = {};
     uint8_t data[synth::kUserPresetCount * (1 + synth::kPackedSize)];
-    const bool ok = (sd_read(ref, strlen(kSynthUserRef)) == FR_OK) && (strncmp(ref, kSynthUserRef, strlen(kSynthUserRef)) == 0) &&
-                    (sd_read(data, sizeof(data)) == FR_OK);
+    uint8_t values = 0;  // per slot; "RWSYNUSR" (test build) had 20
+    if (sd_read(ref, strlen(kSynthUserRef)) == FR_OK) {
+        if (strncmp(ref, kSynthUserRef, strlen(kSynthUserRef)) == 0) values = synth::kPackedSize;
+        if (strncmp(ref, "RWSYNUSR", 8) == 0) values = 20;
+    }
+    const bool ok = (values > 0) && (sd_read(data, synth::kUserPresetCount * (1 + values)) == FR_OK);
     f_close(&sd.file);
     if (!ok) return;
     for (uint8_t i = 0; i < synth::kUserPresetCount; i++) {
-        const uint8_t* d = &data[i * (1 + synth::kPackedSize)];
+        const uint8_t* d = &data[i * (1 + values)];
         synthUserUsed[i] = (d[0] == 1);
-        if (synthUserUsed[i]) synthUserPresets[i] = synth::unpack(d + 1, synth::kPackedSize);  // sanitized
+        if (synthUserUsed[i]) synthUserPresets[i] = synth::unpack(d + 1, values);  // sanitized
     }
 }
 
@@ -2222,9 +2228,12 @@ void Controller::sd_loadDrumkitSynth(const char* drumkitName_) {
     uint8_t used = 0;      // sound values to take
     if ((f_lseek(&sd.file, strlen(kDrumkitRef) + kDrumkitByteSize + 3) == FR_OK) &&  // + "EOF"
         (sd_read(tag, strlen(kDrumkitSynthRef)) == FR_OK)) {
-        if (strncmp(tag, "SYK3", 4) == 0) {
+        if (strncmp(tag, "SYK4", 4) == 0) {
             perLayer = 1 + synth::kPackedSize;
             used = synth::kPackedSize;
+        } else if (strncmp(tag, "SYK3", 4) == 0) {  // v1.13 test build: 20 values (no PAD HOLD)
+            perLayer = 21;
+            used = 20;
         } else if (strncmp(tag, "SYK2", 4) == 0) {  // v1.13 test build: 15 values (no AMP page yet)
             perLayer = 16;
             used = 15;

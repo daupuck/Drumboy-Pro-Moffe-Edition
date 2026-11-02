@@ -618,6 +618,12 @@ static void testPackUnpack() {
     p.lfoDepth = 77;
     p.lfoTarget = kLfoLevel;
     p.lfoRetrig = 1;
+    p.attack = 70;
+    p.ampDecay = 20;
+    p.sustain = 40;
+    p.release = 90;
+    p.filterType = kHighPass;
+    p.padHold = 1;
     uint8_t d[kPackedSize];
     pack(p, d);
     const Params q = unpack(d, kPackedSize);
@@ -642,6 +648,12 @@ static void testPackUnpack() {
     Params lfoOnly;
     lfoOnly.lfoDepth = 30;
     CHECK(!isDefault(lfoOnly), "an LFO alone makes the sound non-default (file is saved)");
+    Params holdOnly;
+    holdOnly.padHold = 1;
+    CHECK(!isDefault(holdOnly), "PAD HOLD alone is saved too");
+    const Params v20 = unpack(d, 20);  // v1.13 test build files: no PAD HOLD byte -> off
+    CHECK(v20.filterType == kHighPass && v20.padHold == 0, "20-value record");
+    CHECK(j.padHold == 0, "junk PAD HOLD is sanitized");
 }
 
 // Level envelope of a rendered note: peak |x| per 5 ms window.

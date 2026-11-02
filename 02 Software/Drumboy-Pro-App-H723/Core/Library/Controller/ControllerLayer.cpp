@@ -139,6 +139,7 @@ void Controller::layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int
 
     // 1. CONTEXT LOAD
     // Resolve layer, play-state buffers, and temporary beat structures.
+    toneReleasePending[layerNum_] = false;  // PAD HOLD: an old release must not cut this new note
     Layer& layer = layerLibrary[layerNum_];
     LayerPlayData& lD = layerPlayData[layerNum_];
     BeatPlayData& tBD = lD.tempBeatPlayData;
@@ -2390,6 +2391,9 @@ void Controller::synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int
     uint32_t gateSamples = static_cast<uint32_t>(gateShare * static_cast<float>(length) * samplesPerInterval);
     if (tieOut) gateSamples += static_cast<uint32_t>(0.003f * kAudioSampleRate);
     if (gateSamples < 64) gateSamples = 64;  // even GATE 0 is a short blip, not silence
+    // PAD HOLD: held until the pad is released (the audio ISR then shortens the gate); 60 s at
+    // most, so a lost release can never hang a note forever.
+    if (beatFlags_ & kPlayHold) gateSamples = static_cast<uint32_t>(60.0f * kAudioSampleRate);
 
     const bool slideIn = (beatFlags_ & kPlaySlideIn) != 0;
     synth::NoteOn n;
@@ -2421,6 +2425,7 @@ void Controller::synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int
     __disable_irq();
     synthPending[layerNum_] = n;
     synthPendingFlag[layerNum_] = true;
+    synthReleasePending[layerNum_] = false;  // an old release must not cut this new note
     __set_PRIMASK(primask);
 }
 
@@ -2489,6 +2494,7 @@ void Controller::synth_change(EncoderFunc function_, bool up_) {
         case ENC_SYNTH_LFO_TARGET: choice = &p.lfoTarget; count = synth::kLfoTargetCount; break;
         case ENC_SYNTH_LFO_RETRIG: choice = &p.lfoRetrig; count = 2; break;
         case ENC_SYNTH_FILTER_TYPE: choice = &p.filterType; count = synth::kFilterTypeCount; break;
+        case ENC_SYNTH_PAD_HOLD: choice = &p.padHold; count = 2; break;
         default: break;
     }
     if (choice != nullptr) {
@@ -2500,9 +2506,13 @@ void Controller::synth_change(EncoderFunc function_, bool up_) {
         } else {
             return;
         }
+        if (function_ == ENC_SYNTH_PAD_HOLD) {
+            note_releaseHeld();  // switching HOLD off must not leave a note hanging
+            if (notePageActive()) lcd_drawNoteStrip();  // NOTE page knob 3: shown in the strip
+        }
         const uint8_t slot = synthSlotOf(function_);
-        if (slot != 0xFF) lcd_drawSynthData(slot);
-        if (function_ != ENC_SYNTH_LFO_RETRIG) lcd_drawSynthGraph();
+        if ((slot != 0xFF) && synthInstPageActive()) lcd_drawSynthData(slot);
+        if ((function_ != ENC_SYNTH_LFO_RETRIG) && (function_ != ENC_SYNTH_PAD_HOLD)) lcd_drawSynthGraph();
         if ((function_ == ENC_SYNTH_WAVE) || (function_ == ENC_SYNTH_FILTER_TYPE)) note_audition();
         return;
     }
@@ -2555,7 +2565,9 @@ void Controller::synth_captureUndo() {
 
 void Controller::synth_undo() {
     if ((selectedLayerNum == -1) || (synthUndoLayer != selectedLayerNum)) return;
+    const uint8_t hold = layerLibrary[selectedLayerNum].synth.padHold;  // a playing setting: kept
     layerLibrary[selectedLayerNum].synth = synth::sanitize(synthUndoParams);
+    layerLibrary[selectedLayerNum].synth.padHold = hold;
     synthPresetIndex[selectedLayerNum] = -1;
     snprintf(synthStatus, sizeof(synthStatus), "UNDONE");
     synth_soundChanged();
@@ -2575,6 +2587,7 @@ void Controller::synth_loadPreset(int16_t index_) {
     if (selectedLayerNum == -1) return;
     const int16_t total = synth::kFactoryPresetCount + synth::kUserPresetCount;
     if ((index_ < 0) || (index_ >= total)) return;
+    const uint8_t hold = layerLibrary[selectedLayerNum].synth.padHold;  // PAD HOLD is how you play, not the sound
     if (index_ < synth::kFactoryPresetCount) {
         layerLibrary[selectedLayerNum].synth = synth::kFactoryPresets[index_].params;
     } else {
@@ -2582,6 +2595,7 @@ void Controller::synth_loadPreset(int16_t index_) {
         if (!synthUserUsed[user]) return;
         layerLibrary[selectedLayerNum].synth = synth::sanitize(synthUserPresets[user]);
     }
+    layerLibrary[selectedLayerNum].synth.padHold = hold;
     synthPresetIndex[selectedLayerNum] = index_;
     synthStatus[0] = '\0';
     synth_soundChanged();
@@ -2608,8 +2622,10 @@ void Controller::synth_randomize(bool fresh_) {
     if (selectedLayerNum == -1) return;
     uint32_t seed = DWT_CYCCNT ^ (HAL_GetTick() << 16) ^ 0x5EED5EEDu;  // a different result every time
     synth::Params& p = layerLibrary[selectedLayerNum].synth;
+    const uint8_t hold = p.padHold;
     if (fresh_) {
         p = synth::randomSound(seed);
+        p.padHold = hold;
         snprintf(synthStatus, sizeof(synthStatus), "RANDOM SOUND");
     } else {
         synth::mutateSound(p, seed);
@@ -2664,7 +2680,16 @@ void Controller::note_padPressed(uint8_t pad_) {
     Bank& bank = layer.bankLibrary[activeSongBank];
     const int8_t note = tone::keyDegree(pad_, noteKeysOctave, layer.toneScale);
 
-    if ((!layer.mute) && layerSounds(layerNum)) layer_playBeat(layerNum, 1.0f, note);
+    if ((!layer.mute) && layerSounds(layerNum)) {
+        if (layer.synth.padHold) {
+            // PAD HOLD: the note lasts until this pad is released (note_padReleased).
+            layer_playBeat(layerNum, 1.0f, note, 0, kPlayHold);
+            padHoldLayer = static_cast<int8_t>(layerNum);
+            padHoldKey = static_cast<int8_t>(pad_);
+        } else {
+            layer_playBeat(layerNum, 1.0f, note);
+        }
+    }
 
     if (recordActive) {
         if (!metronome.precountState) {
@@ -2694,6 +2719,28 @@ void Controller::note_padPressed(uint8_t pad_) {
         } else {
             lcd_redrawNotePage();
         }
+    }
+}
+
+void Controller::note_padReleased(uint8_t pad_) {
+    /// @brief A pad was let go: with PAD HOLD, the note it started ends now (release / fade).
+    /// Another pad pressed since then owns the note, so its release is the one that counts.
+
+    if ((padHoldLayer < 0) || (padHoldKey != static_cast<int8_t>(pad_))) return;
+    note_releaseHeld();
+}
+
+void Controller::note_releaseHeld() {
+    /// @brief Ends the held pad note, if any (pad released, HOLD switched off).
+
+    if (padHoldLayer < 0) return;
+    const uint8_t layerNum = static_cast<uint8_t>(padHoldLayer);
+    padHoldLayer = -1;
+    padHoldKey = -1;
+    if (layerLibrary[layerNum].toneMode == tone::kModeSynth) {
+        synthReleasePending[layerNum] = true;
+    } else {
+        toneReleasePending[layerNum] = true;
     }
 }
 

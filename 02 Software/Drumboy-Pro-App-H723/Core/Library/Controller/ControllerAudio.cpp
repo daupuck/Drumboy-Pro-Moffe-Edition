@@ -581,6 +581,11 @@ void Controller::processAudioLayer() {
                 synth::start(voice, synthPending[i]);
                 io.midi.txTriggerNoteOn[i] = true;
             }
+            if (synthReleasePending[i]) {
+                // PAD HOLD: the pad was released, so the held note goes into its RELEASE now.
+                synthReleasePending[i] = false;
+                if (voice.active && (voice.gateLeft > 1)) voice.gateLeft = 1;
+            }
             aBD.mixerInMode = layerLibrary[i].mixerInMode;  // routing (EQ / filter / effect / reverb) as for samples
             // The layer's own LFO (LFO page), locked to the tempo; it keeps running between notes.
             const float lfoIncrement = synth_lfoIncrement(i);
@@ -618,6 +623,16 @@ void Controller::processAudioLayer() {
 
         // Skip processing if the layer is inactive
         if (!aBD.active) continue;
+
+        // PAD HOLD on a TONE layer: the pad was released, so the sample fades out (~1 ms, the
+        // same fade a retrigger uses) instead of playing to its end.
+        if (toneReleasePending[i]) {
+            toneReleasePending[i] = false;
+            if (!aBD.newBeatFlag) {
+                aBD.fadeAction = true;
+                aBD.fadeFlag = true;
+            }
+        }
 
         float* targetBuffer = audioLayer[i];
 
@@ -678,7 +693,10 @@ void Controller::processAudioLayer() {
 
             // Update sample counter and check for playback end
             aBD.counter += (float)copySize;
-            if (copySize < I2S_BLOCK_SIZE) {
+            // Faded out completely (PAD HOLD release) and nothing new waiting: end the note now,
+            // as the slow path does, instead of playing silence to the end of the sample.
+            const bool fadedOut = aBD.fadeAction && (aBD.counterFade >= 49) && !aBD.newBeatFlag;
+            if ((copySize < I2S_BLOCK_SIZE) || fadedOut) {
                 lD.beatStartFlag = false;
                 lD.beatEndFlag = true;
                 aBD.active = false;

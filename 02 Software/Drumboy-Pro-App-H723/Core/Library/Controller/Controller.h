@@ -1148,6 +1148,14 @@ class Controller {
     bool synthAddPending = false;
     bool synthRandomKeyFlag = false;                     // long-key timer running for it
     volatile bool synthRandomLongFlag = false;           // long-key ISR: held long enough
+    // PAD HOLD: the pad whose note is held (monophonic: the newest press wins) and the release
+    // requests for the audio ISR (it shortens the synth gate / fades the sample out).
+    int8_t padHoldLayer = -1;
+    int8_t padHoldKey = -1;
+    volatile bool synthReleasePending[kLayerLibrarySize] = {};
+    volatile bool toneReleasePending[kLayerLibrarySize] = {};
+    void note_padReleased(uint8_t pad_);
+    void note_releaseHeld();
     void synth_captureUndo();
     void synth_undo();
     void synth_loadPreset(int16_t index_);

@@ -262,6 +262,8 @@ void Controller::keyboard_action() {
                         break;
 
                     case KEYSTATE_RELEASE:
+                        note_padReleased(layerNum);  // PAD HOLD: the held note ends with its pad
+                        break;
 
                     case KEYSTATE_NONE:
                         break;
@@ -2711,6 +2713,7 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
         case ENC_SYNTH_SUSTAIN:
         case ENC_SYNTH_RELEASE:
         case ENC_SYNTH_FILTER_TYPE:
+        case ENC_SYNTH_PAD_HOLD:
             synth_change(encoder[encoderNum_].function, true);
             break;
 
@@ -3333,6 +3336,7 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
         case ENC_SYNTH_SUSTAIN:
         case ENC_SYNTH_RELEASE:
         case ENC_SYNTH_FILTER_TYPE:
+        case ENC_SYNTH_PAD_HOLD:
             synth_change(encoder[encoderNum_].function, false);
             break;
 
