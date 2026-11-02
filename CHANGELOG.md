@@ -3,12 +3,15 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
-## v1.14
+## v2.00
 
-The biggest update so far, released together with everything since v1.10 (v1.11 SYNTH layers,
-v1.12 synth sound design, v1.13 presets / envelope / LFO / PAD HOLD; see below). New in v1.14:
-VISUALS, the Moffe Edition look, 66 alphabetical presets, synth names in the track list and
-recorded PAD HOLD lengths.
+The biggest update so far, and the first release since v1.10: a new major version. It contains
+the test builds v1.11 (SYNTH layers), v1.12 (synth sound design) and v1.13 (presets, envelope,
+LFO, PAD HOLD), which were not released on their own and are described below, plus what was
+built as v1.14: VISUALS, the Moffe Edition look, 66 alphabetical presets, synth names in the
+track list and recorded PAD HOLD lengths (this section). `kVersionMajor` 2, `kVersionMinor`
+0; the package is `Drumboy_Pro_Fw_Moffe_02_00.bin`. Nothing about the files changes with the
+number: projects, drumkits and settings from every earlier version load.
 
 **The Moffe Edition look ("Gold Rush").** `kAccentColor` (gold #FFC21A, `0xFE03`) replaces the
 factory cyan everywhere in the UI (menu headers, play bar, active values), `kAccent2Color`
@@ -64,7 +67,7 @@ PAD HOLD ignored), so it also works after loading a project or drumkit; the PRES
 SOUND page start from that preset too. Updated on preset/random/undo/knob changes, MODE
 changes, paste, project and drumkit loading.
 
-## v1.13
+## v1.13 (test build, released in v2.00)
 
 **SYNTH: presets, random sounds, AMP envelope, filter types, its own LFO page, synth sounds in
 drumkits and the instrument copy (step 4d)**
@@ -142,7 +145,7 @@ three targets, click-free tremolo, retrigger/free/slide behaviour and bad input.
 `tone_setMode()` is now the one click-free way to switch a layer's MODE (NOTE page, drumkit
 load, paste). The LFO page shares `LAYER_INST_2_MENU` with routing (`synthLfoPage`), with its own
 knob row in `kEncoderSynthFunction`. RAM_D1 92.0 %, app +8.6 KB. No new compiler warnings.
-## v1.12
+## v1.12 (test build, released in v2.00)
 
 **SYNTH: DETUNE, SUB, NOISE, SLIDE and sample waveforms (steps 4b + 4c)**
 
@@ -181,7 +184,7 @@ now 2.96 million checks (everything at maximum stays bounded, table accuracy < 0
 keeps the envelopes and glides). RAM_D1 +368 B (91.9 %), `processAudioLayer` +0.6 KB. No new
 compiler warnings.
 
-## v1.11
+## v1.11 (test build, released in v2.00)
 
 **SYNTH layers — a built-in synth voice (step 4a)**
 

@@ -23,9 +23,9 @@ rolled back to the factory firmware the same way.
 > SD card first** and keep the factory firmware for rolling back. Modifying the firmware may affect
 > your warranty with Randomwaves.
 
-## ✨ New in v1.14: a synth, a light show and a new look
+## ✨ New in v2.00: a synth, a light show and a new look
 
-The biggest Moffe Edition update yet. Highlights:
+The biggest Moffe Edition update yet, big enough for a new major version. Highlights:
 
 - 🎛️ **A real synthesizer on any layer.** Saw, square, triangle, sine or your own single-cycle
   WAVs, with detune, sub oscillator, noise, a resonant filter in four flavours, DRIVE, an ADSR
@@ -43,19 +43,20 @@ The biggest Moffe Edition update yet. Highlights:
 - 🏆 **The Moffe Edition look:** a gold-and-ruby "Gold Rush" style throughout, and a boot
   screen with a golden MOFFE. Works with any SD card.
 
-→ **[What's new, explained](MOFFE-EDITION.md#whats-new-in-v114--the-big-one)** ·
+→ **[What's new, explained](MOFFE-EDITION.md#whats-new-in-v200--the-big-one)** ·
 **[Full user guide](MOFFE-EDITION.md)** · **[Changelog](CHANGELOG.md)**
 
 > [!NOTE]
-> The v1.13–v1.14 features are built, unit-tested and verified by CI, but have not yet been tried on
-> a device by the maintainer. Please report anything odd in [Issues](../../issues).
+> Everything in v2.00 is built, unit-tested and verified by CI. The synth basics have been played on
+> a device by the maintainer; presets, random sounds, the AMP and LFO pages, PAD HOLD, VISUALS and
+> the new look have not yet. Please report anything odd in [Issues](../../issues).
 
 ## Everything you get
 
 | | Feature | In one sentence |
 |---|---|---|
-| 🎛️ | [**SYNTH layers**](MOFFE-EDITION.md#7-synth-layers--a-built-in-synth-voice-v111) | A built-in synth on any layer with 66 presets, random sounds, envelope, LFO, filter types and PAD HOLD. Acid basslines without a single sample. |
-| 🌈 | [**VISUALS**](MOFFE-EDITION.md#8-visuals--full-screen-music-visuals-v114) | 13 full-screen music visuals in 7 colour themes; keep playing while they run. |
+| 🎛️ | [**SYNTH layers**](MOFFE-EDITION.md#7-synth-layers--a-built-in-synth-voice-v200) | A built-in synth on any layer with 66 presets, random sounds, envelope, LFO, filter types and PAD HOLD. Acid basslines without a single sample. |
+| 🌈 | [**VISUALS**](MOFFE-EDITION.md#8-visuals--full-screen-music-visuals-v200) | 13 full-screen music visuals in 7 colour themes; keep playing while they run. |
 | 🎹 | [**Melody layers**](MOFFE-EDITION.md#6-melody-layers--note-page-in-layer-song-v109) | Turn any layer into an instrument: give each beat a note in a key and scale, add glide and slides, play the pads as a keyboard, or hold ADD and let it write a melody. Your kick just became an 808 bassline. |
 | 🥁 | [**Euclidean rhythms**](MOFFE-EDITION.md#4-euclidean-rhythms--euclid-page-in-layer-song-v106) | Pick steps and hits, turn a knob, hear the pattern change live. |
 | 🎼 | [**Song mode**](MOFFE-EDITION.md#5-song-mode--arrange-parts-into-a-song-v107) | Chain the 5 song banks into intro → verse → chorus, with repeats, looped or played once. |
@@ -63,7 +64,27 @@ The biggest Moffe Edition update yet. Highlights:
 | 🎧 | [**Sample preview**](MOFFE-EDITION.md#3-sample-preview--layer-instrument-menu-v105) | Hear a sample *before* you load it. Your ears will thank you. |
 | 📊 | [**CPU meter**](MOFFE-EDITION.md#audio-cpu-meter-v109) | See how busy the audio engine is (IO menu), so you know how much room is left. |
 | 🛟 | [**Safer saving and fixes**](MOFFE-EDITION.md#improvements-and-fixes) | A full card or a failed save no longer leaves half-written files, plus a stack of bug fixes. |
-| 🏆 | [**The look and the boot screen**](MOFFE-EDITION.md#9-the-moffe-edition-look-v114) | Gold and ruby, sunglasses with a golden rim. Purely cosmetic. Deeply important. |
+| 🏆 | [**The look and the boot screen**](MOFFE-EDITION.md#9-the-moffe-edition-look-v200) | Gold and ruby, sunglasses with a golden rim. Purely cosmetic. Deeply important. |
+
+## Version history
+
+Always install the newest version: it contains everything below. The full technical history is in
+the **[CHANGELOG](CHANGELOG.md)**, and each published version has its firmware file on the
+**[Releases](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases)** page.
+
+| Version | Highlights |
+|---|---|
+| **v2.00** (latest) | SYNTH layers with 66 presets, random sounds, envelope, LFO, filter types and PAD HOLD · 13 VISUALS · the gold-and-ruby Moffe Edition look and boot screen · NOTE page and file improvements (developed as test builds v1.11–v1.14) |
+| v1.10 | The pads as a scale keyboard: step entry and live recording; melody generator and variations |
+| v1.09 | Melody layers (TONE) on the NOTE page; audio CPU meter |
+| v1.08 | EUCLID page shows the CLEAR: UNDO hint |
+| v1.07 | Song mode: chain the 5 song banks into a song |
+| v1.06 | EUCLID page: Euclidean rhythms |
+| v1.05 | Sample preview in the Layer Instrument menu |
+| v1.04 | Moffe Edition boot screen 😎 |
+| v1.03 | Layer Song: MOVE, SHIFT ALL and single-beat ADD |
+| v1.02 | Safer firmware updates, more reliable SD saving, bug fixes |
+| v1.01 | Factory firmware from Randomwaves (for rolling back) |
 
 ## Install
 
@@ -83,8 +104,8 @@ a minute, and future you will be very grateful in the unlikely event it's needed
 ### Step 2 — Download the right file
 
 1. Open **[Releases → latest](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest)**.
-2. Scroll down to **Assets** and click **`Drumboy_Pro_Fw_Moffe_01_14.bin`** (the numbers are the
-   version: `01_14` = v1.14).
+2. Scroll down to **Assets** and click **`Drumboy_Pro_Fw_Moffe_02_00.bin`** (the numbers are the
+   version: `02_00` = v2.00).
 
 What the files in Assets are:
 
@@ -101,9 +122,9 @@ What the files in Assets are:
 
 Open the matching `.sha256` file in a text editor and compare its long number with the output of:
 
-- **Windows:** `certutil -hashfile Drumboy_Pro_Fw_Moffe_01_14.bin SHA256`
-- **macOS:** `shasum -a 256 Drumboy_Pro_Fw_Moffe_01_14.bin`
-- **Linux:** `sha256sum -c Drumboy_Pro_Fw_Moffe_01_14.bin.sha256`
+- **Windows:** `certutil -hashfile Drumboy_Pro_Fw_Moffe_02_00.bin SHA256`
+- **macOS:** `shasum -a 256 Drumboy_Pro_Fw_Moffe_02_00.bin`
+- **Linux:** `sha256sum -c Drumboy_Pro_Fw_Moffe_02_00.bin.sha256`
 
 If they differ, download it again. The bootloader also checks a CRC before it writes anything, so
 a damaged file is refused rather than installed.
@@ -116,14 +137,14 @@ folders, **not** inside them.
 
 ```
 SD card
-├── Drumboy_Pro_Fw_Moffe_01_14.bin   ← here
+├── Drumboy_Pro_Fw_Moffe_02_00.bin   ← here
 ├── Sample/
 └── System/
 ```
 
 - **Keep the exact file name.** The bootloader only looks for names that start with
   `Drumboy_Pro_Fw` and are at most 32 characters long. It is very literal-minded. If your
-  browser saved it as `Drumboy_Pro_Fw_Moffe_01_14 (1).bin`, rename it back.
+  browser saved it as `Drumboy_Pro_Fw_Moffe_02_00 (1).bin`, rename it back.
 - **Make it the only `Drumboy_Pro_Fw…bin` file in the root.** The bootloader installs the first
   one it finds.
 - Don't change anything else on the card. Eject the card safely before you pull it out.
@@ -132,7 +153,7 @@ SD card
 
 Put the card back in the Drumboy Pro and switch it on. You should see:
 
-1. **UPDATING FIRMWARE** with the version (e.g. **V1.14**) and a line that fills up.
+1. **UPDATING FIRMWARE** with the version (e.g. **V2.00**) and a line that fills up.
 2. **FIRMWARE UPDATED** for a few seconds.
 3. The normal start-up, now with **sunglasses and a golden MOFFE EDITION** on the logo. If you see
    the sunglasses, it worked. The sunglasses don't lie.

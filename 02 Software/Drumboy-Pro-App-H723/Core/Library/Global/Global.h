@@ -21,8 +21,8 @@
 /* Application Version -------------------------------------------------------*/
 ////////////////////////////////////////////////////////////////////////////////
 
-const uint8_t kVersionMajor                         = 0x01;
-const uint8_t kVersionMinor                         = 0x0E;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMajor                         = 0x02;  // v2.00: the synth, VISUALS and Gold Rush release
+const uint8_t kVersionMinor                         = 0x00;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/

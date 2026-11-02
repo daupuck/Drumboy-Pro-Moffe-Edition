@@ -5,7 +5,7 @@ Moffe Edition is **unofficial community firmware** for the Drumboy Pro, based on
 is not affiliated with or endorsed by Randomwaves. This page collects everything that is new
 compared with the factory firmware: what each feature does and how to use it on the device.
 
-- **Current version:** v1.14 — download from the
+- **Current version:** v2.00 — download from the
   [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest);
   how to install: [README → Install](README.md#install)
 - **User manual:** published by Randomwaves at [randomwaves.io](https://www.randomwaves.io) (it
@@ -24,25 +24,25 @@ compared with the factory firmware: what each feature does and how to use it on 
 > a Drumboy Pro by the maintainer: song mode (v1.07); the melody layers with notes, GLIDE and
 > TRANSPOSE, and the CPU meter (v1.09: CPU PEAK about 42 % with all 10 layers playing, two of them
 > TONE, and chorus, delay, reverb and both filters on); the pad keyboard and the melody generator
-> (v1.10); SYNTH layers and erasing on the EUCLID/NOTE pages (v1.11); DETUNE, SUB, NOISE, DRIVE,
-> GLIDE, WAVE = SAMPLE and SLIDE (v1.12). **Not yet tested on a device:** everything new in v1.13
-> and v1.14 (presets, random sounds, AMP and LFO pages, PAD HOLD, VISUALS, the new look). Each
+> (v1.10); from v2.00, in its test builds: SYNTH layers, erasing on the EUCLID/NOTE pages, DETUNE,
+> SUB, NOISE, DRIVE, GLIDE, WAVE = SAMPLE and SLIDE. **Not yet tested on a device:** the rest of
+> v2.00 (presets, random sounds, AMP and LFO pages, PAD HOLD, VISUALS, the new look). Each
 > release says what has been tested on hardware; please report anything odd in
 > [Issues](../../issues).
 
-## What's new in v1.14 – the big one
+## What's new in v2.00 – the big one
 
 The biggest update yet: the Drumboy Pro gets **a real synthesizer, a light show and a new look**.
 
 | | New | What it means for you |
 |---|---|---|
-| 🎛️ | **[SYNTH layers](#7-synth-layers--a-built-in-synth-voice-v111)** | Any layer can be a synth: saw, square, triangle, sine or your own single-cycle WAVs, detune, sub oscillator, noise, a resonant filter (4 types) with envelope, DRIVE, slides and glide. Acid basslines, pads and leads without a single sample. |
-| 🎁 | **[66 presets](#7-synth-layers--a-built-in-synth-voice-v111)** | From `ACID TRIP` to `ZOMBIE`, alphabetical, plus 16 USER slots for your own sounds. The track list shows each synth layer's sound by name. |
-| 🎲 | **[Random sounds](#7-synth-layers--a-built-in-synth-voice-v111)** | Hold ADD: a brand-new sound that makes musical sense. Tap ADD: a small variation. Tap CLEAR: undo. |
-| 📈 | **[AMP envelope and LFO](#7-synth-layers--a-built-in-synth-voice-v111)** | ATTACK, DECAY, SUSTAIN, RELEASE, and a tempo-synced LFO for wobbles, vibrato and tremolo. |
-| 🎹 | **[PAD HOLD](#7-synth-layers--a-built-in-synth-voice-v111)** | Notes sound as long as you hold the pad, like a keyboard, and recorded notes play back just as long. |
-| 🌈 | **[VISUALS](#8-visuals--full-screen-music-visuals-v114)** | 13 full-screen visuals that dance to your music: fireworks for every hit, a Game of Life seeded by your drums, a spectrum skyline, digital rain, a kaleidoscope and more. Press HOME on the home screen. |
-| 🏆 | **[The Moffe Edition look](#9-the-moffe-edition-look-v114)** | A gold-and-ruby "Gold Rush" style throughout, and a new golden boot screen. |
+| 🎛️ | **[SYNTH layers](#7-synth-layers--a-built-in-synth-voice-v200)** | Any layer can be a synth: saw, square, triangle, sine or your own single-cycle WAVs, detune, sub oscillator, noise, a resonant filter (4 types) with envelope, DRIVE, slides and glide. Acid basslines, pads and leads without a single sample. |
+| 🎁 | **[66 presets](#7-synth-layers--a-built-in-synth-voice-v200)** | From `ACID TRIP` to `ZOMBIE`, alphabetical, plus 16 USER slots for your own sounds. The track list shows each synth layer's sound by name. |
+| 🎲 | **[Random sounds](#7-synth-layers--a-built-in-synth-voice-v200)** | Hold ADD: a brand-new sound that makes musical sense. Tap ADD: a small variation. Tap CLEAR: undo. |
+| 📈 | **[AMP envelope and LFO](#7-synth-layers--a-built-in-synth-voice-v200)** | ATTACK, DECAY, SUSTAIN, RELEASE, and a tempo-synced LFO for wobbles, vibrato and tremolo. |
+| 🎹 | **[PAD HOLD](#7-synth-layers--a-built-in-synth-voice-v200)** | Notes sound as long as you hold the pad, like a keyboard, and recorded notes play back just as long. |
+| 🌈 | **[VISUALS](#8-visuals--full-screen-music-visuals-v200)** | 13 full-screen visuals that dance to your music: fireworks for every hit, a Game of Life seeded by your drums, a spectrum skyline, digital rain, a kaleidoscope and more. Press HOME on the home screen. |
+| 🏆 | **[The Moffe Edition look](#9-the-moffe-edition-look-v200)** | A gold-and-ruby "Gold Rush" style throughout, and a new golden boot screen. |
 
 Coming from v1.10 or older? Also new since then: the [NOTE page](#6-melody-layers--note-page-in-layer-song-v109)
 plays pads without touching your track (ADD + pad = step entry) and has a wider keyboard range,
@@ -83,9 +83,9 @@ where you want it.
 ## 2. Moffe Edition boot screen (v1.04)
 
 At power-on the logo fades in and **pixel sunglasses** slide down over its eyes. Then **MOFFE**
-appears letter by letter, and **EDITION** fades in below. Since v1.14 it wears the
-[Moffe Edition look](#9-the-moffe-edition-look-v114): MOFFE in gold with a deep ruby drop shadow,
-a gold rim on the sunglasses and a gold line under a ruby EDITION (before v1.14:
+appears letter by letter, and **EDITION** fades in below. Since v2.00 it wears the
+[Moffe Edition look](#9-the-moffe-edition-look-v200): MOFFE in gold with a deep ruby drop shadow,
+a gold rim on the sunglasses and a gold line under a ruby EDITION (before v2.00:
 large magenta letters).
 
 - Drawn by the firmware, so the SD card and the logo file are unchanged and any card works.
@@ -143,7 +143,7 @@ and once more back to the edit page.
 | **7 LENGTH** | **REPEAT** repeats the pattern over the whole song, **ONCE** lays it down once |
 | **8 MODE** | **REPLACE** replaces the layer's beats; **MERGE** adds the hits on top of the beats you already have, which keep their fills |
 | **CLEAR** (tap) | Restores the beats the layer had when you opened the page |
-| **CLEAR** (hold) | Erases all of the layer's beats in this bank, as on the edit page (v1.11). The page shows **CLEAR: UNDO  HOLD: ERASE** as a reminder. |
+| **CLEAR** (hold) | Erases all of the layer's beats in this bank, as on the edit page (v2.00). The page shows **CLEAR: UNDO  HOLD: ERASE** as a reminder. |
 
 - **You hear changes immediately.** The pattern is written to the layer on every turn, so you can
   shape it while the sequencer plays.
@@ -205,21 +205,21 @@ NOTE). Once more goes back to the edit page.
 
 | Control | What it does |
 |---|---|
-| **1 MODE** | **DRUM**: the layer plays as before and ignores the notes. **TONE**: every beat plays its sample at its note. **SYNTH**: every beat plays the built-in synth at its note ([section 7](#7-synth-layers--a-built-in-synth-voice-v111), v1.11). |
-| **2 NOTE** | The note of the selected beat, e.g. `D#4`. Only notes of the scale are offered, five octaves either side of the root (two before v1.13). |
+| **1 MODE** | **DRUM**: the layer plays as before and ignores the notes. **TONE**: every beat plays its sample at its note. **SYNTH**: every beat plays the built-in synth at its note ([section 7](#7-synth-layers--a-built-in-synth-voice-v200), v2.00). |
+| **2 NOTE** | The note of the selected beat, e.g. `D#4`. Only notes of the scale are offered, five octaves either side of the root (two before v2.00). |
 | **5 ROOT** | The key: C to B. |
 | **6 SCALE** | Chromatic, major, minor, dorian, phrygian, lydian, mixolydian, harmonic minor, pentatonic major, pentatonic minor, blues. |
 | **7 GLIDE** | 0 = off. Higher values slide from the previous note into the next one, from a quick 303-style slide up to half a second. |
 | **8 TRANSPOSE** | Moves every note of the bank one scale step up or down, keeping the melody intact. It stops when the highest or lowest note reaches the edge of the range. The value shows how far you have moved since the page opened. |
 | **LEFT / RIGHT** | Select the beat whose note you edit (ADD + LEFT/RIGHT still moves it). |
-| **The 10 pads** (TONE, SYNTH) | A scale keyboard: pad 1 is the root, the others the next notes of the scale. Stopped: the pads only **play**, so you can try sounds without changing the track. Playing: play along; with REC, record. (v1.10; v1.13: pads alone no longer edit while stopped) |
-| **ADD + pad** (stopped) | Step entry: hold ADD and tap pads; each pad gives the selected beat its note and selects the next beat. The strip shows `ADD+PAD: STEP` as a reminder. (v1.13) |
-| **UP / DOWN** (TONE, SYNTH) | Move the pad keyboard an octave down or up: 4 octaves down to 3 up (v1.13; was 2 down, 1 up). The strip shows the range, e.g. `PADS C4-E5`. (v1.10) |
-| **ADD + UP / DOWN** | **SLIDE** on / off for the selected beat: the note slides in from the previous one (303 style). The NOTE value shows `SLIDE` and the strip joins the two notes. On SYNTH layers the notes join without a new attack; slide time is GLIDE (at least ~36 ms). (v1.12) |
-| **ADD hold** | A new melody over the bank's beats, in the scale, starting and ending on the root. It comes when you **let go** of ADD (v1.13), and not at all if you used ADD with a pad or UP/DOWN meanwhile. (v1.10) |
+| **The 10 pads** (TONE, SYNTH) | A scale keyboard: pad 1 is the root, the others the next notes of the scale. Stopped: the pads only **play**, so you can try sounds without changing the track. Playing: play along; with REC, record. (v1.10; v2.00: pads alone no longer edit while stopped) |
+| **ADD + pad** (stopped) | Step entry: hold ADD and tap pads; each pad gives the selected beat its note and selects the next beat. The strip shows `ADD+PAD: STEP` as a reminder. (v2.00) |
+| **UP / DOWN** (TONE, SYNTH) | Move the pad keyboard an octave down or up: 4 octaves down to 3 up (v2.00; was 2 down, 1 up). The strip shows the range, e.g. `PADS C4-E5`. (v1.10) |
+| **ADD + UP / DOWN** | **SLIDE** on / off for the selected beat: the note slides in from the previous one (303 style). The NOTE value shows `SLIDE` and the strip joins the two notes. On SYNTH layers the notes join without a new attack; slide time is GLIDE (at least ~36 ms). (v2.00) |
+| **ADD hold** | A new melody over the bank's beats, in the scale, starting and ending on the root. It comes when you **let go** of ADD (v2.00), and not at all if you used ADD with a pad or UP/DOWN meanwhile. (v1.10) |
 | **ADD tap** | A variation: a few notes move a step or two. Tap again and again to let it evolve. (v1.10) |
 | **CLEAR** (tap) | Undoes the note edits made since the page opened, including generated melodies. |
-| **CLEAR** (hold) | Erases all of the layer's beats in this bank, as on the edit page (v1.11). To remove a single beat, use a CLEAR tap on the edit page. |
+| **CLEAR** (hold) | Erases all of the layer's beats in this bank, as on the edit page (v2.00). To remove a single beat, use a CLEAR tap on the edit page. |
 
 **Workflow:** put beats on the layer (record, ADD, EUCLID…), open the NOTE page, set MODE to TONE
 and pick ROOT and SCALE. Then either:
@@ -252,7 +252,7 @@ A quick bassline: EUCLID page E(5,16), then the NOTE page, MODE TONE, hold ADD u
   the pads, and MIDI in, play the root; on the NOTE page of a TONE layer the pads only play that
   layer (go back to the edit page to play the drums).
 
-## 7. SYNTH layers – a built-in synth voice (v1.11)
+## 7. SYNTH layers – a built-in synth voice (v2.00)
 
 Set **MODE** on the NOTE page to **SYNTH** and the layer becomes a monophonic subtractive synth:
 no sample needed. It plays its notes exactly like a TONE layer (scale, GLIDE, TRANSPOSE, pad
@@ -261,28 +261,28 @@ other layer.
 
 **The sound** is set in the Layer Instrument menu (**I + layer key**), which shows synth pages for
 a SYNTH layer. Press the layer key again to go to the next page. On all synth pages the **10 pads
-are a scale keyboard** for the synth, so you can play it while shaping the sound (v1.13; same
+are a scale keyboard** for the synth, so you can play it while shaping the sound (v2.00; same
 scale and octave as on the NOTE page, where UP/DOWN sets the octave):
 
 ```
- Page 1 SOUND:   [1 PRESET]    [2 SAVE TO]    [ preset name, hints ]           (v1.13)
+ Page 1 SOUND:   [1 PRESET]    [2 SAVE TO]    [ preset name, hints ]           (v2.00)
  Page 2 OSC:     [1 WAVE]      [2 DETUNE]     [ waveform ]
                  [5 LEVEL]     [6 PITCH]      [7 SUB]        [8 NOISE]
  Page 3 FILTER:  [1 CUTOFF]    [2 RESO]       [ filter envelope + type ]
                  [5 ENV AMT]   [6 DECAY]      [7 FILT TYPE]  [8 DRIVE]
- Page 4 AMP:     [1 ATTACK]    [2 AMP DECAY]  [ level envelope ]               (v1.13)
+ Page 4 AMP:     [1 ATTACK]    [2 AMP DECAY]  [ level envelope ]               (v2.00)
                  [5 SUSTAIN]   [6 RELEASE]    [7 GATE]       [8 PAD HOLD]
- Page 5 LFO:     [1 LFO SHAPE] [2 LFO RATE]   [ LFO wave + position ]          (v1.13)
+ Page 5 LFO:     [1 LFO SHAPE] [2 LFO RATE]   [ LFO wave + position ]          (v2.00)
                  [5 LFO DEPTH] [6 LFO TARGET] [7 LFO RETRIG]
  Page 6:         routing to EQ / FILTER / EFFECT / REVERB, as for samples
 ```
 
-**Sounds in three ways** (v1.13):
+**Sounds in three ways** (v2.00):
 
 | | What it does |
 |---|---|
-| **PRESET** (SOUND page, knob 1) | 66 factory sounds in **alphabetical order**, with names to match their egos: `ACID TRIP`, `ALIEN SPA`, `BAD PENNY`, `BANSHEE`, `BEE SWARM`, `BIG FUZZ`, `BLIP BLOOP`, `BOOMSTICK` (kick), `BRASS GOD`, `BUBBLEGUM`, `CAT WALK`, `CHURCH BOI`, `CLOUD NINE`, `COCONUTS`, `COIN GET`, `COWBELL!`, `DAD STEP`, `DARK LORD`, `DEEP SPACE`, `DING DONG`, `DISCO DUCK`, `DIZZY BOT`, `DRAGONROAR`, `EARTHQUAKE`, `EMPTY MIND` (the default), `EPIC MOVIE`, `FAIRY DUST`, `FOGHORN`, `GHOST TOWN`, `GLASS HARP`, `GOLD RUSH`, `HONKY BONK`, `HYPERDRIVE`, `JELLYFISH`, `KAZOO KING`, `LASER CAT`, `LOUNGE LIZ`, `MOON BASS`, `MORDOR`, `NINJA STAR`, `NOODLE ARM`, `OCTOPUS`, `PANIC BOT`, `PEW PEW`, `PIXEL HERO`, `R2 DEEDOO`, `ROBO CHOIR`, `RUBBERDUCK`, `SAWSOME`, `SEASICK`, `SNARE WARS`, `SPACE TAXI`, `SQUARE GUY`, `STARGATE`, `STORMBORN`, `SUNNY DAY`, `THICC BASS`, `TOY PIANO`, `TSS TSS` (hi-hat), `TUMBLEWEED`, `UFO LANDED`, `VIKING`, `WARM HUG`, `WUBZILLA`, `ZEN PLUCK`, `ZOMBIE` – then your own sounds, `USER 01`…`USER 16`. Turning plays a note so you hear each one. (66 and alphabetical since v1.14; 32 before.) |
-| **Track list name** | A SYNTH layer shows its sound in the layer list on the main screen, like a sample name: the preset name, `USER 03` for a saved sound, a `*` after the name once you have changed it, or `SYNTH` for a sound of its own (e.g. a random one). Also after loading a project or drumkit. (v1.14) |
+| **PRESET** (SOUND page, knob 1) | 66 factory sounds in **alphabetical order**, with names to match their egos: `ACID TRIP`, `ALIEN SPA`, `BAD PENNY`, `BANSHEE`, `BEE SWARM`, `BIG FUZZ`, `BLIP BLOOP`, `BOOMSTICK` (kick), `BRASS GOD`, `BUBBLEGUM`, `CAT WALK`, `CHURCH BOI`, `CLOUD NINE`, `COCONUTS`, `COIN GET`, `COWBELL!`, `DAD STEP`, `DARK LORD`, `DEEP SPACE`, `DING DONG`, `DISCO DUCK`, `DIZZY BOT`, `DRAGONROAR`, `EARTHQUAKE`, `EMPTY MIND` (the default), `EPIC MOVIE`, `FAIRY DUST`, `FOGHORN`, `GHOST TOWN`, `GLASS HARP`, `GOLD RUSH`, `HONKY BONK`, `HYPERDRIVE`, `JELLYFISH`, `KAZOO KING`, `LASER CAT`, `LOUNGE LIZ`, `MOON BASS`, `MORDOR`, `NINJA STAR`, `NOODLE ARM`, `OCTOPUS`, `PANIC BOT`, `PEW PEW`, `PIXEL HERO`, `R2 DEEDOO`, `ROBO CHOIR`, `RUBBERDUCK`, `SAWSOME`, `SEASICK`, `SNARE WARS`, `SPACE TAXI`, `SQUARE GUY`, `STARGATE`, `STORMBORN`, `SUNNY DAY`, `THICC BASS`, `TOY PIANO`, `TSS TSS` (hi-hat), `TUMBLEWEED`, `UFO LANDED`, `VIKING`, `WARM HUG`, `WUBZILLA`, `ZEN PLUCK`, `ZOMBIE` – then your own sounds, `USER 01`…`USER 16`. Turning plays a note so you hear each one. (66 and alphabetical since v2.00; 32 before.) |
+| **Track list name** | A SYNTH layer shows its sound in the layer list on the main screen, like a sample name: the preset name, `USER 03` for a saved sound, a `*` after the name once you have changed it, or `SYNTH` for a sound of its own (e.g. a random one). Also after loading a project or drumkit. (v2.00) |
 | **ADD** on the SOUND page | Saves the current sound into the USER slot shown by **SAVE TO** (knob 2; `*` = slot already used, it is overwritten). Kept on the SD card (`System/Preset/SynthUser.rws`) for all projects. |
 | **ADD hold** on OSC / FILTER / AMP / LFO | A **random sound** when you let go: a bass, lead, pluck, pad or effect, always in useful ranges. |
 | **ADD tap** on those pages | A **variation**: three settings move a little, now and then the waveform changes. Tap again and again. |
@@ -292,28 +292,28 @@ ADD used together with a knob (LFO on LEVEL/PITCH) or UP/DOWN never changes the 
 
 | Control | What it does |
 |---|---|
-| **WAVE** | Saw (bright, the classic bass), square (hollow), triangle (soft), sine (pure, sub-bass), or **SAMPLE** (v1.12): the layer's loaded sample as one cycle of the waveform – see below. |
-| **DETUNE** | 0 = one oscillator. Higher values use two, spread up to 40 cents below and above the note (it stays in tune): from a slight thickening to a wide, chorus-like beating. (v1.12) |
+| **WAVE** | Saw (bright, the classic bass), square (hollow), triangle (soft), sine (pure, sub-bass), or **SAMPLE** (v2.00): the layer's loaded sample as one cycle of the waveform – see below. |
+| **DETUNE** | 0 = one oscillator. Higher values use two, spread up to 40 cents below and above the note (it stays in tune): from a slight thickening to a wide, chorus-like beating. (v2.00) |
 | **LEVEL / PITCH** | As for samples, including their LFOs. PITCH 1.00 = the notes as shown on the NOTE page. |
-| **SUB** | Adds a square wave one octave below: more weight for basses. (v1.12) |
-| **NOISE** | Adds white noise: breath, grit, hi-hat-like textures with a short GATE. (v1.12) |
+| **SUB** | Adds a square wave one octave below: more weight for basses. (v2.00) |
+| **NOISE** | Adds white noise: breath, grit, hi-hat-like textures with a short GATE. (v2.00) |
 | **CUTOFF** | How open the filter is when no envelope is applied. |
 | **RESONANCE** | The peak at the cutoff: from smooth to squelchy. |
 | **ENV AMT** | How far each note opens the filter. With a low CUTOFF this gives the "wow" of acid basslines. |
 | **DECAY** | How fast the filter closes again after each note, from 20 ms (a pluck) to 2 s (a slow sweep). |
-| **FILT TYPE** | **LP 24** (classic, the default), **LP 12** (gentler, brighter), **BAND** (nasal, vocal, telephone) or **HIGH** (thin, airy; good for hats and noise). (v1.13) |
+| **FILT TYPE** | **LP 24** (classic, the default), **LP 12** (gentler, brighter), **BAND** (nasal, vocal, telephone) or **HIGH** (thin, airy; good for hats and noise). (v2.00) |
 | **DRIVE** | Saturation in and after the filter: 0 = clean, 25–50 warm and thick, 75–100 loud and square-ish. It also makes the sound louder, so lower LEVEL a bit at high values. |
-| **ATTACK** | How the note fades in: 1 ms (a click-free hit) to 3 s (a slow swell). (v1.13) |
-| **AMP DECAY** | How fast the level falls from the top to SUSTAIN while the note is held: 5 ms to 5 s. (v1.13) |
-| **SUSTAIN** | The level while the note is held, after the decay. 100 = full (the old behaviour), 0 = a pluck that dies away. (v1.13) |
-| **RELEASE** | How long the note rings on after it ends: 5 ms to 5 s. Long values give pads and bells their tail. (v1.13) |
-| **GATE** | How long each note is held: a share of the time until the next beat. Low = short staccato, 100 = notes run into each other. (On the AMP page since v1.13.) |
-| **PAD HOLD** | **OFF**: a pad plays a short note, as before. **ON**: a pad note sounds **as long as you hold the pad** and goes into its RELEASE when you let go, like a keyboard. Pressing another pad switches to that note. Also on the NOTE page (knob 3, shown as `HOLD` in the strip), and for TONE layers there: the sample plays while held and fades out on release (it still stops at the end of the sample). Presets and random sounds keep it as it is. **Recording** with PAD HOLD on stores how long you held each pad, so the song plays the notes back just as long (not cut by GATE). (v1.13) |
-| **LFO SHAPE** | SINE, TRIANGLE, SAW DOWN, SQUARE or RANDOM (a new random value every cycle: the classic "sample & hold" bleeps). (v1.13) |
-| **LFO RATE** | How long one LFO cycle lasts, locked to the tempo: 1/32 to 1/2 (with 1/8T and 1/4T triplets), or 1, 2, 4, 8 bars. (v1.13) |
-| **LFO DEPTH** | How strongly it moves its target. **OFF (0) by default**: turn this up first. (v1.13) |
-| **LFO TARGET** | **CUTOFF** (wobble/sweep, up to 3 octaves each way), **PITCH** (vibrato: gentle at low depth, up to an octave each way at 100) or **LEVEL** (tremolo, down to silence at 100). (v1.13) |
-| **LFO RETRIG** | **FREE**: the LFO runs on by itself, across notes. **NOTE**: it starts again with every note (not on a SLIDE): with SAW DOWN on CUTOFF every note gets its own filter sweep. (v1.13) |
+| **ATTACK** | How the note fades in: 1 ms (a click-free hit) to 3 s (a slow swell). (v2.00) |
+| **AMP DECAY** | How fast the level falls from the top to SUSTAIN while the note is held: 5 ms to 5 s. (v2.00) |
+| **SUSTAIN** | The level while the note is held, after the decay. 100 = full (the old behaviour), 0 = a pluck that dies away. (v2.00) |
+| **RELEASE** | How long the note rings on after it ends: 5 ms to 5 s. Long values give pads and bells their tail. (v2.00) |
+| **GATE** | How long each note is held: a share of the time until the next beat. Low = short staccato, 100 = notes run into each other. (On the AMP page since v2.00.) |
+| **PAD HOLD** | **OFF**: a pad plays a short note, as before. **ON**: a pad note sounds **as long as you hold the pad** and goes into its RELEASE when you let go, like a keyboard. Pressing another pad switches to that note. Also on the NOTE page (knob 3, shown as `HOLD` in the strip), and for TONE layers there: the sample plays while held and fades out on release (it still stops at the end of the sample). Presets and random sounds keep it as it is. **Recording** with PAD HOLD on stores how long you held each pad, so the song plays the notes back just as long (not cut by GATE). (v2.00) |
+| **LFO SHAPE** | SINE, TRIANGLE, SAW DOWN, SQUARE or RANDOM (a new random value every cycle: the classic "sample & hold" bleeps). (v2.00) |
+| **LFO RATE** | How long one LFO cycle lasts, locked to the tempo: 1/32 to 1/2 (with 1/8T and 1/4T triplets), or 1, 2, 4, 8 bars. (v2.00) |
+| **LFO DEPTH** | How strongly it moves its target. **OFF (0) by default**: turn this up first. (v2.00) |
+| **LFO TARGET** | **CUTOFF** (wobble/sweep, up to 3 octaves each way), **PITCH** (vibrato: gentle at low depth, up to an octave each way at 100) or **LEVEL** (tremolo, down to silence at 100). (v2.00) |
+| **LFO RETRIG** | **FREE**: the LFO runs on by itself, across notes. **NOTE**: it starts again with every note (not on a SLIDE): with SAW DOWN on CUTOFF every note gets its own filter sweep. (v2.00) |
 
 - **Your own waveforms (WAVE = SAMPLE):** put single-cycle WAVs (one period of a waveform,
   typically 600 samples; free collections exist online) in an instrument folder on the card. Load
@@ -321,7 +321,7 @@ ADD used together with a knob (LFO on LEVEL/PITCH) or UP/DOWN never changes the 
   MODE to SYNTH and set WAVE to SAMPLE. The whole sample is played as one cycle at the note's
   pitch, so a long sample sounds like a buzzy, time-squeezed texture: fun, but single cycles
   sound cleanest. Very bright cycles alias at high notes.
-- **SLIDE** (v1.12): on the NOTE page, select a beat and press **ADD + UP**; it slides in from
+- **SLIDE** (v2.00): on the NOTE page, select a beat and press **ADD + UP**; it slides in from
   the beat before it. Two or three slides in a line give the classic acid "wow".
 - **Accent:** the beat's **VELOCITY** on the edit page decides it. FLAT beats play full and
   bright, GHOST beats softer and with less filter: put a few FLAT beats between GHOST beats for a
@@ -330,7 +330,7 @@ ADD used together with a knob (LFO on LEVEL/PITCH) or UP/DOWN never changes the 
 - **A first acid bass:** EUCLID E(7,16) on a layer → NOTE page: MODE SYNTH, ROOT A, SCALE MINOR,
   hold ADD → Layer Instrument: PRESET `ACID TRIP`. Then turn CUTOFF and RESONANCE on the FILTER
   page while it plays.
-- **A filter wobble** (v1.13): on the synth layer's LFO page (I + layer key, press the layer key
+- **A filter wobble** (v2.00): on the synth layer's LFO page (I + layer key, press the layer key
   four more times) set LFO SHAPE SINE, LFO RATE 1/4, LFO TARGET CUTOFF and turn **LFO DEPTH** up. The
   wave on screen moves with it. CUTOFF on the FILTER page sets the centre it swings around. For a
   dubstep-style wobble try 1/8 or 1/8T; for RANDOM bleeps, SHAPE RANDOM at 1/16.
@@ -339,14 +339,14 @@ ADD used together with a knob (LFO on LEVEL/PITCH) or UP/DOWN never changes the 
 - **Saved with the project** (in the `.rwn` file). Older Moffe versions open the project with the
   layer as a DRUM layer and its notes intact. CLEAR (hold) in the Layer Instrument menu resets the
   sound.
-- **Drumkits and the instrument copy** (v1.13) include MODE and the whole synth sound, so a saved
+- **Drumkits and the instrument copy** (v2.00) include MODE and the whole synth sound, so a saved
   kit brings its synth basses back and a pasted synth layer is the same synth. Kits saved before
-  v1.13 don't change the layers' MODE or synth sound when loaded.
+  v2.00 don't change the layers' MODE or synth sound when loaded.
 - **CPU:** about 1–2 % per playing synth layer; check the IO menu's CPU meter.
 
 ---
 
-## 8. VISUALS – full-screen music visuals (v1.14)
+## 8. VISUALS – full-screen music visuals (v2.00)
 
 The whole screen becomes a light show that follows the music. You can keep playing: pads,
 PLAY/STOP/REC, MUTE/FILL/STYLE + pad and the home-screen knobs all work while it runs.
@@ -386,7 +386,7 @@ A line at the top shows the style, the theme and the keys for a few seconds afte
 
 ---
 
-## 9. The Moffe Edition look (v1.14)
+## 9. The Moffe Edition look (v2.00)
 
 The whole interface wears a warm **"Gold Rush"** palette instead of the factory cyan and
 magenta:
@@ -452,10 +452,7 @@ app's `Global.h`.
 | v1.08 | EUCLID page shows the CLEAR: UNDO hint |
 | v1.09 | Melody layers (TONE) on the NOTE page; audio CPU meter in the IO menu |
 | v1.10 | Pads as a scale keyboard (step entry, live recording); melody generator and variations |
-| v1.11 | SYNTH layers: a built-in synth voice with filter, envelope, gate and accent |
-| v1.12 | SYNTH: DETUNE, SUB, NOISE, WAVE = SAMPLE (single-cycle WAVs); SLIDE per beat; stronger DRIVE |
-| v1.13 | SYNTH: 32 presets + 16 USER slots, random sounds and variations, AMP envelope (ADSR), filter types, own LFO page; pads play the synth on its pages; synth sounds in drumkits and the instrument copy. NOTE page: pads only play while stopped (ADD + pad = step entry), wider octave range |
-| v1.14 | VISUALS: 13 full-screen music visuals (HOME on the home screen) with seven colour themes; the gold-and-ruby Moffe Edition look and a new boot screen; SYNTH: 66 presets in alphabetical order, the synth sound's name in the track list; recording with PAD HOLD keeps the held note lengths |
+| **v2.00** | **SYNTH layers**: a built-in synth voice (saw, square, triangle, sine or single-cycle WAVs; DETUNE, SUB, NOISE, DRIVE, four filter types, AMP envelope, LFO page, SLIDE and GLIDE), 66 presets in alphabetical order + 16 USER slots, random sounds and variations, PAD HOLD (also when recording), the synth sound's name in the track list, synth sounds in drumkits and the instrument copy. **VISUALS**: 13 full-screen music visuals in seven colour themes. **The Moffe Edition look**: gold and ruby, new boot screen. **NOTE page**: pads only play while stopped (ADD + pad = step entry), wider octave range. (Test builds v1.11–v1.14 led up to it; they were not released.) |
 
 ## Coming next
 
@@ -470,10 +467,10 @@ The step-by-step guide (which file to download, where to put it, what the screen
 to do if something goes wrong) is in the **[README → Install](README.md#install)**. In short:
 
 1. Back up the whole SD card.
-2. Download `Drumboy_Pro_Fw_Moffe_01_14.bin` from the
+2. Download `Drumboy_Pro_Fw_Moffe_02_00.bin` from the
    [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest).
 3. Copy it, with its exact name, to the root of the card as the only `Drumboy_Pro_Fw…bin` there.
-4. Power on: *UPDATING FIRMWARE V1.14* → *FIRMWARE UPDATED* → sunglasses.
+4. Power on: *UPDATING FIRMWARE V2.00* → *FIRMWARE UPDATED* → sunglasses.
 
 **Roll back:** install `Drumboy_Pro_Fw_01_01.bin` (factory, in the release Assets and in
 `02 Software/Firmware/`) the same way. The bootloader accepts any version, older or newer.
