@@ -3926,7 +3926,7 @@ void Controller::lcd_drawSynthData(uint8_t slot_) {
         }
         snprintf(text, sizeof(text), "%10.10s", kNumberDataLibrary[value].nameLongR);
         if (slot_ == 0) {
-            // CUTOFF's sign box shows its LFO (SHIFT + CUTOFF), like LEVEL and PITCH do.
+            // CUTOFF's sign box shows its LFO (ADD + CUTOFF), like LEVEL and PITCH do.
             lcd_setMenuSignState(CYAN);
             lcd.drawText(kLfoNameDataLibrary[p.lfoCutoff].nameShortR, kMenuSignTextSize, kMenuSignBoxX[0], kMenuSignBoxY[0]);
         }

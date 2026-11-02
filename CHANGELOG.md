@@ -7,8 +7,8 @@ SD-card package is named after it). Rolling back = installing an older package.
 
 **SYNTH: filter LFO, synth sounds in drumkits and the instrument copy (step 4d)**
 
-- **Filter LFO:** on the FILTER page of a SYNTH layer, **SHIFT + CUTOFF** assigns one of the 10
-  global LFOs to the cutoff (`--` = none), exactly like SHIFT + LEVEL / PITCH on sample layers.
+- **Filter LFO:** on the FILTER page of a SYNTH layer, **ADD + CUTOFF** (hold ADD and turn CUTOFF) assigns one of the 10
+  global LFOs to the cutoff (`--` = none), exactly like ADD + LEVEL / PITCH on sample layers.
   The sign box under CUTOFF shows which one. The LFO's rate, shape, phase and depth (LFO menu)
   apply; depth 100 sweeps the cutoff 3 octaves down and up. It moves the filter continuously,
   also during long notes, and the step of a square or random LFO is smoothed over ~2 ms so it

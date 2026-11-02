@@ -2388,7 +2388,7 @@ void Controller::synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int
 }
 
 float Controller::synth_cutoffMod(uint8_t layerNum_) const {
-    /// @brief CUTOFF offset in octaves from the layer's filter LFO (SHIFT + CUTOFF), 0 = none.
+    /// @brief CUTOFF offset in octaves from the layer's filter LFO (ADD + CUTOFF), 0 = none.
     /// Called by the audio ISR once per block. Lives here, not in ControllerAudio.cpp: the 64 KB
     /// LFO table is a header constant, so using it in another file would copy it into flash again.
 
@@ -2440,8 +2440,8 @@ void Controller::synth_change(EncoderFunc function_, bool up_) {
             return;
         case ENC_SYNTH_CUTOFF:
             if (keyboard.shiftKeyPress) {
-                // SHIFT + CUTOFF: which global LFO moves the filter (-- = none), wrapping like
-                // SHIFT + LEVEL / PITCH on sample layers.
+                // ADD + CUTOFF: which global LFO moves the filter (-- = none), wrapping like
+                // ADD + LEVEL / PITCH on sample layers.
                 if (up_) {
                     p.lfoCutoff = (p.lfoCutoff < synth::kMaxLfoAssign) ? (p.lfoCutoff + 1) : 0;
                 } else {

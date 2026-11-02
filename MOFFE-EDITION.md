@@ -252,7 +252,7 @@ a SYNTH layer:
 | **LEVEL / PITCH** | As for samples, including their LFOs. PITCH 1.00 = the notes as shown on the NOTE page. |
 | **SUB** | Adds a square wave one octave below: more weight for basses. (v1.12) |
 | **NOISE** | Adds white noise: breath, grit, hi-hat-like textures with a short GATE. (v1.12) |
-| **CUTOFF** | How open the filter is when no envelope is applied. **SHIFT + CUTOFF** picks one of the 10 LFOs to sweep it (the box under CUTOFF shows which, `--` = none); set its speed, shape and depth in the LFO menu. Depth 100 = 3 octaves down and up. (v1.13) |
+| **CUTOFF** | How open the filter is when no envelope is applied. **ADD + CUTOFF** (hold ADD and turn CUTOFF) picks one of the 10 LFOs to sweep it (the box under CUTOFF shows which, `--` = none); set its speed, shape and depth in the LFO menu. Depth 100 = 3 octaves down and up. (v1.13) |
 | **RESONANCE** | The peak at the cutoff: from smooth to squelchy. |
 | **ENV AMT** | How far each note opens the filter. With a low CUTOFF this gives the "wow" of acid basslines. |
 | **DECAY** | How fast the filter closes again after each note, from 20 ms (a pluck) to 2 s (a slow sweep). |
@@ -275,7 +275,7 @@ a SYNTH layer:
   hold ADD → Layer Instrument: WAVE SAW, CUTOFF 20, RESONANCE 70, ENV AMT 70, DECAY 25, GATE 40.
   Then turn CUTOFF and RESONANCE while it plays.
 - **A filter wobble:** in the LFO menu, turn LFO 1 on (SINE, rate 1/4); on the synth layer's
-  FILTER page hold **SHIFT** and turn **CUTOFF** until it shows ` 01`. CUTOFF sets the centre,
+  FILTER page hold **ADD** and turn **CUTOFF** until it shows ` 01`. CUTOFF sets the centre,
   the LFO's DEPTH how far it swings. (v1.13)
 - **Saved with the project** (in the `.rwn` file). Older Moffe versions open the project with the
   layer as a DRUM layer and its notes intact. CLEAR (hold) in the Layer Instrument menu resets the
@@ -333,7 +333,7 @@ a SYNTH layer:
 | v1.10 | Pads as a scale keyboard (step entry, live recording); melody generator and variations |
 | v1.11 | SYNTH layers: a built-in synth voice with filter, envelope, gate and accent |
 | v1.12 | SYNTH: DETUNE, SUB, NOISE, WAVE = SAMPLE (single-cycle WAVs); SLIDE per beat; stronger DRIVE |
-| v1.13 | SYNTH: filter LFO (SHIFT + CUTOFF); synth sounds in drumkits and the instrument copy |
+| v1.13 | SYNTH: filter LFO (ADD + CUTOFF); synth sounds in drumkits and the instrument copy |
 
 ## Coming next
 
