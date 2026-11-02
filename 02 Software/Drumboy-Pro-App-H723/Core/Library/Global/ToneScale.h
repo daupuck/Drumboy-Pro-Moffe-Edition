@@ -86,6 +86,74 @@ inline bool transposeAll(int8_t* notes, uint8_t count, int delta, uint8_t scale)
     return true;
 }
 
+/* Melody generator (NOTE page: hold ADD = new melody, tap ADD = variation) ----------------*/
+
+// xorshift32: small, fast and deterministic, so the generator can be tested on a PC.
+inline uint32_t nextRandom(uint32_t& state) {
+    if (state == 0) state = 0x9E3779B9u;
+    state ^= state << 13;
+    state ^= state >> 17;
+    state ^= state << 5;
+    return state;
+}
+
+// One octave of the scale, in degrees: the generator stays within this distance of the root.
+inline int melodySpan(uint8_t scale) { return kScales[safeScale(scale)].size; }
+
+// A new melody for `count` beats (in time order): a random walk through the scale that mostly
+// moves by steps, sometimes leaps, never leaves one octave either side of the root, and starts
+// and (from 4 beats on) ends on the root, so it loops back home.
+inline void generateMelody(int8_t* notes, uint8_t count, uint8_t scale, uint32_t& seed) {
+    static constexpr int8_t kMoves[] = {0, 0, 1, 1, 1, -1, -1, -1, 2, -2, 3, -3, 4, -4};
+    constexpr uint32_t kMoveCount = sizeof(kMoves) / sizeof(kMoves[0]);
+    const int span = melodySpan(scale);
+    int degree = 0;
+    for (uint8_t i = 0; i < count; i++) {
+        if (i > 0) {
+            degree += kMoves[nextRandom(seed) % kMoveCount];
+            if (degree > span) degree = (2 * span) - degree;  // bounce off the top...
+            if (degree < -span) degree = (-2 * span) - degree;  // ...and the bottom
+        }
+        notes[i] = static_cast<int8_t>(degree);
+    }
+    if (count >= 4) notes[count - 1] = 0;
+}
+
+// A variation: about a quarter of the notes (at least one, each a different beat) move one or
+// two scale steps, staying within one octave of the root. Every chosen note really changes, so
+// each tap is audible; tapping again and again lets the melody evolve.
+inline uint8_t mutateMelody(int8_t* notes, uint8_t count, uint8_t scale, uint32_t& seed) {
+    if (count == 0) return 0;
+    static constexpr int8_t kSteps[4] = {-2, -1, 1, 2};
+    const int span = melodySpan(scale);
+    const uint8_t changes = (count >= 8) ? static_cast<uint8_t>(count / 4) : 1;
+    uint64_t used = 0;
+    for (uint8_t c = 0; c < changes; c++) {
+        uint8_t index = static_cast<uint8_t>(nextRandom(seed) % count);
+        while (used & (1ull << index)) index = static_cast<uint8_t>((index + 1) % count);
+        used |= (1ull << index);
+
+        int degree = notes[index];
+        if (degree > span) degree = span;
+        if (degree < -span) degree = -span;
+        const int step = kSteps[nextRandom(seed) % 4];
+        int next = degree + step;
+        if ((next > span) || (next < -span)) next = degree - step;  // turn around at the edge
+        notes[index] = static_cast<int8_t>(next);
+    }
+    return changes;
+}
+
+// Pads as a scale keyboard: pad 0..9 plays degree octave * size + pad. Octaves -2..+1 keep at
+// least one full octave of the scale inside the two-octave range for every scale.
+constexpr int8_t kMinKeysOctave = -2;
+constexpr int8_t kMaxKeysOctave = 1;
+constexpr uint8_t kKeyCount = 10;
+
+inline int8_t keyDegree(uint8_t pad, int8_t octave, uint8_t scale) {
+    return clampDegree((octave * kScales[safeScale(scale)].size) + pad, scale);
+}
+
 // Floor division that rounds towards minus infinity (C++ '/' rounds towards zero).
 inline int floorDiv(int a, int b) { return (a >= 0) ? (a / b) : -((-a + b - 1) / b); }
 

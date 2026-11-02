@@ -5,7 +5,7 @@ Moffe Edition is **unofficial community firmware** for the Drumboy Pro, based on
 is not affiliated with or endorsed by Randomwaves. This page collects everything that is new
 compared with the factory firmware: what each feature does and how to use it on the device.
 
-- **Current version:** v1.09 — download from the
+- **Current version:** v1.10 — download from the
   [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest);
   how to install: [README → Install](README.md#install)
 - **User manual:** published by Randomwaves at [randomwaves.io](https://www.randomwaves.io) (it
@@ -20,12 +20,12 @@ compared with the factory firmware: what each feature does and how to use it on 
 > the firmware may affect your warranty with Randomwaves. Report problems in this repository's
 > [Issues](../../issues), not to Randomwaves.
 
-> **Status (1 November 2026):** every version is built, unit-tested and verified by CI. v1.07 has
-> been run on a Drumboy Pro by the maintainer, with song mode confirmed working; the other features
-> are in hardware testing. In v1.09 the melody layers (notes, GLIDE, TRANSPOSE) and the CPU meter
-> have been tested on a device: CPU PEAK about 42 % with all 10 layers playing, two of them TONE,
-> and chorus, delay, reverb and both filters on. Saving and reloading notes is still to be
-> confirmed. Each release says what has been tested on hardware.
+> **Status (2 November 2026):** every version is built, unit-tested and verified by CI. Tested on
+> a Drumboy Pro by the maintainer: song mode (v1.07); the melody layers with notes, GLIDE and
+> TRANSPOSE, and the CPU meter (v1.09: CPU PEAK about 42 % with all 10 layers playing, two of them
+> TONE, and chorus, delay, reverb and both filters on); the pad keyboard and the melody generator
+> (v1.10). Saving and reloading notes is still to be confirmed; the other features are in
+> hardware testing. Each release says what has been tested on hardware.
 
 ## Knob numbering
 
@@ -185,13 +185,23 @@ NOTE). Once more goes back to the edit page.
 | **6 SCALE** | Chromatic, major, minor, dorian, phrygian, lydian, mixolydian, harmonic minor, pentatonic major, pentatonic minor, blues. |
 | **7 GLIDE** | 0 = off. Higher values slide from the previous note into the next one, from a quick 303-style slide up to half a second. |
 | **8 TRANSPOSE** | Moves every note of the bank one scale step up or down, keeping the melody intact. It stops when the highest or lowest note reaches the edge of the range. The value shows how far you have moved since the page opened. |
-| **LEFT / RIGHT** | Select the beat whose note you edit (SHIFT + LEFT/RIGHT still moves it). |
-| **Layer key** | Plays the selected beat's note. |
-| **CLEAR** | Undoes the note edits made since the page opened (**CLEAR: UNDO**). |
+| **LEFT / RIGHT** | Select the beat whose note you edit (ADD + LEFT/RIGHT still moves it). |
+| **The 10 pads** (TONE) | A scale keyboard: pad 1 is the root, the others the next notes of the scale. Stopped: the selected beat gets the note and the next beat is selected. Playing: play along; with REC, record. (v1.10) |
+| **UP / DOWN** (TONE) | Move the pad keyboard an octave down or up; the strip shows the range, e.g. `PADS C4-E5`. (v1.10) |
+| **ADD hold** | A new melody over the bank's beats, in the scale, starting and ending on the root. (v1.10) |
+| **ADD tap** | A variation: a few notes move a step or two. Tap again and again to let it evolve. (v1.10) |
+| **CLEAR** | Undoes the note edits made since the page opened (**CLEAR: UNDO**), including generated melodies. |
 
-**Workflow:** put beats on the layer (record, ADD, EUCLID…), open the NOTE page, set MODE to TONE,
-pick ROOT and SCALE, then step through the beats with LEFT/RIGHT and turn NOTE. While the
-sequencer is stopped, every turn plays the note so you hear what you set.
+**Workflow:** put beats on the layer (record, ADD, EUCLID…), open the NOTE page, set MODE to TONE
+and pick ROOT and SCALE. Then either:
+
+- **tap the notes in:** with the sequencer stopped, press the pads one after another; each pad
+  gives the selected beat its note and moves to the next beat;
+- **let it write one:** hold **ADD** for a new melody, tap **ADD** to vary it, **CLEAR** to go back;
+- **play it in:** press PLAY and REC and play the pads like a keyboard;
+- **fine-tune:** select a beat with LEFT/RIGHT and turn NOTE (while stopped, you hear each step).
+
+A quick bassline: EUCLID page E(5,16), then the NOTE page, MODE TONE, hold ADD until you like it.
 
 - **Always in key.** Notes are stored as steps of the scale, so changing ROOT or SCALE later
   re-harmonises the whole melody instead of leaving notes outside the key.
@@ -208,8 +218,9 @@ sequencer is stopped, every turn plays the note so you hear what you set.
   Projects from older firmware open with all layers as DRUM; older firmware ignores the new file.
   NEW FILE resets everything; drumkits don't store notes.
 - **Good to know:** one note at a time per layer (use several layers for chords). As on any
-  sampler, higher notes play the sample faster, so they are also shorter. Pads outside the NOTE
-  page and MIDI in play the root.
+  sampler, higher notes play the sample faster, so they are also shorter. Outside the NOTE page
+  the pads, and MIDI in, play the root; on the NOTE page of a TONE layer the pads only play that
+  layer (go back to the edit page to play the drums).
 
 ---
 
@@ -256,6 +267,17 @@ sequencer is stopped, every turn plays the note so you hear what you set.
 | v1.07 | Song mode: chain the 5 song banks into a song |
 | v1.08 | EUCLID page shows the CLEAR: UNDO hint |
 | v1.09 | Melody layers (TONE) on the NOTE page; audio CPU meter in the IO menu |
+| v1.10 | Pads as a scale keyboard (step entry, live recording); melody generator and variations |
+
+## Coming next
+
+Plans, not promises; each step is released only after it has been tried on a device.
+
+- **SYNTH layers:** a built-in synth voice as a third MODE next to DRUM and TONE: oscillators
+  (or single-cycle WAVs from the card), a resonant filter with envelope, accent and slide. The
+  CPU meter shows there is room for one on every layer.
+- **Song transpose and harmony:** each song-mode step can change key, and a layer can follow
+  another a third or fifth higher.
 
 ## Install and roll back
 
@@ -263,10 +285,10 @@ The step-by-step guide (which file to download, where to put it, what the screen
 to do if something goes wrong) is in the **[README → Install](README.md#install)**. In short:
 
 1. Back up the whole SD card.
-2. Download `Drumboy_Pro_Fw_Moffe_01_09.bin` from the
+2. Download `Drumboy_Pro_Fw_Moffe_01_10.bin` from the
    [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest).
 3. Copy it, with its exact name, to the root of the card as the only `Drumboy_Pro_Fw…bin` there.
-4. Power on: *UPDATING FIRMWARE V1.09* → *FIRMWARE UPDATED* → sunglasses.
+4. Power on: *UPDATING FIRMWARE V1.10* → *FIRMWARE UPDATED* → sunglasses.
 
 **Roll back:** install `Drumboy_Pro_Fw_01_01.bin` (factory, in the release Assets and in
 `02 Software/Firmware/`) the same way. The bootloader accepts any version, older or newer.
