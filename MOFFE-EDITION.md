@@ -190,6 +190,7 @@ NOTE). Once more goes back to the edit page.
 | **8 TRANSPOSE** | Moves every note of the bank one scale step up or down, keeping the melody intact. It stops when the highest or lowest note reaches the edge of the range. The value shows how far you have moved since the page opened. |
 | **LEFT / RIGHT** | Select the beat whose note you edit (ADD + LEFT/RIGHT still moves it). |
 | **The 10 pads** (TONE, SYNTH) | A scale keyboard: pad 1 is the root, the others the next notes of the scale. Stopped: the pads only **play**, so you can try sounds without changing the track. Playing: play along; with REC, record. (v1.10; v1.13: pads alone no longer edit while stopped) |
+| **ADD + pad** (stopped) | Step entry: hold ADD and tap pads; each pad gives the selected beat its note and selects the next beat. The strip shows `ADD+PAD: STEP` as a reminder. (v1.13) |
 | **UP / DOWN** (TONE, SYNTH) | Move the pad keyboard an octave down or up: 4 octaves down to 3 up (v1.13; was 2 down, 1 up). The strip shows the range, e.g. `PADS C4-E5`. (v1.10) |
 | **ADD + UP / DOWN** | **SLIDE** on / off for the selected beat: the note slides in from the previous one (303 style). The NOTE value shows `SLIDE` and the strip joins the two notes. On SYNTH layers the notes join without a new attack; slide time is GLIDE (at least ~36 ms). (v1.12) |
 | **ADD hold** | A new melody over the bank's beats, in the scale, starting and ending on the root. It comes when you **let go** of ADD (v1.13), and not at all if you used ADD with a pad or UP/DOWN meanwhile. (v1.10) |
