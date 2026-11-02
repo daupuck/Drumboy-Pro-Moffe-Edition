@@ -52,7 +52,8 @@ void Controller::interruptPlay() {
                 for (uint8_t i = 0; i < kLayerLibrarySize; i++) {
                     if (precountPendingBeat[i]) {
                         precountPendingBeat[i] = false;
-                        layerSong_setBeat(i, activeSongBank, playInterval, 0, 0, 0, 0, true);
+                        layerSong_setBeat(i, activeSongBank, playInterval, 0, 0, 0, 0, true, precountPendingHasNote[i], precountPendingNote[i]);
+                        precountPendingHasNote[i] = false;
                     }
                 }
             }
@@ -1407,6 +1408,16 @@ void Controller::interruptLongKeyRead() {
             if (selectedLayerNum != -1) {
                 layerSongResetActionFlag = true;
             }
+        }
+
+        // NOTE PAGE: ADD held -> a new melody. Only a flag here; the main loop generates and
+        // draws it (this is an ISR).
+        else if (noteMelodyKeyFlag) {
+            stopLongKeyTimer();
+            keyboard.longKeyCounter = 0;
+            noteMelodyKeyFlag = false;
+            layerSongAddPending = false;  // long press: not a tap
+            noteMelodyActionFlag = true;
         }
 
         // MULTI-STAGE BEAT GENERATION

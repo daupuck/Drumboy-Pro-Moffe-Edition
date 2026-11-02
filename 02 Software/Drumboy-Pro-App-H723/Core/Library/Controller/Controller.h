@@ -261,6 +261,11 @@ class Controller {
     int8_t noteBaseLayer = -1;
     int8_t noteBaseBank = -1;
     int8_t noteTransposeTotal = 0;
+    int8_t noteKeysOctave = 0;                // pads as a scale keyboard: octave of pad 1 (UP/DOWN)
+    bool noteMelodyKeyFlag = false;           // ADD held on the NOTE page (long-key timer running)
+    volatile bool noteMelodyActionFlag = false;  // long-key ISR -> main loop: roll a new melody
+    int8_t precountPendingNote[kLayerLibrarySize] = {};       // note of a keyboard hit during precount
+    bool precountPendingHasNote[kLayerLibrarySize] = {};
 
     // MIDI out for TONE layers: the note of the beat that is starting (written where the beat
     // is triggered) and the note currently held on the MIDI output (0xFF = none), so the right
@@ -1065,7 +1070,9 @@ class Controller {
     void layerSong_beatRight();
     void layerSong_beatLeft();
 
-    void layerSong_setBeat(uint8_t layerNum_, uint8_t bankNum_, uint16_t interval_, uint8_t fillType_, uint8_t fillPattern_, uint8_t fillTime_, uint8_t fillLevel_, bool selected_);
+    // hasNote_: give the beat note_ (TONE keyboard recording); a beat already at that position
+    // then takes the new note. Without it the note of an existing beat is left alone.
+    void layerSong_setBeat(uint8_t layerNum_, uint8_t bankNum_, uint16_t interval_, uint8_t fillType_, uint8_t fillPattern_, uint8_t fillTime_, uint8_t fillLevel_, bool selected_, bool hasNote_ = false, int8_t note_ = 0);
     void layerSong_setSelectedBeatFill(uint8_t fillType_, uint8_t fillPattern_, uint8_t fillTime_, uint8_t fillLevel_);
     void layerSong_setSelectedBeatFillTime(uint8_t fillTime_);
     void layerSong_setSelectedBeatFillLevel(uint8_t fillLevel_);
@@ -1096,6 +1103,10 @@ class Controller {
     void note_change(EncoderFunc function_, bool up_);
     void note_audition();
     int8_t note_auditionNote(uint8_t layerNum_);
+    bool noteKeysActive() const;            // NOTE page of a TONE layer: the pads are a scale keyboard
+    void note_padPressed(uint8_t pad_);
+    void note_shiftKeys(bool up_);
+    void note_melody(bool fresh_);          // fresh: new melody (ADD hold); else variation (ADD tap)
     void tone_setGlide(uint8_t layerNum_, uint8_t glide_);
     void tone_resetLayer(uint8_t layerNum_);
     void tone_resetAll();

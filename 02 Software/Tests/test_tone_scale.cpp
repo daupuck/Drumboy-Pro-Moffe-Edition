@@ -206,6 +206,78 @@ static void testTranspose() {
     CHECK(transposeAll(wide, 2, -1, minor) && wide[0] == 13 && wide[1] == -1, "down: brought into range first");
 }
 
+static void testMelody() {
+    for (int s = 0; s < kScaleCount; s++) {
+        const int span = melodySpan(s);
+        for (uint32_t run = 1; run <= 200; run++) {
+            for (uint8_t count = 1; count <= 64; count = static_cast<uint8_t>(count * 2)) {
+                int8_t notes[64];
+                uint32_t seed = run * 2654435761u;
+                generateMelody(notes, count, s, seed);
+                CHECK(notes[0] == 0, "scale %d: starts on the root", s);
+                if (count >= 4) CHECK(notes[count - 1] == 0, "scale %d count %u: ends on the root", s, count);
+                for (uint8_t i = 0; i < count; i++) {
+                    CHECK((notes[i] >= -span) && (notes[i] <= span), "scale %d: note %d within one octave", s, notes[i]);
+                    if (i > 0 && !((count >= 4) && (i == count - 1))) {
+                        const int jump = notes[i] - notes[i - 1];
+                        CHECK((jump >= -4) && (jump <= 4), "scale %d: no jump wider than 4 steps (%d)", s, jump);
+                    }
+                }
+
+                int8_t before[64];
+                for (uint8_t i = 0; i < count; i++) before[i] = notes[i];
+                const uint8_t changes = mutateMelody(notes, count, s, seed);
+                uint8_t changed = 0;
+                for (uint8_t i = 0; i < count; i++) {
+                    if (notes[i] != before[i]) {
+                        changed++;
+                        const int d = notes[i] - before[i];
+                        CHECK((d >= -2) && (d <= 2), "scale %d: variation moves a note 1-2 steps (%d)", s, d);
+                    }
+                    CHECK((notes[i] >= -span) && (notes[i] <= span), "scale %d: variation stays within one octave", s);
+                }
+                CHECK(changed == changes, "scale %d count %u: %u notes changed, %u reported", s, count, changed, changes);
+                CHECK(changes == ((count >= 8) ? count / 4 : 1), "scale %d count %u: a quarter of the notes", s, count);
+            }
+        }
+    }
+
+    // Same seed, same melody (the device seeds from the cycle counter for variety).
+    int8_t a[16], b[16];
+    uint32_t sa = 42, sb = 42;
+    generateMelody(a, 16, kDefaultScale, sa);
+    generateMelody(b, 16, kDefaultScale, sb);
+    bool same = true;
+    for (int i = 0; i < 16; i++) same = same && (a[i] == b[i]);
+    CHECK(same, "deterministic for a seed");
+
+    // A note outside one octave (from a wider scale) is pulled back in by a variation.
+    int8_t wide[1] = {20};
+    uint32_t sw = 7;
+    mutateMelody(wide, 1, kDefaultScale, sw);
+    CHECK((wide[0] >= -7) && (wide[0] <= 7), "wide note brought into range: %d", wide[0]);
+    uint32_t zero = 0;
+    CHECK(nextRandom(zero) != 0, "a zero seed still produces numbers");
+}
+
+static void testKeys() {
+    const uint8_t major = scaleIndex("MAJOR");
+    const uint8_t chroma = scaleIndex("CHROMATIC");
+    for (int p = 0; p < kKeyCount; p++) CHECK(keyDegree(p, 0, major) == p, "pad %d = degree %d", p, p);
+    CHECK(keyDegree(0, -1, major) == -7 && keyDegree(0, 1, chroma) == 12, "octave shift is one octave of the scale");
+    // Every scale: at every octave the first full octave of pads is inside the range and rising.
+    for (int s = 0; s < kScaleCount; s++) {
+        for (int o = kMinKeysOctave; o <= kMaxKeysOctave; o++) {
+            const int size = kScales[s].size;
+            for (int p = 0; p < kKeyCount; p++) {
+                const int d = keyDegree(p, o, s);
+                CHECK((d >= minDegree(s)) && (d <= maxDegree(s)), "scale %d octave %d pad %d in range", s, o, p);
+                if ((p > 0) && (p < size)) CHECK(d == keyDegree(p - 1, o, s) + 1, "scale %d octave %d pad %d rises", s, o, p);
+            }
+        }
+    }
+}
+
 int main() {
     testScaleTables();
     testSemitones();
@@ -213,6 +285,8 @@ int main() {
     testNames();
     testGlide();
     testTranspose();
+    testMelody();
+    testKeys();
     std::printf("%s: %d checks, %d failures\n", failures ? "FAILED" : "OK", checks, failures);
     return failures ? 1 : 0;
 }

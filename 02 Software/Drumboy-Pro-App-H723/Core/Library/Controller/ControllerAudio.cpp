@@ -31,7 +31,10 @@ void Controller::record() {
             metronome.countDown = rhythm.measure;
 
             // Clear any stale pending hits from a previous precount take.
-            for (uint8_t i = 0; i < kLayerLibrarySize; i++) precountPendingBeat[i] = false;
+            for (uint8_t i = 0; i < kLayerLibrarySize; i++) {
+                precountPendingBeat[i] = false;
+                precountPendingHasNote[i] = false;
+            }
         }
 
         // Reset LFO counters to start modulation cycles from known phase.

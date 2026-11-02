@@ -3755,8 +3755,19 @@ void Controller::lcd_drawNoteStrip() {
         }
     }
 
-    // CLEAR undoes the note edits made since the page opened (as on the EUCLID page).
+    // The pads' note range (they are a scale keyboard on a TONE layer; UP/DOWN moves it).
     lcd.setFont(FONT_05x07);
+    if (toneOn) {
+        char low[8], high[8], keys[24];
+        tone::noteName(tone::semitones(tone::keyDegree(0, noteKeysOctave, layer.toneScale), layer.toneScale, layer.toneRoot), low, sizeof(low));
+        tone::noteName(tone::semitones(tone::keyDegree(tone::kKeyCount - 1, noteKeysOctave, layer.toneScale), layer.toneScale, layer.toneRoot), high, sizeof(high));
+        snprintf(keys, sizeof(keys), "PADS %s-%s", low, high);
+        lcd.setAlignment(LEFT);
+        lcd.setForeColor(GRAY_50);
+        lcd.drawText(keys, strlen(keys), kBeatGraphStartX, kBeatGraphEndY - 6);
+    }
+
+    // CLEAR undoes the note edits made since the page opened (as on the EUCLID page).
     lcd.setAlignment(RIGHT);
     lcd.setForeColor(GRAY_50);
     lcd.drawText("CLEAR: UNDO", 11, kBeatGraphEndX, kBeatGraphEndY - 6);

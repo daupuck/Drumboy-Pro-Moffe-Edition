@@ -2234,6 +2234,90 @@ void Controller::note_audition() {
     layer_playBeat(selectedLayerNum, 1.0f, note_auditionNote(selectedLayerNum));
 }
 
+bool Controller::noteKeysActive() const {
+    return notePageActive() && (selectedLayerNum != -1) && (layerLibrary[selectedLayerNum].toneMode == tone::kModeTone);
+}
+
+void Controller::note_padPressed(uint8_t pad_) {
+    /// @brief A pad on the NOTE page of a TONE layer: plays that scale note on the layer.
+    /// Recording: writes a beat with the note (an existing beat there takes the note).
+    /// Stopped: step entry, the selected beat gets the note and the selection moves on.
+    /// Playing without REC: just plays along.
+
+    if ((selectedLayerNum == -1) || (pad_ >= tone::kKeyCount)) return;
+    const uint8_t layerNum = static_cast<uint8_t>(selectedLayerNum);
+    Layer& layer = layerLibrary[layerNum];
+    Bank& bank = layer.bankLibrary[activeSongBank];
+    const int8_t note = tone::keyDegree(pad_, noteKeysOctave, layer.toneScale);
+
+    if ((!layer.mute) && (layer.samplePlay)) layer_playBeat(layerNum, 1.0f, note);
+
+    if (recordActive) {
+        if (!metronome.precountState) {
+            layerSong_setBeat(layerNum, activeSongBank, playInterval, 0, 0, 0, 0, true, true, note);
+        } else {
+            // Hit during precount: committed to position 0 (with its note) once playback starts.
+            precountPendingBeat[layerNum] = true;
+            precountPendingHasNote[layerNum] = true;
+            precountPendingNote[layerNum] = note;
+        }
+        lcd_redrawNotePage();
+        return;
+    }
+
+    if (!playActive && (selectedBeatNum >= 0) && (selectedBeatNum <= bank.lastActiveBeatNum)) {
+        bank.beatLibrary[selectedBeatNum].setNote(note);
+        if (bank.lastActiveBeatNum > 0) {
+            layerSong_beatRight();  // next beat (wraps); redraws the NOTE page
+        } else {
+            lcd_redrawNotePage();
+        }
+    }
+}
+
+void Controller::note_shiftKeys(bool up_) {
+    /// @brief UP/DOWN on the NOTE page: moves the pad keyboard one octave of the scale.
+
+    if (up_ && (noteKeysOctave < tone::kMaxKeysOctave)) {
+        noteKeysOctave++;
+    } else if (!up_ && (noteKeysOctave > tone::kMinKeysOctave)) {
+        noteKeysOctave--;
+    } else {
+        return;
+    }
+    lcd_drawNoteStrip();  // shows the keyboard range
+}
+
+void Controller::note_melody(bool fresh_) {
+    /// @brief ADD on the NOTE page: hold = a new melody over the bank's beats, tap = a small
+    /// variation of the current one. CLEAR undoes both (back to the notes the page opened with).
+
+    if (selectedLayerNum == -1) return;
+    Layer& layer = layerLibrary[selectedLayerNum];
+    Bank& bank = layer.bankLibrary[activeSongBank];
+
+    int8_t notes[kBeatLibrarySize];
+    uint8_t count = 0;
+    for (int16_t i = 0; i <= bank.lastActiveBeatNum; i++) {
+        if (bank.beatLibrary[i].getActive()) notes[count++] = bank.beatLibrary[i].getNote();
+    }
+    if (count == 0) return;
+
+    uint32_t seed = DWT_CYCCNT ^ (HAL_GetTick() << 16);  // a different result on every press
+    if (fresh_) {
+        tone::generateMelody(notes, count, layer.toneScale, seed);
+    } else {
+        tone::mutateMelody(notes, count, layer.toneScale, seed);
+    }
+
+    count = 0;
+    for (int16_t i = 0; i <= bank.lastActiveBeatNum; i++) {
+        if (bank.beatLibrary[i].getActive()) bank.beatLibrary[i].setNote(notes[count++]);
+    }
+    lcd_redrawNotePage();
+    note_audition();
+}
+
 void Controller::tone_setGlide(uint8_t layerNum_, uint8_t glide_) {
     /// @brief Sets GLIDE (0..100) and its precomputed per-block coefficient.
 
@@ -2569,7 +2653,7 @@ void Controller::layerSong_beatLeft() {
     }
 }
 
-void Controller::layerSong_setBeat(uint8_t layerNum_, uint8_t bankTab_, uint16_t interval_, uint8_t fillType_, uint8_t fillPattern_, uint8_t fillTime_, uint8_t fillLevel_, bool selected_) {
+void Controller::layerSong_setBeat(uint8_t layerNum_, uint8_t bankTab_, uint16_t interval_, uint8_t fillType_, uint8_t fillPattern_, uint8_t fillTime_, uint8_t fillLevel_, bool selected_, bool hasNote_, int8_t note_) {
     /// @brief Inserts a beat into target bank with quantization, ordering, and UI sync.
 
     Layer& layer = layerLibrary[layerNum_];
@@ -2601,6 +2685,8 @@ void Controller::layerSong_setBeat(uint8_t layerNum_, uint8_t bankTab_, uint16_t
                 // Check for duplicate start interval.
                 if (bank.beatLibrary[i].getStartInterval() == startInterval) {
                     duplicate = true;
+                    // Recording a note over an existing beat replaces its note (overdub).
+                    if (hasNote_) bank.beatLibrary[i].setNote(note_);
                     break;
                 }
 
@@ -2651,6 +2737,7 @@ void Controller::layerSong_setBeat(uint8_t layerNum_, uint8_t bankTab_, uint16_t
         if (!duplicate) {
             bank.setBeat(beatNum, startInterval, endInterval);
             bank.setBeatFill(beatNum, fillType_, fillPattern_, fillTime_, fillLevel_);
+            if (hasNote_) bank.beatLibrary[beatNum].setNote(note_);
             layerSong_calculateLastActiveBeatNum(layerNum_, bankTab_);
             layerSong_calculatePlayBeatNum(layerNum_, bankTab_, playInterval);
             if ((menu == LAYER_SONG_MENU) && (selectedLayerNum == layerNum_) && (selected_)) {

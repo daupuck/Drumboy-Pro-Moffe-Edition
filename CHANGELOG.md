@@ -3,6 +3,33 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v1.10
+
+**Play and generate melodies (NOTE page of a TONE layer)**
+
+- **The 10 pads are a scale keyboard** for the layer: pad 1 is the root, pads 2–10 the next
+  notes of the scale, so every pad is in key. **UP/DOWN** move the keyboard an octave (two
+  octaves down, one up); the strip shows the range, e.g. `PADS C4-E5`.
+- **Stopped: step entry.** A pad gives the selected beat its note and moves on to the next beat:
+  tap in a bassline note by note.
+- **Playing:** the pads play along. **With REC** they record beats with those notes (on the
+  quantize grid, like drum hits); recording over an existing beat replaces its note. A hit
+  during the precount lands on the first beat with its note.
+- **Hold ADD: new melody.** A random line through the scale over the bank's beats: mostly
+  steps, sometimes a leap, within an octave of the root, starting and ending on the root. Every
+  hold gives a different one.
+- **Tap ADD: variation.** About a quarter of the notes (at least one) move one or two scale
+  steps; keep tapping to let the melody evolve.
+- **CLEAR** undoes all of it, back to the notes the page opened with.
+- The modifier keys still work on the pads (S + layer to change page or layer, MUTE, FILL…).
+  On DRUM layers, and outside the NOTE page, the pads are unchanged.
+
+Under the hood: the generator, the variation and the pad mapping are pure functions in
+`Global/ToneScale.h` (deterministic xorshift32, seeded from the cycle counter on the device),
+host-tested in `test_tone_scale.cpp`. The long press only sets a flag in the long-key ISR; the
+main loop generates and draws. `layerSong_setBeat()` takes an optional note. RAM_D1 +16 B, flash
++2.9 KB. Audio path unchanged; no new compiler warnings.
+
 ## v1.09
 
 **Melody layers (TONE) — play your samples as notes**

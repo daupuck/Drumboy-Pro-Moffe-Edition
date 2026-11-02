@@ -230,6 +230,9 @@ void Controller::keyboard_action() {
                             ledLayerPlayMode = false;
                             ledLayerSelectFlag = true;
                             ledLayerSelectData = 0x03 << (selectedEncoderBank * 2);
+                        } else if (noteKeysActive() && (!alertFlag)) {
+                            // NOTE page of a TONE layer: the 10 pads are a scale keyboard for it.
+                            note_padPressed(layerNum);
                         } else {
                             Layer& layer = layerLibrary[layerNum];
                             // Layer Inst menu: the selected layer's pad auditions the *selected*
@@ -399,6 +402,7 @@ void Controller::keyboard_action() {
 
                                         case LAYER_SONG_MENU:
                                             if (layerSongPage == 0) layerSong_menuUp(0);  // fill type; not on the EUCLID page
+                                            if (layerSongPage == 2) note_shiftKeys(true);  // NOTE page: keyboard octave
                                             break;
                                     }
                                 }
@@ -470,6 +474,7 @@ void Controller::keyboard_action() {
 
                                         case LAYER_SONG_MENU:
                                             if (layerSongPage == 0) layerSong_menuDown(0);  // fill type; not on the EUCLID page
+                                            if (layerSongPage == 2) note_shiftKeys(false);  // NOTE page: keyboard octave
                                             break;
                                     }
                                 }
@@ -799,7 +804,13 @@ void Controller::keyboard_action() {
                                             // A tap (release without long press or another key) inserts one
                                             // beat; holding ADD on an empty layer still runs the generator.
                                             layerSongAddPending = true;
-                                            if (layerLibrary[selectedLayerNum].bankLibrary[activeSongBank].lastActiveBeatNum == -1) {
+                                            if (layerSongPage == 2) {
+                                                // NOTE page: tap = melody variation, hold = new melody.
+                                                if (layerLibrary[selectedLayerNum].bankLibrary[activeSongBank].lastActiveBeatNum != -1) {
+                                                    noteMelodyKeyFlag = true;
+                                                    startLongKeyTimer();
+                                                }
+                                            } else if (layerLibrary[selectedLayerNum].bankLibrary[activeSongBank].lastActiveBeatNum == -1) {
                                                 layerBeatKeyFlag = true;
                                                 layerBeatKeyStage = 0;
                                                 startLongKeyTimer();
@@ -1001,7 +1012,13 @@ void Controller::keyboard_action() {
                                 // Decide on the tap-insert before the long-press flags are cleared.
                                 // Not on the EUCLID page: the next knob turn would regenerate over it.
                                 const bool insertBeat = layerSongAddPending && (menu == LAYER_SONG_MENU) && (layerSongPage == 0) && !alertFlag && (selectedLayerNum != -1);
+                                // NOTE page: a tap (no long press, no other key) varies the melody.
+                                const bool mutateMelody = layerSongAddPending && (menu == LAYER_SONG_MENU) && (layerSongPage == 2) && !alertFlag && (selectedLayerNum != -1);
                                 layerSongAddPending = false;
+                                if (noteMelodyKeyFlag) {
+                                    keyboard.longKeyCounter = 0;
+                                    noteMelodyKeyFlag = false;
+                                }
                                 stopLongKeyTimer();
                                 keyboard.shiftKeyPress = false;
                                 masterUnmuteKeyFlag = false;
@@ -1018,6 +1035,7 @@ void Controller::keyboard_action() {
                                     rhythmLockKeyFlag = false;
                                 }
                                 if (insertBeat) layerSong_insertBeat();
+                                if (mutateMelody) note_melody(false);
                             } break;
 
                             case KEY_CLEAR:

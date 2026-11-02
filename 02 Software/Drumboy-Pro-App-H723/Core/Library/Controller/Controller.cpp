@@ -509,6 +509,10 @@ void Controller::update() {
             layerSongResetActionFlag = false;
             layerSong_resetAllBeats(selectedLayerNum, activeSongBank);
         }
+        if (noteMelodyActionFlag) {
+            noteMelodyActionFlag = false;
+            if (notePageActive()) note_melody(true);
+        }
 
         // 11. SECONDARY NAVIGATION
         // Execute long-press navigation handlers.
