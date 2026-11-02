@@ -198,6 +198,9 @@ inline float noise(uint32_t& state) {
 // Soft clip with |result| < 1 for any input (x / (1 + |x|)).
 inline float softClip(float x) { return x / (1.0f + fabsf(x)); }
 
+// Smoother saturation for the output drive stage, |result| < 1, close to tanh (x / sqrt(1 + x^2)).
+inline float saturate(float x) { return x / sqrtf(1.0f + (x * x)); }
+
 // Cutoff in Hz for CUTOFF 0..100 plus the envelope (in octaves): 30 Hz .. ~18 kHz.
 inline float cutoffHz(uint8_t cutoff, float envOctaves) {
     const float octaves = ((static_cast<float>(cutoff) / 100.0f) * 9.2f) + envOctaves;
@@ -238,6 +241,14 @@ inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t co
     const float k = (static_cast<float>(p.resonance) / 100.0f) * 3.6f;
     const float drive = 1.0f + ((static_cast<float>(p.drive) / 100.0f) * 4.0f);
     const float makeup = (1.0f + (k * 0.6f)) / (0.6f + (0.4f * drive));  // keeps level roughly even
+    // DRIVE also saturates AFTER the filter (like a distortion pedal after a 303), so the added
+    // harmonics are not filtered away: gain 1..30x (quadratic feel), normalised so a full-scale
+    // signal stays at full scale while quieter parts are pushed up and squashed. DRIVE 0 = clean.
+    const float driveAmount = static_cast<float>(p.drive) / 100.0f;
+    const bool postDriveOn = (p.drive > 0);
+    const float postGain = 1.0f + (29.0f * driveAmount * driveAmount);
+    const float postNorm = 1.0f / saturate(postGain);
+    const float postWet = (driveAmount * 4.0f > 1.0f) ? 1.0f : (driveAmount * 4.0f);  // fades in over 0..25
     v.filterEnv *= decayBlockCoef(p.decay, blocksPerSecond);
 
     const float attackStep = 1.0f / (0.002f * sampleRate);  // 2 ms
@@ -287,7 +298,9 @@ inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t co
         } else {
             v.amp *= releaseCoef;
         }
-        out[i] = v.s4 * makeup * v.amp * v.gain;
+        float y = v.s4 * makeup;
+        if (postDriveOn) y += postWet * ((saturate(y * postGain) * postNorm) - y);
+        out[i] = y * v.amp * v.gain;
     }
 
     // 3. END OF NOTE

@@ -387,7 +387,46 @@ static void testLegato() {
     CHECK(r.filterEnv == 1.0f && std::fabs(r.increment - 330.0f / kFs) < 1e-7f, "released note: slide retriggers");
 }
 
+static void testDriveIsAudible() {
+    // Regression: DRIVE was hardly audible (the clip sat before the filter, which smoothed it away,
+    // and the level makeup cancelled the rest). Full DRIVE must clearly thicken the sound: much
+    // more sustained level (lower crest factor) at the same settings, and DRIVE 0 stays clean.
+    auto measure = [](uint8_t drive, uint8_t cutoff, uint8_t wave, double& rms, double& crest) {
+        Params p;
+        p.wave = wave;
+        p.cutoff = cutoff;
+        p.resonance = 30;
+        p.envAmount = 0;
+        p.drive = drive;
+        Voice v;
+        start(v, note(110.0f, 44100));
+        std::vector<float> out;
+        uint8_t flags = 0;
+        run(v, p, 400, flags, &out);
+        double e = 0.0, peak = 0.0;
+        for (size_t i = out.size() / 2; i < out.size(); i++) {
+            e += out[i] * out[i];
+            peak = std::fmax(peak, std::fabs(out[i]));
+        }
+        rms = std::sqrt(e / (out.size() / 2));
+        crest = peak / rms;
+    };
+    for (uint8_t wave : {static_cast<uint8_t>(kSaw), static_cast<uint8_t>(kTriangle), static_cast<uint8_t>(kSine)}) {
+        for (uint8_t cutoff : {30, 60, 100}) {
+            double rms0, crest0, rms50, crest50, rms100, crest100;
+            measure(0, cutoff, wave, rms0, crest0);
+            measure(50, cutoff, wave, rms50, crest50);
+            measure(100, cutoff, wave, rms100, crest100);
+            CHECK(rms100 > rms0 * 1.6, "wave %d cutoff %d: DRIVE 100 louder/denser %f vs %f", wave, cutoff, rms100, rms0);
+            CHECK(rms50 > rms0 * 1.2 && rms50 < rms100, "wave %d cutoff %d: DRIVE 50 in between", wave, cutoff);
+            CHECK(crest100 < crest0 * 0.8, "wave %d cutoff %d: DRIVE 100 squashes peaks %f vs %f", wave, cutoff, crest100, crest0);
+            CHECK(rms100 < 1.2, "wave %d cutoff %d: DRIVE 100 stays in range %f", wave, cutoff, rms100);
+        }
+    }
+}
+
 int main() {
+    testDriveIsAudible();
     testDetuneIsAudible();
     testDetuneSubNoise();
     testSampleTable();
