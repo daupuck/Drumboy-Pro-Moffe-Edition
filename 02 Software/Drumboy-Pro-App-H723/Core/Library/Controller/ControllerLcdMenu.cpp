@@ -3782,10 +3782,12 @@ void Controller::lcd_drawNoteStrip() {
     lcd.setAlignment(LEFT);
     lcd.setForeColor(GRAY_75);
     lcd.drawText(title, strlen(title), kBeatGraphStartX, kBeatGraphStartY + 2);
+    lcd.setAlignment(RIGHT);
+    lcd.setForeColor(GRAY_50);
     if (!toneOn) {
-        lcd.setAlignment(RIGHT);
-        lcd.setForeColor(GRAY_50);
         lcd.drawText("DRUM: MODE TO TONE", 18, kBeatGraphEndX, kBeatGraphStartY + 2);
+    } else {
+        lcd.drawText("ADD+PAD: STEP", 13, kBeatGraphEndX, kBeatGraphStartY + 2);  // pads alone only play
     }
 
     // Root line (the sample's pitch in this key) for orientation.

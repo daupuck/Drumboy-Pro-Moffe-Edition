@@ -183,16 +183,16 @@ NOTE). Once more goes back to the edit page.
 | Control | What it does |
 |---|---|
 | **1 MODE** | **DRUM**: the layer plays as before and ignores the notes. **TONE**: every beat plays its sample at its note. **SYNTH**: every beat plays the built-in synth at its note ([section 7](#7-synth-layers--a-built-in-synth-voice-v111), v1.11). |
-| **2 NOTE** | The note of the selected beat, e.g. `D#4`. Only notes of the scale are offered, two octaves either side of the root. |
+| **2 NOTE** | The note of the selected beat, e.g. `D#4`. Only notes of the scale are offered, five octaves either side of the root (two before v1.13). |
 | **5 ROOT** | The key: C to B. |
 | **6 SCALE** | Chromatic, major, minor, dorian, phrygian, lydian, mixolydian, harmonic minor, pentatonic major, pentatonic minor, blues. |
 | **7 GLIDE** | 0 = off. Higher values slide from the previous note into the next one, from a quick 303-style slide up to half a second. |
 | **8 TRANSPOSE** | Moves every note of the bank one scale step up or down, keeping the melody intact. It stops when the highest or lowest note reaches the edge of the range. The value shows how far you have moved since the page opened. |
 | **LEFT / RIGHT** | Select the beat whose note you edit (ADD + LEFT/RIGHT still moves it). |
-| **The 10 pads** (TONE, SYNTH) | A scale keyboard: pad 1 is the root, the others the next notes of the scale. Stopped: the selected beat gets the note and the next beat is selected. Playing: play along; with REC, record. (v1.10) |
-| **UP / DOWN** (TONE, SYNTH) | Move the pad keyboard an octave down or up; the strip shows the range, e.g. `PADS C4-E5`. (v1.10) |
+| **The 10 pads** (TONE, SYNTH) | A scale keyboard: pad 1 is the root, the others the next notes of the scale. Stopped: the pads only **play**, so you can try sounds without changing the track. Playing: play along; with REC, record. (v1.10; v1.13: pads alone no longer edit while stopped) |
+| **UP / DOWN** (TONE, SYNTH) | Move the pad keyboard an octave down or up: 4 octaves down to 3 up (v1.13; was 2 down, 1 up). The strip shows the range, e.g. `PADS C4-E5`. (v1.10) |
 | **ADD + UP / DOWN** | **SLIDE** on / off for the selected beat: the note slides in from the previous one (303 style). The NOTE value shows `SLIDE` and the strip joins the two notes. On SYNTH layers the notes join without a new attack; slide time is GLIDE (at least ~36 ms). (v1.12) |
-| **ADD hold** | A new melody over the bank's beats, in the scale, starting and ending on the root. (v1.10) |
+| **ADD hold** | A new melody over the bank's beats, in the scale, starting and ending on the root. It comes when you **let go** of ADD (v1.13), and not at all if you used ADD with a pad or UP/DOWN meanwhile. (v1.10) |
 | **ADD tap** | A variation: a few notes move a step or two. Tap again and again to let it evolve. (v1.10) |
 | **CLEAR** (tap) | Undoes the note edits made since the page opened, including generated melodies. |
 | **CLEAR** (hold) | Erases all of the layer's beats in this bank, as on the edit page (v1.11). To remove a single beat, use a CLEAR tap on the edit page. |
@@ -200,8 +200,9 @@ NOTE). Once more goes back to the edit page.
 **Workflow:** put beats on the layer (record, ADD, EUCLID…), open the NOTE page, set MODE to TONE
 and pick ROOT and SCALE. Then either:
 
-- **tap the notes in:** with the sequencer stopped, press the pads one after another; each pad
-  gives the selected beat its note and moves to the next beat;
+- **tap the notes in:** with the sequencer stopped, hold **ADD** and press the pads one after
+  another; each pad gives the selected beat its note and moves to the next beat (pads without
+  ADD only play, for trying sounds);
 - **let it write one:** hold **ADD** for a new melody, tap **ADD** to vary it, **CLEAR** to go back;
 - **play it in:** press PLAY and REC and play the pads like a keyboard;
 - **fine-tune:** select a beat with LEFT/RIGHT and turn NOTE (while stopped, you hear each step).

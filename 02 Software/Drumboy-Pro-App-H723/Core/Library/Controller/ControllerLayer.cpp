@@ -2539,7 +2539,9 @@ void Controller::synth_change(EncoderFunc function_, bool up_) {
 void Controller::note_padPressed(uint8_t pad_) {
     /// @brief A pad on the NOTE page of a TONE layer: plays that scale note on the layer.
     /// Recording: writes a beat with the note (an existing beat there takes the note).
-    /// Stopped: step entry, the selected beat gets the note and the selection moves on.
+    /// Stopped: just plays (to try sounds without touching the track). ADD + pad = step entry:
+    /// the selected beat gets the note and the selection moves on (v1.13; before, every pad
+    /// press while stopped edited the track).
     /// Playing without REC: just plays along.
 
     if ((selectedLayerNum == -1) || (pad_ >= tone::kKeyCount)) return;
@@ -2563,7 +2565,15 @@ void Controller::note_padPressed(uint8_t pad_) {
         return;
     }
 
-    if (!playActive && (selectedBeatNum >= 0) && (selectedBeatNum <= bank.lastActiveBeatNum)) {
+    if (!playActive && keyboard.shiftKeyPress && (selectedBeatNum >= 0) && (selectedBeatNum <= bank.lastActiveBeatNum)) {
+        // ADD is a modifier here: no new melody / variation when it is released.
+        if (noteMelodyKeyFlag) {
+            stopLongKeyTimer();
+            keyboard.longKeyCounter = 0;
+            noteMelodyKeyFlag = false;
+        }
+        noteMelodyLongFlag = false;
+        layerSongAddPending = false;
         bank.beatLibrary[selectedBeatNum].setNote(note);
         if (bank.lastActiveBeatNum > 0) {
             layerSong_beatRight();  // next beat (wraps); redraws the NOTE page
@@ -2583,6 +2593,7 @@ void Controller::note_setSlide(bool slide_) {
         keyboard.longKeyCounter = 0;
         noteMelodyKeyFlag = false;
     }
+    noteMelodyLongFlag = false;
     layerSongAddPending = false;
 
     if (selectedLayerNum == -1) return;

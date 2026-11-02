@@ -263,7 +263,8 @@ class Controller {
     int8_t noteTransposeTotal = 0;
     int8_t noteKeysOctave = 0;                // pads as a scale keyboard: octave of pad 1 (UP/DOWN)
     bool noteMelodyKeyFlag = false;           // ADD held on the NOTE page (long-key timer running)
-    volatile bool noteMelodyActionFlag = false;  // long-key ISR -> main loop: roll a new melody
+    volatile bool noteMelodyActionFlag = false;  // (unused since v1.13: the melody is rolled on ADD release)
+    volatile bool noteMelodyLongFlag = false;    // long-key ISR: ADD was held long (new melody on release)
     int8_t precountPendingNote[kLayerLibrarySize] = {};       // note of a keyboard hit during precount
     bool precountPendingHasNote[kLayerLibrarySize] = {};
 

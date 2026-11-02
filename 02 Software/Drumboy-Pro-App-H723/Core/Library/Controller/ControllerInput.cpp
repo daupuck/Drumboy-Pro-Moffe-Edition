@@ -813,7 +813,9 @@ void Controller::keyboard_action() {
                                             // beat; holding ADD on an empty layer still runs the generator.
                                             layerSongAddPending = true;
                                             if (layerSongPage == 2) {
-                                                // NOTE page: tap = melody variation, hold = new melody.
+                                                // NOTE page: tap = melody variation, hold = new melody
+                                                // (both on release); ADD + pad = step entry.
+                                                noteMelodyLongFlag = false;
                                                 if (layerLibrary[selectedLayerNum].bankLibrary[activeSongBank].lastActiveBeatNum != -1) {
                                                     noteMelodyKeyFlag = true;
                                                     startLongKeyTimer();
@@ -1044,7 +1046,10 @@ void Controller::keyboard_action() {
                                     rhythmLockKeyFlag = false;
                                 }
                                 if (insertBeat) layerSong_insertBeat();
-                                if (mutateMelody) note_melody(false);
+                                // NOTE page: held long = a new melody, short = a variation; nothing
+                                // if ADD was used with a pad or UP/DOWN (mutateMelody is false then).
+                                if (mutateMelody) note_melody(noteMelodyLongFlag);
+                                noteMelodyLongFlag = false;
                             } break;
 
                             case KEY_CLEAR:

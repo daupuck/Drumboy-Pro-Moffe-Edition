@@ -27,6 +27,16 @@ SD-card package is named after it). Rolling back = installing an older package.
   the layers' MODE and synth sound as they are, so an old drum kit never wipes a synth line.
 - **Instrument copy/paste** (Layer Instrument menu) carries MODE and the SYNTH sound too: a synth
   layer pastes as the same synth, and the page swaps between sample and synth pages if needed.
+- **NOTE page pads no longer edit by accident** (from hardware testing: trying sounds after a
+  recording changed the track). While stopped, pads only play. Step entry is now **ADD + pad**
+  (the strip shows `ADD+PAD: STEP`). ADD hold (new melody) now fires when ADD is released, and
+  not at all if ADD was used with a pad or UP/DOWN, so holding ADD for step entry can never
+  overwrite the melody.
+- **Wider note range** (from hardware testing: "range too small"): UP/DOWN moves the pad
+  keyboard 4 octaves down and 3 up (was 2 and 1), and notes may lie five octaves of the scale
+  either side of the root (was two), so TRANSPOSE and the NOTE knob reach as far. The beat's
+  note byte now uses its spare bit 7: degrees -64..63 (host-tested packing; it is never stored on
+  SD, the `.rwn` file keeps one signed byte per note as before).
 - Projects: the `.rwn` sound section is now "SYN4" (15 values per layer, the last 5 are the
   LFO). v1.12 ("SYN2") and v1.11 ("SYN1") projects still load.
 

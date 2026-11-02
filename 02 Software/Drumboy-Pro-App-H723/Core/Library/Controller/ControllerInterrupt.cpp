@@ -1421,14 +1421,14 @@ void Controller::interruptLongKeyRead() {
             }
         }
 
-        // NOTE PAGE: ADD held -> a new melody. Only a flag here; the main loop generates and
-        // draws it (this is an ISR).
+        // NOTE PAGE: ADD held long enough -> a new melody when ADD is released, unless ADD was
+        // used as a modifier meanwhile (ADD + pad = step entry, ADD + UP/DOWN = slide). Only a
+        // flag here (this is an ISR); the release in the main loop decides.
         else if (noteMelodyKeyFlag) {
             stopLongKeyTimer();
             keyboard.longKeyCounter = 0;
             noteMelodyKeyFlag = false;
-            layerSongAddPending = false;  // long press: not a tap
-            noteMelodyActionFlag = true;
+            noteMelodyLongFlag = true;
         }
 
         // MULTI-STAGE BEAT GENERATION
