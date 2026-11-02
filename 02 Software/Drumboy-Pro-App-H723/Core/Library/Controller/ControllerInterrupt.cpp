@@ -1431,6 +1431,14 @@ void Controller::interruptLongKeyRead() {
             noteMelodyLongFlag = true;
         }
 
+        // SYNTH PAGES: ADD held long enough -> a random sound when ADD is released.
+        else if (synthRandomKeyFlag) {
+            stopLongKeyTimer();
+            keyboard.longKeyCounter = 0;
+            synthRandomKeyFlag = false;
+            synthRandomLongFlag = true;
+        }
+
         // MULTI-STAGE BEAT GENERATION
         // Cycle beat-generation presets on repeated long-press steps.
         else if (layerBeatKeyFlag) {

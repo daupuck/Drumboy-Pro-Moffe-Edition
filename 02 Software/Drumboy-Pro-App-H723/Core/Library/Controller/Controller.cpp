@@ -339,6 +339,7 @@ void Controller::initialize() {
         // 3. Restore User Session
         loadSystemPreset();   // Restore Global settings
         loadEncoderPreset();  // Restore last-used knob values
+        sd_loadSynthUser();   // USER 01..16 synth sounds (none yet = all empty)
 
         // 4. Enable Global Communication Protocols
         HAL_HalfDuplex_EnableReceiver(&huart1);  // MIDI In (Interrupt)

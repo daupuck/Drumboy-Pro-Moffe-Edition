@@ -1125,13 +1125,41 @@ class Controller {
     bool layerSounds(uint8_t layerNum_) const;   // has something to play: a loaded sample, or SYNTH mode
     bool synthLayerSelected() const;             // the selected layer is a SYNTH layer
     bool synthInstPageActive() const;            // Layer Inst menu showing a SYNTH layer's pages
-    uint8_t layerInstPage() const;               // 0..2 for LAYER_INST_0..2_MENU
+    uint8_t layerInstPage() const;               // SYNTH: the shown SynthPage (row of kEncoderSynthFunction)
     void synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_, uint8_t beatFlags_);
     void note_setSlide(bool slide_);             // NOTE page: ADD + UP / DOWN on the selected beat
     void synth_change(EncoderFunc function_, bool up_);
     float synth_lfoIncrement(uint8_t layerNum_) const;  // layer LFO phase step per sample (audio ISR)
-    bool synthLfoPage = false;                           // Layer Inst page 3 of a SYNTH layer shows the LFO (not routing)
-    bool synthLfoPageActive() const;
+    uint8_t synthPage = SYNTH_PAGE_SOUND;                // which SynthPage is shown (with the matching LAYER_INST_x_MENU)
+    uint8_t synthPageNow() const;                        // synthPage, made consistent with `menu`
+    bool synthPageIs(uint8_t page_) const { return synthInstPageActive() && (synthPageNow() == page_); }
+    bool synthLfoPageActive() const { return synthPageIs(SYNTH_PAGE_LFO); }
+    uint8_t synthSlotOf(EncoderFunc function_) const;    // knob slot of a function on the shown synth page
+    // SOUND page: presets. Factory 0..kFactoryPresetCount-1, then USER 01..16.
+    int16_t synthPresetIndex[kLayerLibrarySize] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};  // last loaded (-1 = own sound)
+    uint8_t synthSaveSlot = 0;                           // SAVE TO: USER 01..16
+    synth::Params synthUserPresets[synth::kUserPresetCount];
+    bool synthUserUsed[synth::kUserPresetCount] = {};
+    char synthStatus[24] = "";                           // one-line message on the SOUND page ("SAVED TO USER 03")
+    // Undo (CLEAR tap on a synth page): the sound from when the Layer Instrument menu was opened.
+    synth::Params synthUndoParams;
+    int8_t synthUndoLayer = -1;
+    // ADD on the OSC/FILTER/AMP/LFO pages: tap = variation, hold = random sound (on release).
+    bool synthAddPending = false;
+    bool synthRandomKeyFlag = false;                     // long-key timer running for it
+    volatile bool synthRandomLongFlag = false;           // long-key ISR: held long enough
+    void synth_captureUndo();
+    void synth_undo();
+    void synth_loadPreset(int16_t index_);
+    void synth_saveUser();
+    void synth_randomize(bool fresh_);
+    void synth_addPressed();
+    void synth_addReleased();
+    void synth_soundChanged();                           // redraw the page + audition after a whole-sound change
+    void sd_loadSynthUser();
+    SdResult sd_saveSynthUser();
+    void lcd_drawSynthSoundGraph();
+    void lcd_drawSynthAmpGraph();
     void lcd_drawSynthLfoGraph();
     void lcd_updateSynthLfoCursor();                     // main loop: the moving position on the LFO page
     int16_t synthLfoCursorX = -1;
@@ -1144,7 +1172,7 @@ class Controller {
     void tone_resetLayer(uint8_t layerNum_);
     void tone_resetAll();
     void tone_setMode(uint8_t layerNum_, uint8_t mode_);  // DRUM / TONE / SYNTH, click-free
-    void sd_loadDrumkitSynth(const char* drumkitName_);   // optional "SYK1" tail of a drumkit
+    void sd_loadDrumkitSynth(const char* drumkitName_);   // optional synth tail of a drumkit
     void lcd_drawLayerSongNoteMenu(uint8_t layerNum_);
     void lcd_drawNoteData(uint8_t slot_);
     void lcd_drawNoteStrip();

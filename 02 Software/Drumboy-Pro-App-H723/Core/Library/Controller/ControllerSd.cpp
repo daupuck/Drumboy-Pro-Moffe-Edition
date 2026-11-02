@@ -1582,9 +1582,9 @@ SdResult Controller::sd_clearFile(uint8_t fileNum_) {
 //   10 x [mode, root, scale, glide]
 //   10 layers x 5 banks x { count, count x [start interval hi, lo, note] }  (only notes != root)
 //   "EOF"
-//   "SYN4" + 10 x [wave, cutoff, resonance, env amount, decay, gate, drive, detune, sub, noise,
-//                  LFO shape, rate, depth, target, retrig] + "EOF"   (v1.13; "SYN2" from v1.12
-//          has the first 10 values, "SYN1" from v1.11 the first 7; both still read)
+//   "SYN5" + 10 x [the 20 values of synth::pack: sound, LFO, AMP, filter type] + "EOF"   (v1.13;
+//          "SYN2" from v1.12 has the first 10 values, "SYN1" from v1.11 the first 7; both still
+//          read, as are the v1.13 test builds' "SYN3"/"SYN4")
 //   "SLD1" + 10 layers x 5 banks x { count, count x [start interval hi, lo] } + "EOF"   (v1.12)
 // Mode 2 (SYNTH) is read as DRUM by v1.09/v1.10, which stop at the first "EOF".
 // Notes are matched to beats by start interval on load (positions are unique within a bank),
@@ -1756,12 +1756,13 @@ void Controller::sd_loadNotes(uint8_t fileNum_) {
         uint8_t perLayer = 0;
         uint8_t used = 0;
         if (ok && (sd_read(eof, 3) == FR_OK) && (sd_read(tag, 4) == FR_OK)) {
+            if (strncmp(tag, "SYN5", 4) == 0) perLayer = used = 20;
             if (strncmp(tag, "SYN4", 4) == 0) perLayer = used = 15;
             if (strncmp(tag, "SYN3", 4) == 0) { perLayer = 11; used = 10; }
             if (strncmp(tag, "SYN2", 4) == 0) perLayer = used = 10;
             if (strncmp(tag, "SYN1", 4) == 0) perLayer = used = 7;
         }
-        static_assert(kSynthFileParams == 15, "SYN4 holds 15 values per layer");
+        static_assert(kSynthFileParams == 20, "SYN5 holds 20 values per layer");
         if ((perLayer > 0) && (sd_read(sound, kLayerLibrarySize * perLayer) == FR_OK)) {
             for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
                 layerLibrary[l].synth = synth::unpack(&sound[l * perLayer], used);  // sanitized
@@ -2166,6 +2167,49 @@ SdResult Controller::sd_loadDrumkit(uint8_t kitNum_) {
     return result;
 }
 
+// System/Preset/SynthUser.rws: "RWSYNUSR" + 16 x [used, 20 values of synth::pack] + "EOF".
+// Written whole on every save (it is 347 bytes). No file = all USER slots empty.
+
+void Controller::sd_loadSynthUser() {
+    for (uint8_t i = 0; i < synth::kUserPresetCount; i++) {
+        synthUserUsed[i] = false;
+        synthUserPresets[i] = synth::Params{};
+    }
+    if (f_open(&sd.file, kSynthUserFile, FA_READ) != FR_OK) return;
+    char ref[sizeof(kSynthUserRef)] = {};
+    uint8_t data[synth::kUserPresetCount * (1 + synth::kPackedSize)];
+    const bool ok = (sd_read(ref, strlen(kSynthUserRef)) == FR_OK) && (strncmp(ref, kSynthUserRef, strlen(kSynthUserRef)) == 0) &&
+                    (sd_read(data, sizeof(data)) == FR_OK);
+    f_close(&sd.file);
+    if (!ok) return;
+    for (uint8_t i = 0; i < synth::kUserPresetCount; i++) {
+        const uint8_t* d = &data[i * (1 + synth::kPackedSize)];
+        synthUserUsed[i] = (d[0] == 1);
+        if (synthUserUsed[i]) synthUserPresets[i] = synth::unpack(d + 1, synth::kPackedSize);  // sanitized
+    }
+}
+
+SdResult Controller::sd_saveSynthUser() {
+    uint8_t data[synth::kUserPresetCount * (1 + synth::kPackedSize)];
+    for (uint8_t i = 0; i < synth::kUserPresetCount; i++) {
+        uint8_t* d = &data[i * (1 + synth::kPackedSize)];
+        d[0] = synthUserUsed[i] ? 1 : 0;
+        synth::pack(synthUserPresets[i], d + 1);
+    }
+    keyboard_disable();  // as for the other SD writes: no I2C keyboard traffic meanwhile
+    f_close(&sd.file);
+    if (HAL_SD_GetState(&hsd2) != HAL_SD_STATE_READY) HAL_SD_Abort(&hsd2);
+    SdResult result = SD_ERROR;
+    if (f_open(&sd.file, kSynthUserFile, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK) {
+        if ((sd_write(kSynthUserRef, strlen(kSynthUserRef)) == FR_OK) && (sd_write(data, sizeof(data)) == FR_OK) && (sd_write("EOF", 3) == FR_OK)) {
+            result = SD_OK;
+        }
+        if (f_close(&sd.file) != FR_OK) result = SD_ERROR;
+    }
+    keyboard_enable();
+    return result;
+}
+
 void Controller::sd_loadDrumkitSynth(const char* drumkitName_) {
     /// @brief Reads the "SYK1" tail of a drumkit (MODE + SYNTH sound per layer, v1.13+). A kit
     /// saved by older firmware has none: its layers keep their current MODE and sound, so loading
@@ -2178,9 +2222,12 @@ void Controller::sd_loadDrumkitSynth(const char* drumkitName_) {
     uint8_t used = 0;      // sound values to take
     if ((f_lseek(&sd.file, strlen(kDrumkitRef) + kDrumkitByteSize + 3) == FR_OK) &&  // + "EOF"
         (sd_read(tag, strlen(kDrumkitSynthRef)) == FR_OK)) {
-        if (strncmp(tag, "SYK2", 4) == 0) {
+        if (strncmp(tag, "SYK3", 4) == 0) {
             perLayer = 1 + synth::kPackedSize;
             used = synth::kPackedSize;
+        } else if (strncmp(tag, "SYK2", 4) == 0) {  // v1.13 test build: 15 values (no AMP page yet)
+            perLayer = 16;
+            used = 15;
         } else if (strncmp(tag, "SYK1", 4) == 0) {  // v1.13 test build: 11 values, the 11th is ignored
             perLayer = 12;
             used = 10;

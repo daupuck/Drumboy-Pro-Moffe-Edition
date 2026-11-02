@@ -6,8 +6,11 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <vector>
 
+#include "SynthPresets.h"
 #include "SynthVoice.h"
 
 using namespace synth;
@@ -641,7 +644,185 @@ static void testPackUnpack() {
     CHECK(!isDefault(lfoOnly), "an LFO alone makes the sound non-default (file is saved)");
 }
 
+// Level envelope of a rendered note: peak |x| per 5 ms window.
+static std::vector<float> envelopeOf(const Params& p, uint32_t gateSamples, int blocks) {
+    Voice v;
+    start(v, note(220.0f, gateSamples));
+    std::vector<float> out;
+    float block[kBlock];
+    for (int b = 0; b < blocks; b++) {
+        render(v, p, block, kBlock, kFs, 0.0f);
+        for (uint16_t i = 0; i < kBlock; i++) out.push_back(block[i]);
+    }
+    const size_t window = static_cast<size_t>(kFs * 0.005f);
+    std::vector<float> env;
+    for (size_t w = 0; (w + 1) * window <= out.size(); w++) {
+        float peak = 0.0f;
+        for (size_t i = w * window; i < (w + 1) * window; i++) peak = std::fmax(peak, std::fabs(out[i]));
+        env.push_back(peak);
+    }
+    return env;
+}
+
+static void testAmpEnvelope() {
+    // Defaults reproduce the old envelope: ~2 ms attack and ~12 ms release.
+    CHECK(std::fabs(attackSeconds(Params{}.attack) - 0.002f) < 0.0005f, "default attack ~2 ms: %f", attackSeconds(Params{}.attack));
+    CHECK(std::fabs(decaySeconds(Params{}.release) - 0.012f) < 0.001f, "default release ~12 ms: %f", decaySeconds(Params{}.release));
+    CHECK(std::fabs(attackSeconds(0) - 0.001f) < 1e-5f && std::fabs(attackSeconds(100) - 3.0f) < 0.05f, "attack range");
+    CHECK(std::fabs(decaySeconds(0) - 0.005f) < 1e-5f && std::fabs(decaySeconds(100) - 5.0f) < 0.1f, "decay/release range");
+
+    Params p;
+    p.cutoff = 100;
+    p.envAmount = 0;
+    p.drive = 0;
+    // Slow ATTACK: quiet at the start, full after ~the attack time.
+    p.attack = 60;  // ~120 ms
+    std::vector<float> env = envelopeOf(p, 44100, 1000);
+    CHECK(env[1] < env[40] * 0.2f, "slow attack starts quiet: %f vs %f", env[1], env[40]);
+    // DECAY to SUSTAIN 30: the held level settles near 30 % of the peak.
+    p.attack = 0;
+    p.ampDecay = 30;  // ~40 ms
+    p.sustain = 30;
+    env = envelopeOf(p, 44100, 1000);
+    float peak = 0.0f;
+    for (float e : env) peak = std::fmax(peak, e);
+    CHECK(std::fabs(env[60] / peak - 0.3f) < 0.06f, "sustain level ~30 %%: %f", env[60] / peak);
+    // SUSTAIN 0: a pluck that dies away while the note is still held.
+    p.sustain = 0;
+    env = envelopeOf(p, 44100, 1000);
+    CHECK(env[60] < peak * 0.02f, "sustain 0 dies away: %f", env[60]);
+    // Long RELEASE: still sounding 200 ms after the gate; short: silent.
+    p.sustain = 100;
+    p.release = 70;  // ~630 ms
+    env = envelopeOf(p, 4410, 1000);  // 100 ms gate
+    CHECK(env[60] > peak * 0.3f, "long release rings on: %f", env[60]);
+    p.release = 0;
+    env = envelopeOf(p, 4410, 1000);
+    CHECK(env[60] < peak * 0.001f, "short release stops: %f", env[60]);
+}
+
+static void testFilterTypes() {
+    // A 1 kHz cutoff: LP lets 110 Hz through and cuts 4 kHz; HP the opposite; BP cuts both
+    // relative to its 1 kHz centre. Measured with sine tones (no harmonics).
+    auto level = [](uint8_t type, float hz) {
+        Params p;
+        p.wave = kSine;
+        p.cutoff = 56;  // ~1 kHz
+        p.resonance = 0;
+        p.envAmount = 0;
+        p.drive = 0;
+        p.filterType = type;
+        Voice v;
+        start(v, note(hz, 1000000));
+        std::vector<float> out;
+        float block[kBlock];
+        for (int b = 0; b < 300; b++) {
+            render(v, p, block, kBlock, kFs, 0.0f);
+            for (uint16_t i = 0; i < kBlock; i++) {
+                CHECK(std::isfinite(block[i]), "finite filter type %d", type);
+                out.push_back(block[i]);
+            }
+        }
+        double e = 0.0;
+        for (size_t i = out.size() / 2; i < out.size(); i++) e += out[i] * out[i];
+        return std::sqrt(e / (out.size() / 2));
+    };
+    const double lpLow = level(kLowPass24, 110.0f), lpHigh = level(kLowPass24, 4000.0f);
+    const double hpLow = level(kHighPass, 110.0f), hpHigh = level(kHighPass, 4000.0f);
+    const double bpLow = level(kBandPass, 110.0f), bpMid = level(kBandPass, 1000.0f), bpHigh = level(kBandPass, 4000.0f);
+    const double lp12High = level(kLowPass12, 4000.0f);
+    CHECK(lpHigh < lpLow * 0.05, "LP24 cuts highs: %f vs %f", lpHigh, lpLow);
+    CHECK(lp12High > lpHigh * 3.0 && lp12High < lpLow * 0.5, "LP12 is gentler than LP24: %f", lp12High);
+    CHECK(hpLow < hpHigh * 0.1, "HP cuts lows: %f vs %f", hpLow, hpHigh);
+    CHECK(bpMid > bpLow * 2.0 && bpMid > bpHigh * 2.0, "BP keeps the middle: %f %f %f", bpLow, bpMid, bpHigh);
+    CHECK(hpHigh > 0.1 && bpMid > 0.1, "HP/BP are not silent: %f %f", hpHigh, bpMid);
+    // Every type at maximum resonance and drive stays bounded.
+    for (uint8_t t = 0; t < kFilterTypeCount; t++) {
+        Params p;
+        p.filterType = t;
+        p.resonance = 100;
+        p.drive = 100;
+        p.envAmount = 100;
+        Voice v;
+        start(v, note(110.0f, 44100));
+        uint8_t flags = 0;
+        CHECK(run(v, p, 1400, flags) < 3.0f, "type %d bounded", t);
+    }
+}
+
+static void testPresetsAndRandom() {
+    // Every factory sound: a name that fits the display, sane values, audible and bounded.
+    CHECK(kFactoryPresetCount >= 30, "at least 30 factory sounds: %d", kFactoryPresetCount);
+    CHECK(isDefault(kFactoryPresets[0].params), "the first preset is the default sound");
+    for (uint8_t i = 0; i < kFactoryPresetCount; i++) {
+        const Preset& pr = kFactoryPresets[i];
+        CHECK(std::strlen(pr.name) >= 3 && std::strlen(pr.name) <= 10, "preset %d name length: %s", i, pr.name);
+        for (uint8_t j = 0; j < i; j++) CHECK(std::strcmp(pr.name, kFactoryPresets[j].name) != 0, "preset %d name unique", i);
+        uint8_t a[kPackedSize], b[kPackedSize];
+        pack(pr.params, a);
+        pack(sanitize(pr.params), b);
+        CHECK(std::memcmp(a, b, kPackedSize) == 0, "preset %s is already sane", pr.name);
+        Voice v;
+        start(v, note(110.0f, 20000));
+        uint8_t flags = 0;
+        const float peak = run(v, pr.params, 1000, flags);
+        CHECK(peak > 0.01f && peak < 3.0f, "preset %s audible and bounded: %f", pr.name, peak);
+    }
+
+    // Random sounds: always sane, audible, never WAVE = SAMPLE, varied, deterministic per seed.
+    uint32_t seed = 12345;
+    int waves[kWaveCount] = {};
+    int types[kFilterTypeCount] = {};
+    for (int n = 0; n < 2000; n++) {
+        const Params p = randomSound(seed);
+        uint8_t a[kPackedSize], b[kPackedSize];
+        pack(p, a);
+        pack(sanitize(p), b);
+        CHECK(std::memcmp(a, b, kPackedSize) == 0, "random sound %d is sane", n);
+        CHECK(p.wave != kSample, "random sound never needs a sample");
+        waves[p.wave]++;
+        types[p.filterType]++;
+        if (n < 200) {
+            Voice v;
+            start(v, note(110.0f, 20000));
+            uint8_t flags = 0;
+            const float peak = run(v, p, 600, flags);
+            CHECK(peak > 0.005f && peak < 3.0f, "random sound %d audible and bounded: %f", n, peak);
+        }
+    }
+    for (uint8_t w = 0; w < kSample; w++) CHECK(waves[w] > 50, "wave %d used by the generator: %d", w, waves[w]);
+    for (uint8_t t = 0; t < kFilterTypeCount; t++) CHECK(types[t] > 20, "filter type %d used: %d", t, types[t]);
+    uint32_t s1 = 99, s2 = 99;
+    uint8_t a[kPackedSize], b[kPackedSize];
+    pack(randomSound(s1), a);
+    pack(randomSound(s2), b);
+    CHECK(std::memcmp(a, b, kPackedSize) == 0, "same seed, same sound");
+
+    // Variations: small steps, stay sane, something changes.
+    Params base = kFactoryPresets[1].params;
+    uint32_t ms = 7;
+    for (int n = 0; n < 1000; n++) {
+        Params m = base;
+        const uint8_t changed = mutateSound(m, ms);
+        uint8_t x[kPackedSize], y[kPackedSize];
+        pack(base, x);
+        pack(m, y);
+        int differ = 0;
+        for (uint8_t i = 0; i < kPackedSize; i++) {
+            if (x[i] != y[i]) {
+                differ++;
+                if (i != 0) CHECK(std::abs(static_cast<int>(x[i]) - static_cast<int>(y[i])) <= 15, "variation step %d small", i);
+            }
+        }
+        CHECK(differ == changed && differ <= 4, "variation reports its changes: %d vs %d", differ, changed);
+        CHECK(m.wave != kSample, "variation never picks SAMPLE");
+    }
+}
+
 int main() {
+    testAmpEnvelope();
+    testFilterTypes();
+    testPresetsAndRandom();
     testLfoShapesAndRates();
     testLfoTargets();
     testLfoRetrigAndFree();

@@ -206,6 +206,7 @@ void Controller::keyboard_action() {
                 switch (keyboard.keyLayer.changeState[layerNum]) {
                     case KEYSTATE_PRESS:
                         layerSongAddPending = false;  // ADD was used as a modifier, not a tap
+                        synthAddPending = false;
                         if (keyboard.muteKeyPress) {
                             layerInst_setMute(layerNum, !layerLibrary[layerNum].mute);
                         } else if (keyboard.fillKeyPress) {
@@ -339,6 +340,7 @@ void Controller::keyboard_action() {
                                 break;
                             case KEY_UP:
                                 if (!alertFlag) {
+                                    if (keyboard.shiftKeyPress) synthAddPending = false;  // ADD + UP/DOWN: a modifier
                                     if (upDownKeyLongActive) {
                                         keyboard.upKeyCounter = 0;
                                         keyboard.upKeyFlag = true;
@@ -414,6 +416,7 @@ void Controller::keyboard_action() {
 
                             case KEY_DOWN:
                                 if (!alertFlag) {
+                                    if (keyboard.shiftKeyPress) synthAddPending = false;  // ADD + UP/DOWN: a modifier
                                     if (upDownKeyLongActive) {
                                         keyboard.downKeyCounter = 0;
                                         keyboard.downKeyFlag = true;
@@ -797,7 +800,12 @@ void Controller::keyboard_action() {
                                         case LAYER_INST_1_MENU:
 
                                         case LAYER_INST_2_MENU:
-                                            if (synthLayerSelected()) break;  // a SYNTH layer has no sample to load
+                                            if (synthLayerSelected()) {
+                                                // SYNTH: SOUND page = save to USER slot; other sound
+                                                // pages = random sound (hold) / variation (tap).
+                                                synth_addPressed();
+                                                break;
+                                            }
                                             if (menuTab < 4) {
                                                 if (!((strcmp(layerLibrary[selectedLayerNum].instSelectedData.fileName, layerLibrary[selectedLayerNum].instLoadedData.fileName) == 0) && (strcmp(layerLibrary[selectedLayerNum].sampleSelectedData.fileName, layerLibrary[selectedLayerNum].sampleLoadedData.fileName) == 0))) {
                                                     layerInst_setInstLoaded(selectedLayerNum);
@@ -1045,6 +1053,7 @@ void Controller::keyboard_action() {
                                     keyboard.longKeyCounter = 0;
                                     rhythmLockKeyFlag = false;
                                 }
+                                synth_addReleased();  // SYNTH pages: random sound / variation, if ADD was not a modifier
                                 if (insertBeat) layerSong_insertBeat();
                                 // NOTE page: held long = a new melody, short = a variation; nothing
                                 // if ADD was used with a pad or UP/DOWN (mutateMelody is false then).
@@ -1063,8 +1072,11 @@ void Controller::keyboard_action() {
                                     lfoResetKeyFlag = false;
                                 }
                                 if (layerInstResetKeyFlag) {
+                                    // Released before the long press (reset): a tap. On a synth page
+                                    // it undoes back to the sound from when the menu was opened.
                                     keyboard.longKeyCounter = 0;
                                     layerInstResetKeyFlag = false;
+                                    if (synthInstPageActive()) synth_undo();
                                 }
                                 if (layerSongResetKeyFlag) {
                                     // Released before the long press: a tap.
@@ -2056,6 +2068,7 @@ void Controller::encoder_setGlobalFunction(uint8_t bankNum_, uint8_t encoderNum_
 }
 
 void Controller::encoder_incValue(uint8_t encoderNum_) {
+    if (keyboard.shiftKeyPress) synthAddPending = false;  // ADD + knob: ADD was a modifier
     /// @brief Increments parameter mapped to selected encoder function.
     /// Applies bounds checks and target-selection guards before dispatch.
 
@@ -2691,6 +2704,13 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
         case ENC_SYNTH_LFO_DEPTH:
         case ENC_SYNTH_LFO_TARGET:
         case ENC_SYNTH_LFO_RETRIG:
+        case ENC_SYNTH_PRESET:
+        case ENC_SYNTH_SAVE_SLOT:
+        case ENC_SYNTH_ATTACK:
+        case ENC_SYNTH_AMP_DECAY:
+        case ENC_SYNTH_SUSTAIN:
+        case ENC_SYNTH_RELEASE:
+        case ENC_SYNTH_FILTER_TYPE:
             synth_change(encoder[encoderNum_].function, true);
             break;
 
@@ -2700,6 +2720,7 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
 }
 
 void Controller::encoder_decValue(uint8_t encoderNum_) {
+    if (keyboard.shiftKeyPress) synthAddPending = false;  // ADD + knob: ADD was a modifier
     /// @brief Decrements parameter mapped to selected encoder function.
     /// Applies lower-bound checks and target-selection guards before dispatch.
 
@@ -3305,6 +3326,13 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
         case ENC_SYNTH_LFO_DEPTH:
         case ENC_SYNTH_LFO_TARGET:
         case ENC_SYNTH_LFO_RETRIG:
+        case ENC_SYNTH_PRESET:
+        case ENC_SYNTH_SAVE_SLOT:
+        case ENC_SYNTH_ATTACK:
+        case ENC_SYNTH_AMP_DECAY:
+        case ENC_SYNTH_SUSTAIN:
+        case ENC_SYNTH_RELEASE:
+        case ENC_SYNTH_FILTER_TYPE:
             synth_change(encoder[encoderNum_].function, false);
             break;
 

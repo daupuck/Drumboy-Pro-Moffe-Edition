@@ -242,14 +242,29 @@ are a scale keyboard** for the synth, so you can play it while shaping the sound
 scale and octave as on the NOTE page, where UP/DOWN sets the octave):
 
 ```
- Page 1 OSC:     [1 WAVE]      [2 DETUNE]     [ waveform ]
+ Page 1 SOUND:   [1 PRESET]    [2 SAVE TO]    [ preset name, hints ]           (v1.13)
+ Page 2 OSC:     [1 WAVE]      [2 DETUNE]     [ waveform ]
                  [5 LEVEL]     [6 PITCH]      [7 SUB]        [8 NOISE]
- Page 2 FILTER:  [1 CUTOFF]    [2 RESO]       [ filter envelope + gate ]
-                 [5 ENV AMT]   [6 DECAY]      [7 GATE]       [8 DRIVE]
- Page 3 LFO:     [1 LFO SHAPE] [2 LFO RATE]   [ LFO wave + position ]          (v1.13)
+ Page 3 FILTER:  [1 CUTOFF]    [2 RESO]       [ filter envelope + type ]
+                 [5 ENV AMT]   [6 DECAY]      [7 FILT TYPE]  [8 DRIVE]
+ Page 4 AMP:     [1 ATTACK]    [2 AMP DECAY]  [ level envelope ]               (v1.13)
+                 [5 SUSTAIN]   [6 RELEASE]    [7 GATE]
+ Page 5 LFO:     [1 LFO SHAPE] [2 LFO RATE]   [ LFO wave + position ]          (v1.13)
                  [5 LFO DEPTH] [6 LFO TARGET] [7 LFO RETRIG]
- Page 4:         routing to EQ / FILTER / EFFECT / REVERB, as for samples
+ Page 6:         routing to EQ / FILTER / EFFECT / REVERB, as for samples
 ```
+
+**Sounds in three ways** (v1.13):
+
+| | What it does |
+|---|---|
+| **PRESET** (SOUND page, knob 1) | 32 factory sounds with names to match their egos: `EMPTY MIND` (the default), `ACID TRIP`, `EARTHQUAKE`, `THICC BASS`, `RUBBERDUCK`, `DARK LORD`, `WUBZILLA`, `SAWSOME`, `SQUARE GUY`, `BANSHEE`, `TUMBLEWEED`, `PIXEL HERO`, `ZEN PLUCK`, `DING DONG`, `COCONUTS`, `LOUNGE LIZ`, `CHURCH BOI`, `WARM HUG`, `EPIC MOVIE`, `MORDOR`, `STARGATE`, `BRASS GOD`, `ROBO CHOIR`, `BOOMSTICK` (kick), `SNARE WARS`, `TSS TSS` (hi-hat), `PEW PEW`, `R2 DEEDOO`, `SEASICK`, `STORMBORN`, `COIN GET`, `DRAGONROAR` – then your own USER sounds. Turning plays a note so you hear each one. |
+| **ADD** on the SOUND page | Saves the current sound into the USER slot shown by **SAVE TO** (knob 2; `*` = slot already used, it is overwritten). Kept on the SD card (`System/Preset/SynthUser.rws`) for all projects. |
+| **ADD hold** on OSC / FILTER / AMP / LFO | A **random sound** when you let go: a bass, lead, pluck, pad or effect, always in useful ranges. |
+| **ADD tap** on those pages | A **variation**: three settings move a little, now and then the waveform changes. Tap again and again. |
+| **CLEAR tap** on any synth page | **Undo**: back to the sound the layer had when you opened the Layer Instrument menu (presets, random sounds and edits alike). CLEAR hold still resets the layer. |
+
+ADD used together with a knob (LFO on LEVEL/PITCH) or UP/DOWN never changes the sound.
 
 | Control | What it does |
 |---|---|
@@ -262,8 +277,13 @@ scale and octave as on the NOTE page, where UP/DOWN sets the octave):
 | **RESONANCE** | The peak at the cutoff: from smooth to squelchy. |
 | **ENV AMT** | How far each note opens the filter. With a low CUTOFF this gives the "wow" of acid basslines. |
 | **DECAY** | How fast the filter closes again after each note, from 20 ms (a pluck) to 2 s (a slow sweep). |
-| **GATE** | How long each note is held: a share of the time until the next beat. Low = short staccato, 100 = notes run into each other. |
+| **FILT TYPE** | **LP 24** (classic, the default), **LP 12** (gentler, brighter), **BAND** (nasal, vocal, telephone) or **HIGH** (thin, airy; good for hats and noise). (v1.13) |
 | **DRIVE** | Saturation in and after the filter: 0 = clean, 25–50 warm and thick, 75–100 loud and square-ish. It also makes the sound louder, so lower LEVEL a bit at high values. |
+| **ATTACK** | How the note fades in: 1 ms (a click-free hit) to 3 s (a slow swell). (v1.13) |
+| **AMP DECAY** | How fast the level falls from the top to SUSTAIN while the note is held: 5 ms to 5 s. (v1.13) |
+| **SUSTAIN** | The level while the note is held, after the decay. 100 = full (the old behaviour), 0 = a pluck that dies away. (v1.13) |
+| **RELEASE** | How long the note rings on after it ends: 5 ms to 5 s. Long values give pads and bells their tail. (v1.13) |
+| **GATE** | How long each note is held: a share of the time until the next beat. Low = short staccato, 100 = notes run into each other. (On the AMP page since v1.13.) |
 | **LFO SHAPE** | SINE, TRIANGLE, SAW DOWN, SQUARE or RANDOM (a new random value every cycle: the classic "sample & hold" bleeps). (v1.13) |
 | **LFO RATE** | How long one LFO cycle lasts, locked to the tempo: 1/32 to 1/2 (with 1/8T and 1/4T triplets), or 1, 2, 4, 8 bars. (v1.13) |
 | **LFO DEPTH** | How strongly it moves its target. **OFF (0) by default**: turn this up first. (v1.13) |
@@ -283,10 +303,10 @@ scale and octave as on the NOTE page, where UP/DOWN sets the octave):
   classic accented line.
 - **MIDI out** sends the notes with their real length (Note Off when the gate ends).
 - **A first acid bass:** EUCLID E(7,16) on a layer → NOTE page: MODE SYNTH, ROOT A, SCALE MINOR,
-  hold ADD → Layer Instrument: WAVE SAW, CUTOFF 20, RESONANCE 70, ENV AMT 70, DECAY 25, GATE 40.
-  Then turn CUTOFF and RESONANCE while it plays.
+  hold ADD → Layer Instrument: PRESET `ACID TRIP`. Then turn CUTOFF and RESONANCE on the FILTER
+  page while it plays.
 - **A filter wobble** (v1.13): on the synth layer's LFO page (I + layer key, press the layer key
-  twice more) set LFO SHAPE SINE, LFO RATE 1/4, LFO TARGET CUTOFF and turn **LFO DEPTH** up. The
+  four more times) set LFO SHAPE SINE, LFO RATE 1/4, LFO TARGET CUTOFF and turn **LFO DEPTH** up. The
   wave on screen moves with it. CUTOFF on the FILTER page sets the centre it swings around. For a
   dubstep-style wobble try 1/8 or 1/8T; for RANDOM bleeps, SHAPE RANDOM at 1/16.
 - The global LFOs in the LFO menu still work on LEVEL and PITCH as before (hold ADD and turn the
@@ -347,7 +367,7 @@ scale and octave as on the NOTE page, where UP/DOWN sets the octave):
 | v1.10 | Pads as a scale keyboard (step entry, live recording); melody generator and variations |
 | v1.11 | SYNTH layers: a built-in synth voice with filter, envelope, gate and accent |
 | v1.12 | SYNTH: DETUNE, SUB, NOISE, WAVE = SAMPLE (single-cycle WAVs); SLIDE per beat; stronger DRIVE |
-| v1.13 | SYNTH: own LFO page (cutoff / pitch / level, tempo-synced); synth sounds in drumkits and the instrument copy |
+| v1.13 | SYNTH: 32 presets + 16 USER slots, random sounds and variations, AMP envelope (ADSR), filter types, own LFO page; pads play the synth on its pages; synth sounds in drumkits and the instrument copy. NOTE page: pads only play while stopped (ADD + pad = step entry), wider octave range |
 
 ## Coming next
 

@@ -386,7 +386,8 @@ void Controller::layerInst_select(uint8_t layerNum_) {
         preMenuTab = menuTab;
         menuTab = 0;
         menu = LAYER_INST_0_MENU;
-        synthLfoPage = false;
+        synthPage = SYNTH_PAGE_SOUND;  // a SYNTH layer opens on its SOUND (preset) page
+        synthStatus[0] = '\0';
 
         // 3. TARGET LAYER SNAPSHOT
         // Mirror loaded inst/sample fields into selected-edit buffers.
@@ -402,6 +403,7 @@ void Controller::layerInst_select(uint8_t layerNum_) {
         // Clear previous selection context, then animate and draw layer menu.
         preMenuLayerClear();
         selectedLayerNum = layerNum_;
+        synth_captureUndo();  // CLEAR tap on a synth page goes back to this sound
         lcd_transitionMenu();
         lcd_transitionSelect();
         lcd_drawLayerInst0Menu(layerNum_, true);
@@ -425,6 +427,17 @@ void Controller::layerInst_select(uint8_t layerNum_) {
             check(-1, 1, 0);
         }
         */
+    } else if ((selectedLayerNum == layerNum_) && synthLayerSelected()) {
+        // 6a. SYNTH LAYER: SOUND -> OSC -> FILTER -> AMP -> LFO -> ROUTING -> SOUND. Two pages
+        // share each LAYER_INST_x_MENU; the knobs and the display follow synthPage.
+        synthPage = static_cast<uint8_t>((synthPageNow() + 1) % SYNTH_PAGE_COUNT);
+        preMenu = menu;
+        menu = static_cast<Menu>(LAYER_INST_0_MENU + kSynthPageMenu[synthPage]);
+        lcd_transitionMenu();
+        encoder_update();
+        if (menu == LAYER_INST_0_MENU) lcd_drawLayerInst0Menu(layerNum_, false);
+        if (menu == LAYER_INST_1_MENU) lcd_drawLayerInst1Menu(layerNum_);
+        if (menu == LAYER_INST_2_MENU) lcd_drawLayerInst2Menu(layerNum_);
     } else if (selectedLayerNum == layerNum_) {
         // 6. SUB-MENU CYCLING
         // Repeated layer press rotates Layer Inst pages 0 -> 1 -> 2 -> 0.
@@ -441,18 +454,11 @@ void Controller::layerInst_select(uint8_t layerNum_) {
         } else if (menu == LAYER_INST_1_MENU) {
             preMenu = menu;
             menu = LAYER_INST_2_MENU;
-            synthLfoPage = synthLayerSelected();  // a SYNTH layer shows its LFO page first
 
             // Animate transition and render page-2.
             lcd_transitionMenu();
 
             // Refresh encoder bindings for new page.
-            encoder_update();
-            lcd_drawLayerInst2Menu(layerNum_);
-        } else if ((menu == LAYER_INST_2_MENU) && synthLfoPageActive()) {
-            // SYNTH: LFO page -> routing page (same menu, other knobs).
-            synthLfoPage = false;
-            lcd_transitionMenu();
             encoder_update();
             lcd_drawLayerInst2Menu(layerNum_);
         } else if (menu == LAYER_INST_2_MENU) {
@@ -468,7 +474,6 @@ void Controller::layerInst_select(uint8_t layerNum_) {
         }
     }
 }
-
 void Controller::layerInst_reset(uint8_t layerNum_) {
     /// @brief Resets Layer Inst parameters to initial defaults.
     /// Restores selection, playback-shape, modulation, routing, and toggle states.
@@ -2017,7 +2022,7 @@ void Controller::layerInst_paste() {
         // 4. REDRAW: a change between sample and SYNTH layer swaps the whole page and its knobs.
         const bool inLayerInst = (menu == LAYER_INST_0_MENU) || (menu == LAYER_INST_1_MENU) || (menu == LAYER_INST_2_MENU);
         if (inLayerInst && (wasSynth != synthLayerSelected())) {
-            synthLfoPage = false;  // page 3 stays the routing page it was
+            synthPage = static_cast<uint8_t>((menu == LAYER_INST_0_MENU) ? SYNTH_PAGE_OSC : ((menu == LAYER_INST_1_MENU) ? SYNTH_PAGE_FILTER : SYNTH_PAGE_ROUTING));
             lcd_transitionMenu();
             if (menu == LAYER_INST_0_MENU) lcd_drawLayerInst0Menu(layerNum, true);
             if (menu == LAYER_INST_1_MENU) lcd_drawLayerInst1Menu(layerNum);
@@ -2314,18 +2319,30 @@ bool Controller::synthLayerSelected() const {
 }
 
 uint8_t Controller::layerInstPage() const {
-    // Row of kEncoderSynthFunction: 0 OSC, 1 FILTER, 2 routing, 3 LFO (a SYNTH layer's extra page
-    // between FILTER and routing; it shares LAYER_INST_2_MENU with routing).
-    if (synthLfoPageActive()) return 3;
+    // SYNTH layer: the shown SynthPage = row of kEncoderSynthFunction. Otherwise 0..2 per menu.
+    if (synthInstPageActive()) return synthPageNow();
     return (menu == LAYER_INST_1_MENU) ? 1 : ((menu == LAYER_INST_2_MENU) ? 2 : 0);
+}
+
+uint8_t Controller::synthPageNow() const {
+    // synthPage must belong to the current LAYER_INST_x_MENU; if some other path changed the menu
+    // (e.g. returning to it from another menu), show that menu's first synth page.
+    const uint8_t menuIndex = (menu == LAYER_INST_1_MENU) ? 1 : ((menu == LAYER_INST_2_MENU) ? 2 : 0);
+    if ((synthPage < SYNTH_PAGE_COUNT) && (kSynthPageMenu[synthPage] == menuIndex)) return synthPage;
+    static const uint8_t kFirstPage[3] = {SYNTH_PAGE_SOUND, SYNTH_PAGE_FILTER, SYNTH_PAGE_LFO};
+    return kFirstPage[menuIndex];
+}
+
+uint8_t Controller::synthSlotOf(EncoderFunc function_) const {
+    const uint8_t page = synthPageNow();
+    for (uint8_t i = 0; i < 8; i++) {
+        if (kEncoderSynthFunction[page][i] == function_) return i;
+    }
+    return 0xFF;
 }
 
 bool Controller::synthInstPageActive() const {
     return ((menu == LAYER_INST_0_MENU) || (menu == LAYER_INST_1_MENU) || (menu == LAYER_INST_2_MENU)) && synthLayerSelected();
-}
-
-bool Controller::synthLfoPageActive() const {
-    return synthLfoPage && (menu == LAYER_INST_2_MENU) && synthLayerSelected();
 }
 
 void Controller::synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_, uint8_t beatFlags_) {
@@ -2434,96 +2451,80 @@ void Controller::synth_change(EncoderFunc function_, bool up_) {
 
     if (selectedLayerNum == -1) return;
     synth::Params& p = layerLibrary[selectedLayerNum].synth;
-    uint8_t* value = nullptr;
-    uint8_t slot = 0;
-    switch (function_) {
-        case ENC_SYNTH_WAVE:
-            if (up_ && (p.wave < synth::kWaveCount - 1)) {
-                p.wave++;
-            } else if (!up_ && (p.wave > 0)) {
-                p.wave--;
-            } else {
-                return;
-            }
-            lcd_drawSynthData(0);
-            lcd_drawSynthGraph();
-            note_audition();
-            return;
-        case ENC_SYNTH_LFO_SHAPE:
-        case ENC_SYNTH_LFO_RATE:
-        case ENC_SYNTH_LFO_TARGET:
-        case ENC_SYNTH_LFO_RETRIG: {
-            // LFO page choices: step through the list, no wrap.
-            uint8_t* choice = &p.lfoShape;
-            uint8_t count = synth::kLfoShapeCount;
-            uint8_t choiceSlot = 0;
-            if (function_ == ENC_SYNTH_LFO_RATE) {
-                choice = &p.lfoRate;
-                count = synth::kLfoRateCount;
-                choiceSlot = 1;
-            } else if (function_ == ENC_SYNTH_LFO_TARGET) {
-                choice = &p.lfoTarget;
-                count = synth::kLfoTargetCount;
-                choiceSlot = 5;
-            } else if (function_ == ENC_SYNTH_LFO_RETRIG) {
-                choice = &p.lfoRetrig;
-                count = 2;
-                choiceSlot = 6;
-            }
-            if (*choice >= count) *choice = 0;  // never index past a table
-            if (up_ && (*choice < count - 1)) {
-                (*choice)++;
-            } else if (!up_ && (*choice > 0)) {
-                (*choice)--;
-            } else {
-                return;
-            }
-            lcd_drawSynthData(choiceSlot);
-            if (function_ != ENC_SYNTH_LFO_RETRIG) lcd_drawSynthGraph();
+
+    // 1. SOUND PAGE: presets and the save slot.
+    if (function_ == ENC_SYNTH_PRESET) {
+        const int16_t total = synth::kFactoryPresetCount + synth::kUserPresetCount;
+        int16_t index = synthPresetIndex[selectedLayerNum];
+        // Step to the next preset that exists (empty USER slots are skipped).
+        for (int16_t tries = 0; tries < total; tries++) {
+            index = static_cast<int16_t>(up_ ? index + 1 : index - 1);
+            if ((index < 0) || (index >= total)) return;  // ends of the list: no wrap
+            if ((index < synth::kFactoryPresetCount) || synthUserUsed[index - synth::kFactoryPresetCount]) break;
+        }
+        synth_loadPreset(index);
+        return;
+    }
+    if (function_ == ENC_SYNTH_SAVE_SLOT) {
+        if (up_ && (synthSaveSlot < synth::kUserPresetCount - 1)) {
+            synthSaveSlot++;
+        } else if (!up_ && (synthSaveSlot > 0)) {
+            synthSaveSlot--;
+        } else {
             return;
         }
-        case ENC_SYNTH_LFO_DEPTH:
-            value = &p.lfoDepth;
-            slot = 4;
-            break;
-        case ENC_SYNTH_CUTOFF:
-            value = &p.cutoff;
-            slot = 0;
-            break;
-        case ENC_SYNTH_RESO:
-            value = &p.resonance;
-            slot = 1;
-            break;
-        case ENC_SYNTH_ENVAMT:
-            value = &p.envAmount;
-            slot = 4;
-            break;
-        case ENC_SYNTH_DECAY:
-            value = &p.decay;
-            slot = 5;
-            break;
-        case ENC_SYNTH_GATE:
-            value = &p.gate;
-            slot = 6;
-            break;
-        case ENC_SYNTH_DRIVE:
-            value = &p.drive;
-            slot = 7;
-            break;
-        case ENC_SYNTH_DETUNE:  // OSC page
-            value = &p.detune;
-            slot = 1;
-            break;
-        case ENC_SYNTH_SUB:
-            value = &p.sub;
-            slot = 6;
-            break;
-        case ENC_SYNTH_NOISE:
-            value = &p.noise;
-            slot = 7;
-            break;
-        default:
-            return;  // ENC_FNC_NONE: empty slot
+        synthStatus[0] = '\0';
+        lcd_drawSynthData(1);
+        lcd_drawSynthGraph();
+        return;
+    }
+
+    // 2. CHOICES (step through a list, no wrap).
+    uint8_t* choice = nullptr;
+    uint8_t count = 0;
+    switch (function_) {
+        case ENC_SYNTH_WAVE: choice = &p.wave; count = synth::kWaveCount; break;
+        case ENC_SYNTH_LFO_SHAPE: choice = &p.lfoShape; count = synth::kLfoShapeCount; break;
+        case ENC_SYNTH_LFO_RATE: choice = &p.lfoRate; count = synth::kLfoRateCount; break;
+        case ENC_SYNTH_LFO_TARGET: choice = &p.lfoTarget; count = synth::kLfoTargetCount; break;
+        case ENC_SYNTH_LFO_RETRIG: choice = &p.lfoRetrig; count = 2; break;
+        case ENC_SYNTH_FILTER_TYPE: choice = &p.filterType; count = synth::kFilterTypeCount; break;
+        default: break;
+    }
+    if (choice != nullptr) {
+        if (*choice >= count) *choice = 0;  // never index past a table
+        if (up_ && (*choice < count - 1)) {
+            (*choice)++;
+        } else if (!up_ && (*choice > 0)) {
+            (*choice)--;
+        } else {
+            return;
+        }
+        const uint8_t slot = synthSlotOf(function_);
+        if (slot != 0xFF) lcd_drawSynthData(slot);
+        if (function_ != ENC_SYNTH_LFO_RETRIG) lcd_drawSynthGraph();
+        if ((function_ == ENC_SYNTH_WAVE) || (function_ == ENC_SYNTH_FILTER_TYPE)) note_audition();
+        return;
+    }
+
+    // 3. VALUES 0..100.
+    uint8_t* value = nullptr;
+    switch (function_) {
+        case ENC_SYNTH_CUTOFF: value = &p.cutoff; break;
+        case ENC_SYNTH_RESO: value = &p.resonance; break;
+        case ENC_SYNTH_ENVAMT: value = &p.envAmount; break;
+        case ENC_SYNTH_DECAY: value = &p.decay; break;
+        case ENC_SYNTH_GATE: value = &p.gate; break;
+        case ENC_SYNTH_DRIVE: value = &p.drive; break;
+        case ENC_SYNTH_DETUNE: value = &p.detune; break;
+        case ENC_SYNTH_SUB: value = &p.sub; break;
+        case ENC_SYNTH_NOISE: value = &p.noise; break;
+        case ENC_SYNTH_LFO_DEPTH: value = &p.lfoDepth; break;
+        case ENC_SYNTH_ATTACK: value = &p.attack; break;
+        case ENC_SYNTH_AMP_DECAY: value = &p.ampDecay; break;
+        case ENC_SYNTH_SUSTAIN: value = &p.sustain; break;
+        case ENC_SYNTH_RELEASE: value = &p.release; break;
+        default: return;  // ENC_FNC_NONE: empty slot
     }
     if (up_ && (*value < synth::kMaxParam)) {
         (*value)++;
@@ -2532,11 +2533,121 @@ void Controller::synth_change(EncoderFunc function_, bool up_) {
     } else {
         return;
     }
-    lcd_drawSynthData(slot);
-    if ((function_ == ENC_SYNTH_DECAY) || (function_ == ENC_SYNTH_GATE) || (function_ == ENC_SYNTH_ENVAMT)) lcd_drawSynthGraph();
-    // LFO DEPTH: the graph's height, and OFF <-> on changes its label; redraw only when it matters
-    // visibly (every 10 %, and at 0/1) so fast turning stays smooth.
-    if ((function_ == ENC_SYNTH_LFO_DEPTH) && ((*value <= 1) || ((*value % 10) == 0))) lcd_drawSynthGraph();
+    const uint8_t slot = synthSlotOf(function_);
+    if (slot != 0xFF) lcd_drawSynthData(slot);
+    // Graphs that show this value; redrawn every few steps so fast turning stays smooth.
+    const bool graphValue = (function_ == ENC_SYNTH_DECAY) || (function_ == ENC_SYNTH_GATE) || (function_ == ENC_SYNTH_ENVAMT) ||
+                            (function_ == ENC_SYNTH_ATTACK) || (function_ == ENC_SYNTH_AMP_DECAY) || (function_ == ENC_SYNTH_SUSTAIN) ||
+                            (function_ == ENC_SYNTH_RELEASE) || (function_ == ENC_SYNTH_LFO_DEPTH);
+    if (graphValue && ((*value <= 1) || (*value >= 99) || ((*value % 5) == 0))) lcd_drawSynthGraph();
+}
+
+/* SYNTH Sounds: presets, user slots, random, undo ----------------------------*/
+
+void Controller::synth_captureUndo() {
+    /// @brief Remembers the selected layer's sound (when the Layer Instrument menu opens), so a
+    /// CLEAR tap on a synth page can bring it back after presets, random sounds and edits.
+
+    if (selectedLayerNum == -1) return;
+    synthUndoParams = layerLibrary[selectedLayerNum].synth;
+    synthUndoLayer = selectedLayerNum;
+}
+
+void Controller::synth_undo() {
+    if ((selectedLayerNum == -1) || (synthUndoLayer != selectedLayerNum)) return;
+    layerLibrary[selectedLayerNum].synth = synth::sanitize(synthUndoParams);
+    synthPresetIndex[selectedLayerNum] = -1;
+    snprintf(synthStatus, sizeof(synthStatus), "UNDONE");
+    synth_soundChanged();
+}
+
+void Controller::synth_soundChanged() {
+    /// @brief After the whole sound changed (preset, random, undo): redraw the visible synth page
+    /// and play a note so you hear it.
+
+    if (synthInstPageActive()) lcd_drawSynthPage(static_cast<uint8_t>(selectedLayerNum));
+    note_audition();
+}
+
+void Controller::synth_loadPreset(int16_t index_) {
+    /// @brief SOUND page PRESET knob: factory sound or USER slot onto the selected layer.
+
+    if (selectedLayerNum == -1) return;
+    const int16_t total = synth::kFactoryPresetCount + synth::kUserPresetCount;
+    if ((index_ < 0) || (index_ >= total)) return;
+    if (index_ < synth::kFactoryPresetCount) {
+        layerLibrary[selectedLayerNum].synth = synth::kFactoryPresets[index_].params;
+    } else {
+        const uint8_t user = static_cast<uint8_t>(index_ - synth::kFactoryPresetCount);
+        if (!synthUserUsed[user]) return;
+        layerLibrary[selectedLayerNum].synth = synth::sanitize(synthUserPresets[user]);
+    }
+    synthPresetIndex[selectedLayerNum] = index_;
+    synthStatus[0] = '\0';
+    synth_soundChanged();
+}
+
+void Controller::synth_saveUser() {
+    /// @brief SOUND page, ADD: the selected layer's sound into USER slot SAVE TO, on the SD card.
+
+    if ((selectedLayerNum == -1) || (synthSaveSlot >= synth::kUserPresetCount)) return;
+    synthUserPresets[synthSaveSlot] = synth::sanitize(layerLibrary[selectedLayerNum].synth);
+    synthUserUsed[synthSaveSlot] = true;
+    if (sd_saveSynthUser() == SD_OK) {
+        synthPresetIndex[selectedLayerNum] = static_cast<int16_t>(synth::kFactoryPresetCount + synthSaveSlot);
+        snprintf(synthStatus, sizeof(synthStatus), "SAVED TO USER %02u", static_cast<unsigned>(synthSaveSlot + 1));
+    } else {
+        snprintf(synthStatus, sizeof(synthStatus), "SAVE ERROR");
+    }
+    if (synthInstPageActive()) lcd_drawSynthPage(static_cast<uint8_t>(selectedLayerNum));
+}
+
+void Controller::synth_randomize(bool fresh_) {
+    /// @brief OSC/FILTER/AMP/LFO page, ADD: hold = a new random sound, tap = a small variation.
+
+    if (selectedLayerNum == -1) return;
+    uint32_t seed = DWT_CYCCNT ^ (HAL_GetTick() << 16) ^ 0x5EED5EEDu;  // a different result every time
+    synth::Params& p = layerLibrary[selectedLayerNum].synth;
+    if (fresh_) {
+        p = synth::randomSound(seed);
+        snprintf(synthStatus, sizeof(synthStatus), "RANDOM SOUND");
+    } else {
+        synth::mutateSound(p, seed);
+        snprintf(synthStatus, sizeof(synthStatus), "VARIATION");
+    }
+    synthPresetIndex[selectedLayerNum] = -1;
+    synth_soundChanged();
+}
+
+void Controller::synth_addPressed() {
+    /// @brief ADD pressed on a synth page. SOUND page: save at once. OSC/FILTER/AMP/LFO: wait for
+    /// the release (tap = variation, held long = random sound), so ADD + knob (LFO assignment on
+    /// LEVEL/PITCH) or ADD + UP/DOWN never change the sound by accident.
+
+    synthAddPending = false;
+    synthRandomLongFlag = false;
+    const uint8_t page = synthPageNow();
+    if (page == SYNTH_PAGE_SOUND) {
+        synth_saveUser();
+        return;
+    }
+    if (page == SYNTH_PAGE_ROUTING) return;
+    synthAddPending = true;
+    synthRandomKeyFlag = true;
+    startLongKeyTimer();
+}
+
+void Controller::synth_addReleased() {
+    if (synthRandomKeyFlag) {
+        stopLongKeyTimer();
+        keyboard.longKeyCounter = 0;
+        synthRandomKeyFlag = false;
+    }
+    const bool pending = synthAddPending && synthInstPageActive();
+    const bool fresh = synthRandomLongFlag;
+    synthAddPending = false;
+    synthRandomLongFlag = false;
+    if (pending) synth_randomize(fresh);
 }
 
 void Controller::note_padPressed(uint8_t pad_) {

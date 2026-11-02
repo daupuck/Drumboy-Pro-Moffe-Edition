@@ -1332,10 +1332,19 @@ typedef enum {
     ENC_SYNTH_LFO_TARGET                            = 0x84,
     ENC_SYNTH_LFO_RETRIG                            = 0x85,
 
+    // SYNTH layers: SOUND page (presets) and AMP page, plus FILTER TYPE (v1.13)
+    ENC_SYNTH_PRESET                                = 0x86,
+    ENC_SYNTH_SAVE_SLOT                             = 0x87,
+    ENC_SYNTH_ATTACK                                = 0x88,
+    ENC_SYNTH_AMP_DECAY                             = 0x89,
+    ENC_SYNTH_SUSTAIN                               = 0x8A,
+    ENC_SYNTH_RELEASE                               = 0x8B,
+    ENC_SYNTH_FILTER_TYPE                           = 0x8C,
+
     // Must equal the number of rows before the trailing NONE row in kEncoderFuncDataLibrary,
     // which is indexed by EncoderFunc value. Never stored on SD (only the global map is
     // persisted, and it is range-checked against kMaxEncoderGlobalFunction).
-    ENC_FNC_NONE                                    = 0x86
+    ENC_FNC_NONE                                    = 0x8D
 } EncoderFunc;
 
 const EncoderFunc encoderLocalFunction[][8] = {
@@ -1541,6 +1550,13 @@ constexpr EncoderFuncData kEncoderFuncDataLibrary[] = {
     {ENC_SYNTH_LFO_DEPTH,     ENC_RES_F, "LFO DEPTH ", "SYNTH ", "  %", false},
     {ENC_SYNTH_LFO_TARGET,    ENC_RES_S, "LFO TARGET", "SYNTH ", "   ", false},
     {ENC_SYNTH_LFO_RETRIG,    ENC_RES_S, "LFO RETRIG", "SYNTH ", "   ", false},
+    {ENC_SYNTH_PRESET,        ENC_RES_S, "PRESET    ", "SYNTH ", "   ", false},
+    {ENC_SYNTH_SAVE_SLOT,     ENC_RES_S, "SAVE TO   ", "SYNTH ", "   ", false},
+    {ENC_SYNTH_ATTACK,        ENC_RES_F, "ATTACK    ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_AMP_DECAY,     ENC_RES_F, "AMP DECAY ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_SUSTAIN,       ENC_RES_F, "SUSTAIN   ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_RELEASE,       ENC_RES_F, "RELEASE   ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_FILTER_TYPE,   ENC_RES_S, "FILT TYPE ", "SYNTH ", "   ", false},
 
     // Row for ENC_FNC_NONE itself, so lookups with function == ENC_FNC_NONE stay in bounds.
     {ENC_FNC_NONE,            ENC_RES_F, "----------", "      ", "   ", true}
@@ -1585,14 +1601,21 @@ const EncoderFunc kEncoderEuclidFunction[8]         = {ENC_EUCLID_STEPS, ENC_EUC
 const EncoderFunc kEncoderNoteFunction[8]           = {ENC_NOTE_MODE, ENC_NOTE_NOTE, ENC_FNC_NONE, ENC_FNC_NONE,
                                                        ENC_NOTE_ROOT, ENC_NOTE_SCALE, ENC_NOTE_GLIDE, ENC_NOTE_TRANSPOSE};
 
-// Knob maps of the Layer Inst pages while the selected layer is a SYNTH layer (instead of the
-// LAYER_INST_0/1/2_MENU rows): OSC, FILTER, the unchanged routing page without INST/SAMPLE, and
-// the LFO page (row 3; shown on LAYER_INST_2_MENU before routing, see Controller::layerInstPage).
-const EncoderFunc kEncoderSynthFunction[4][8]       = {
+// The pages of a SYNTH layer's Layer Instrument menu, in the order the layer key steps through
+// them. Two pages share each LAYER_INST_x_MENU (kSynthPageMenu), so icons and routing behave as
+// before; Controller::synthPage says which one is shown.
+enum SynthPage : uint8_t { SYNTH_PAGE_SOUND = 0, SYNTH_PAGE_OSC, SYNTH_PAGE_FILTER, SYNTH_PAGE_AMP, SYNTH_PAGE_LFO, SYNTH_PAGE_ROUTING, SYNTH_PAGE_COUNT };
+const uint8_t kSynthPageMenu[SYNTH_PAGE_COUNT]      = {0, 0, 1, 1, 2, 2};  // 0/1/2 = LAYER_INST_0/1/2_MENU
+const char* const kSynthPageNames[SYNTH_PAGE_COUNT] = {"SOUND", "OSC", "FILTER", "AMP", "LFO", "ROUTING"};
+
+// Knob maps of those pages (instead of the LAYER_INST_0/1/2_MENU rows). Slots 2/3 are the display.
+const EncoderFunc kEncoderSynthFunction[SYNTH_PAGE_COUNT][8] = {
+    {ENC_SYNTH_PRESET, ENC_SYNTH_SAVE_SLOT, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE},
     {ENC_SYNTH_WAVE, ENC_SYNTH_DETUNE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_INST_0_LEVEL, ENC_INST_0_PITCH, ENC_SYNTH_SUB, ENC_SYNTH_NOISE},
-    {ENC_SYNTH_CUTOFF, ENC_SYNTH_RESO, ENC_FNC_NONE, ENC_FNC_NONE, ENC_SYNTH_ENVAMT, ENC_SYNTH_DECAY, ENC_SYNTH_GATE, ENC_SYNTH_DRIVE},
-    {ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_INST_2_EQ, ENC_INST_2_FILTER, ENC_INST_2_EFFECT, ENC_INST_2_REVERB},
-    {ENC_SYNTH_LFO_SHAPE, ENC_SYNTH_LFO_RATE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_SYNTH_LFO_DEPTH, ENC_SYNTH_LFO_TARGET, ENC_SYNTH_LFO_RETRIG, ENC_FNC_NONE}};
+    {ENC_SYNTH_CUTOFF, ENC_SYNTH_RESO, ENC_FNC_NONE, ENC_FNC_NONE, ENC_SYNTH_ENVAMT, ENC_SYNTH_DECAY, ENC_SYNTH_FILTER_TYPE, ENC_SYNTH_DRIVE},
+    {ENC_SYNTH_ATTACK, ENC_SYNTH_AMP_DECAY, ENC_FNC_NONE, ENC_FNC_NONE, ENC_SYNTH_SUSTAIN, ENC_SYNTH_RELEASE, ENC_SYNTH_GATE, ENC_FNC_NONE},
+    {ENC_SYNTH_LFO_SHAPE, ENC_SYNTH_LFO_RATE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_SYNTH_LFO_DEPTH, ENC_SYNTH_LFO_TARGET, ENC_SYNTH_LFO_RETRIG, ENC_FNC_NONE},
+    {ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_INST_2_EQ, ENC_INST_2_FILTER, ENC_INST_2_EFFECT, ENC_INST_2_REVERB}};
 
 const uint8_t kMinEncoderResolution                 = 0;
 const uint8_t kMaxEncoderResolution                 = 8;
@@ -7389,6 +7412,7 @@ const char kSongModeText[3][5]                      = {"OFF", "LOOP", "ONCE"};
 
 // SYNTH layers: one subtractive voice per layer, rendered in the audio ISR (host-testable).
 #include "SynthVoice.h"
+#include "SynthPresets.h"
 
 const char kToneModeText[tone::kModeCount][11]      = {"      DRUM", "      TONE", "     SYNTH"};
 
@@ -7403,9 +7427,11 @@ const float kAudioBlocksPerSecond                   = 44100.0f / I2S_BLOCK_SIZE;
 // size stay exactly as before and older firmware simply ignores them.
 const char kNoteFileEnd[]                           = ".rwn";
 const char kNoteFileRef[]                           = "RWNOTES1";
-const char kSynthFileRef[]                          = "SYN4";  // SYNTH sounds after the notes' "EOF" (SYN1/2/3 still read)
-const uint8_t kSynthFileParams                      = synth::kPackedSize;  // see synth::pack (15 values per layer)
-const char kDrumkitSynthRef[]                       = "SYK2";  // drumkit tail: MODE + SYNTH sound per layer (v1.13)
+const char kSynthFileRef[]                          = "SYN5";  // SYNTH sounds after the notes' "EOF" (SYN1..4 still read)
+const uint8_t kSynthFileParams                      = synth::kPackedSize;  // see synth::pack (20 values per layer)
+const char kDrumkitSynthRef[]                       = "SYK3";  // drumkit tail: MODE + SYNTH sound per layer (v1.13)
+const char kSynthUserFile[]                         = "System/Preset/SynthUser.rws";  // USER 01..16 synth sounds
+const char kSynthUserRef[]                          = "RWSYNUSR";
 const char kSlideFileRef[]                          = "SLD1";  // beats with SLIDE, after the SYNTH sounds
 
 // layer_playBeat() flags from the sequencer (SLIDE, 303 style):

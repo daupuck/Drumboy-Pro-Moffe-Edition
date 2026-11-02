@@ -3109,7 +3109,7 @@ void Controller::lcd_drawLayerInst_GraphData(uint8_t layerNum_) {
 
 void Controller::lcd_drawLayerInst_LevelData(uint8_t layerNum_) {
     /// @brief Draws layer level value and assigned LFO label.
-    if (synthInstPageActive() && (menu != LAYER_INST_0_MENU)) return;  // only on the SYNTH OSC page
+    if (synthInstPageActive() && !synthPageIs(SYNTH_PAGE_OSC)) return;  // only on the SYNTH OSC page
 
     // 1. CONTEXT LOAD
     // Resolve layer reference for level and LFO assignment.
@@ -3128,7 +3128,7 @@ void Controller::lcd_drawLayerInst_LevelData(uint8_t layerNum_) {
 
 void Controller::lcd_drawLayerInst_PitchData(uint8_t layerNum_) {
     /// @brief Draws layer pitch value and assigned LFO label.
-    if (synthInstPageActive() && (menu != LAYER_INST_0_MENU)) return;  // only on the SYNTH OSC page
+    if (synthInstPageActive() && !synthPageIs(SYNTH_PAGE_OSC)) return;  // only on the SYNTH OSC page
 
     // 1. CONTEXT LOAD
     // Resolve layer reference for pitch and LFO assignment.
@@ -3843,13 +3843,13 @@ void Controller::lcd_drawNoteStrip() {
 /* Lcd SYNTH Pages (Layer Inst menu of a SYNTH layer) -------------------------*/
 
 void Controller::lcd_drawSynthPage(uint8_t layerNum_) {
-    /// @brief Draws the OSC page (LAYER_INST_0_MENU), FILTER page (LAYER_INST_1_MENU) or LFO page
-    /// (LAYER_INST_2_MENU with synthLfoPage) of a SYNTH layer. Clears everything a sample page
-    /// may have left first.
+    /// @brief Draws the shown page of a SYNTH layer's Layer Instrument menu (SOUND, OSC, FILTER,
+    /// AMP or LFO; ROUTING is the normal routing page). Headers and signs come from the knob map
+    /// (kEncoderSynthFunction + kEncoderFuncDataLibrary). Clears what a sample page left first.
 
-    const bool lfo = synthLfoPageActive();
-    if (!synthInstPageActive() || ((menu == LAYER_INST_2_MENU) && !lfo)) return;
-    const bool osc = (menu == LAYER_INST_0_MENU);
+    if (!synthInstPageActive()) return;
+    const uint8_t page = synthPageNow();
+    if (page == SYNTH_PAGE_ROUTING) return;
 
     // 1. CLEAR SLOTS, SAMPLE DETAILS AND THE DISPLAY AREA
     lcd.setBackColor(BLACK);
@@ -3865,53 +3865,27 @@ void Controller::lcd_drawSynthPage(uint8_t layerNum_) {
     lcd_setMenuHeaderState(CYAN);
     lcd.drawText(kDataMenuNum + layerNum_, 1, kMenuNumX, kMenuNumY);
 
-    // 3. HEADERS + SIGNS
-    lcd_setMenuHeaderState(CYAN);
-    if (osc) {
-        lcd.drawText(kHeaderSynthWave, kMenuHeaderTextSize, kMenuHeaderX[0], kMenuHeaderY[0]);
-        lcd.drawText(kHeaderSynthDetune, kMenuHeaderTextSize, kMenuHeaderX[1], kMenuHeaderY[1]);
-        lcd.drawText(kHeaderLevel, kMenuHeaderTextSize, kMenuHeaderX[4], kMenuHeaderY[4]);
-        lcd.drawText(kHeaderPitch, kMenuHeaderTextSize, kMenuHeaderX[5], kMenuHeaderY[5]);
-        lcd.drawText(kHeaderSynthSub, kMenuHeaderTextSize, kMenuHeaderX[6], kMenuHeaderY[6]);
-        lcd.drawText(kHeaderSynthNoise, kMenuHeaderTextSize, kMenuHeaderX[7], kMenuHeaderY[7]);
+    // 3. HEADERS + SIGNS (LEVEL/PITCH draw their own sign: the LFO assigned with ADD + knob)
+    for (uint8_t i = 0; i < 6; i++) {
+        const EncoderFunc f = kEncoderSynthFunction[page][slots[i]];
+        if (f == ENC_FNC_NONE) continue;
+        lcd_setMenuHeaderState(CYAN);
+        lcd.drawText(kEncoderFuncDataLibrary[f].funcHeader, kMenuHeaderTextSize, kMenuHeaderX[slots[i]], kMenuHeaderY[slots[i]]);
+        if ((f == ENC_INST_0_LEVEL) || (f == ENC_INST_0_PITCH)) continue;
         lcd_setMenuSignState(CYAN);
-        lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[0], kMenuSignBoxY[0]);
-        lcd.drawText("  %", kMenuSignTextSize, kMenuSignBoxX[1], kMenuSignBoxY[1]);
-        lcd.drawText("  %", kMenuSignTextSize, kMenuSignBoxX[6], kMenuSignBoxY[6]);
-        lcd.drawText("  %", kMenuSignTextSize, kMenuSignBoxX[7], kMenuSignBoxY[7]);
-    } else if (lfo) {
-        lcd.drawText(kHeaderSynthLfoShape, kMenuHeaderTextSize, kMenuHeaderX[0], kMenuHeaderY[0]);
-        lcd.drawText(kHeaderSynthLfoRate, kMenuHeaderTextSize, kMenuHeaderX[1], kMenuHeaderY[1]);
-        lcd.drawText(kHeaderSynthLfoDepth, kMenuHeaderTextSize, kMenuHeaderX[4], kMenuHeaderY[4]);
-        lcd.drawText(kHeaderSynthLfoTarget, kMenuHeaderTextSize, kMenuHeaderX[5], kMenuHeaderY[5]);
-        lcd.drawText(kHeaderSynthLfoRetrig, kMenuHeaderTextSize, kMenuHeaderX[6], kMenuHeaderY[6]);
-        lcd_setMenuSignState(CYAN);
-        lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[0], kMenuSignBoxY[0]);
-        lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[1], kMenuSignBoxY[1]);
-        lcd.drawText("  %", kMenuSignTextSize, kMenuSignBoxX[4], kMenuSignBoxY[4]);
-        lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[5], kMenuSignBoxY[5]);
-        lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[6], kMenuSignBoxY[6]);
-    } else {
-        lcd.drawText(kHeaderSynthCutoff, kMenuHeaderTextSize, kMenuHeaderX[0], kMenuHeaderY[0]);
-        lcd.drawText(kHeaderSynthReso, kMenuHeaderTextSize, kMenuHeaderX[1], kMenuHeaderY[1]);
-        lcd.drawText(kHeaderSynthEnvAmt, kMenuHeaderTextSize, kMenuHeaderX[4], kMenuHeaderY[4]);
-        lcd.drawText(kHeaderSynthDecay, kMenuHeaderTextSize, kMenuHeaderX[5], kMenuHeaderY[5]);
-        lcd.drawText(kHeaderSynthGate, kMenuHeaderTextSize, kMenuHeaderX[6], kMenuHeaderY[6]);
-        lcd.drawText(kHeaderSynthDrive, kMenuHeaderTextSize, kMenuHeaderX[7], kMenuHeaderY[7]);
-        lcd_setMenuSignState(CYAN);
-        for (uint8_t i = 0; i < 6; i++) lcd.drawText("  %", kMenuSignTextSize, kMenuSignBoxX[slots[i]], kMenuSignBoxY[slots[i]]);
+        lcd.drawText(kEncoderFuncDataLibrary[f].sign, kMenuSignTextSize, kMenuSignBoxX[slots[i]], kMenuSignBoxY[slots[i]]);
     }
 
     // 4. VALUES + DISPLAY
-    if (osc) {
-        lcd_drawSynthData(0);
-        lcd_drawSynthData(1);
-        lcd_drawLayerInst_LevelData(layerNum_);
-        lcd_drawLayerInst_PitchData(layerNum_);
-        lcd_drawSynthData(6);
-        lcd_drawSynthData(7);
-    } else {
-        for (uint8_t i = 0; i < 6; i++) lcd_drawSynthData(slots[i]);
+    for (uint8_t i = 0; i < 6; i++) {
+        const EncoderFunc f = kEncoderSynthFunction[page][slots[i]];
+        if (f == ENC_INST_0_LEVEL) {
+            lcd_drawLayerInst_LevelData(layerNum_);
+        } else if (f == ENC_INST_0_PITCH) {
+            lcd_drawLayerInst_PitchData(layerNum_);
+        } else if (f != ENC_FNC_NONE) {
+            lcd_drawSynthData(slots[i]);
+        }
     }
     lcd_drawSynthGraph();
 
@@ -3923,50 +3897,166 @@ void Controller::lcd_drawSynthPage(uint8_t layerNum_) {
 }
 
 void Controller::lcd_drawSynthData(uint8_t slot_) {
-    /// @brief Draws one SYNTH value of the visible page (slot = knob position 0..7).
+    /// @brief Draws one SYNTH value of the shown page (slot = knob position 0..7).
 
-    const bool lfo = synthLfoPageActive();
-    if (!synthInstPageActive() || ((menu == LAYER_INST_2_MENU) && !lfo)) return;
+    if (!synthInstPageActive() || (slot_ >= 8)) return;
+    const uint8_t page = synthPageNow();
+    if (page == SYNTH_PAGE_ROUTING) return;
+    const EncoderFunc f = kEncoderSynthFunction[page][slot_];
     const synth::Params p = synth::sanitize(layerLibrary[selectedLayerNum].synth);
-    char text[kMenuDataTextSize + 1];
-    if (menu == LAYER_INST_0_MENU) {
-        switch (slot_) {
-            case 0: snprintf(text, sizeof(text), "%10.10s", synth::kWaveNames[p.wave]); break;
-            case 1: snprintf(text, sizeof(text), "%10.10s", kNumberDataLibrary[p.detune].nameLongR); break;
-            case 6: snprintf(text, sizeof(text), "%10.10s", kNumberDataLibrary[p.sub].nameLongR); break;
-            case 7: snprintf(text, sizeof(text), "%10.10s", kNumberDataLibrary[p.noise].nameLongR); break;
-            default: return;
+    const char* name = nullptr;  // a word, or nullptr for a number
+    uint8_t value = 0;
+    char buffer[12];
+    switch (f) {
+        case ENC_SYNTH_PRESET: {
+            const int16_t index = synthPresetIndex[selectedLayerNum];
+            if (index < 0) {
+                name = "OWN SOUND";
+            } else if (index < synth::kFactoryPresetCount) {
+                name = synth::kFactoryPresets[index].name;
+            } else {
+                snprintf(buffer, sizeof(buffer), "USER %02d", index - synth::kFactoryPresetCount + 1);
+                name = buffer;
+            }
+            break;
         }
-    } else if (lfo) {
-        switch (slot_) {
-            case 0: snprintf(text, sizeof(text), "%10.10s", synth::kLfoShapeNames[p.lfoShape]); break;
-            case 1: snprintf(text, sizeof(text), "%10.10s", synth::kLfoRates[p.lfoRate].name); break;
-            case 4:
-                if (p.lfoDepth == 0) {
-                    snprintf(text, sizeof(text), "%10.10s", "OFF");
-                } else {
-                    snprintf(text, sizeof(text), "%10.10s", kNumberDataLibrary[p.lfoDepth].nameLongR);
-                }
-                break;
-            case 5: snprintf(text, sizeof(text), "%10.10s", synth::kLfoTargetNames[p.lfoTarget]); break;
-            case 6: snprintf(text, sizeof(text), "%10.10s", p.lfoRetrig ? "NOTE" : "FREE"); break;
-            default: return;
-        }
-    } else {
-        uint8_t value;
-        switch (slot_) {
-            case 0: value = p.cutoff; break;
-            case 1: value = p.resonance; break;
-            case 4: value = p.envAmount; break;
-            case 5: value = p.decay; break;
-            case 6: value = p.gate; break;
-            case 7: value = p.drive; break;
-            default: return;
-        }
-        snprintf(text, sizeof(text), "%10.10s", kNumberDataLibrary[value].nameLongR);
+        case ENC_SYNTH_SAVE_SLOT:
+            snprintf(buffer, sizeof(buffer), "USER %02u%s", static_cast<unsigned>(synthSaveSlot + 1), synthUserUsed[synthSaveSlot] ? " *" : "");
+            name = buffer;
+            break;
+        case ENC_SYNTH_WAVE: name = synth::kWaveNames[p.wave]; break;
+        case ENC_SYNTH_FILTER_TYPE: name = synth::kFilterTypeNames[p.filterType]; break;
+        case ENC_SYNTH_LFO_SHAPE: name = synth::kLfoShapeNames[p.lfoShape]; break;
+        case ENC_SYNTH_LFO_RATE: name = synth::kLfoRates[p.lfoRate].name; break;
+        case ENC_SYNTH_LFO_TARGET: name = synth::kLfoTargetNames[p.lfoTarget]; break;
+        case ENC_SYNTH_LFO_RETRIG: name = p.lfoRetrig ? "NOTE" : "FREE"; break;
+        case ENC_SYNTH_LFO_DEPTH:
+            if (p.lfoDepth == 0) name = "OFF";
+            value = p.lfoDepth;
+            break;
+        case ENC_SYNTH_DETUNE: value = p.detune; break;
+        case ENC_SYNTH_SUB: value = p.sub; break;
+        case ENC_SYNTH_NOISE: value = p.noise; break;
+        case ENC_SYNTH_CUTOFF: value = p.cutoff; break;
+        case ENC_SYNTH_RESO: value = p.resonance; break;
+        case ENC_SYNTH_ENVAMT: value = p.envAmount; break;
+        case ENC_SYNTH_DECAY: value = p.decay; break;
+        case ENC_SYNTH_GATE: value = p.gate; break;
+        case ENC_SYNTH_DRIVE: value = p.drive; break;
+        case ENC_SYNTH_ATTACK: value = p.attack; break;
+        case ENC_SYNTH_AMP_DECAY: value = p.ampDecay; break;
+        case ENC_SYNTH_SUSTAIN: value = p.sustain; break;
+        case ENC_SYNTH_RELEASE: value = p.release; break;
+        default: return;  // empty slot, or LEVEL/PITCH (drawn by their own functions)
     }
+    char text[kMenuDataTextSize + 1];
+    snprintf(text, sizeof(text), "%10.10s", (name != nullptr) ? name : kNumberDataLibrary[value].nameLongR);
     lcd_setMenuDataState(WHITE);
     lcd.drawText(text, kMenuDataTextSize, kMenuDataX[slot_], kMenuDataY[slot_]);
+}
+
+void Controller::lcd_drawSynthSoundGraph() {
+    /// @brief SOUND page: the preset name large, where it comes from, the save slot and the
+    /// last message (saved / random / undone), plus what ADD and CLEAR do here.
+
+    const synth::Params p = synth::sanitize(layerLibrary[selectedLayerNum].synth);
+    const int16_t index = synthPresetIndex[selectedLayerNum];
+    char line[40];
+    lcd.setFont(FONT_05x07);
+    lcd.setAlignment(LEFT);
+    lcd.setForeColor(GRAY_75);
+    if (index < 0) {
+        snprintf(line, sizeof(line), "SYNTH  SOUND");
+    } else if (index < synth::kFactoryPresetCount) {
+        snprintf(line, sizeof(line), "SYNTH  SOUND %d/%d", index + 1, synth::kFactoryPresetCount);
+    } else {
+        snprintf(line, sizeof(line), "SYNTH  SOUND  USER");
+    }
+    lcd.drawText(line, strlen(line), kBeatGraphStartX, kBeatGraphStartY + 2);
+
+    // The name, big.
+    char name[16];
+    if (index < 0) {
+        snprintf(name, sizeof(name), "OWN SOUND");
+    } else if (index < synth::kFactoryPresetCount) {
+        snprintf(name, sizeof(name), "%s", synth::kFactoryPresets[index].name);
+    } else {
+        snprintf(name, sizeof(name), "USER %02d", index - synth::kFactoryPresetCount + 1);
+    }
+    lcd.setFont(FONT_10x14);
+    lcd.setForeColor(CYAN);
+    lcd.drawText(name, strlen(name), kBeatGraphStartX, kBeatGraphStartY + 14);
+
+    // A one-line summary of what it is made of.
+    snprintf(line, sizeof(line), "%s %s  CUT %d  RES %d", synth::kWaveNames[p.wave], synth::kFilterTypeNames[p.filterType], p.cutoff, p.resonance);
+    lcd.setFont(FONT_05x07);
+    lcd.setForeColor(GRAY_50);
+    lcd.drawText(line, strlen(line), kBeatGraphStartX, kBeatGraphStartY + 32);
+
+    // Message (saved, random...) or the hints.
+    if (synthStatus[0] != '\0') {
+        lcd.setForeColor(MAGENTA);
+        lcd.drawText(synthStatus, strlen(synthStatus), kBeatGraphStartX, kBeatGraphEndY - 6);
+    } else {
+        snprintf(line, sizeof(line), "ADD: SAVE TO USER %02u", static_cast<unsigned>(synthSaveSlot + 1));
+        lcd.setForeColor(GRAY_50);
+        lcd.drawText(line, strlen(line), kBeatGraphStartX, kBeatGraphEndY - 6);
+    }
+    lcd.setAlignment(RIGHT);
+    lcd.setForeColor(GRAY_50);
+    lcd.drawText("CLEAR: UNDO", 11, kBeatGraphEndX, kBeatGraphEndY - 6);
+    lcd.setAlignment(LEFT);
+}
+
+void Controller::lcd_drawSynthAmpGraph() {
+    /// @brief AMP page: the shape of the level over a held note and its release (ATTACK, DECAY
+    /// to SUSTAIN, RELEASE), on a square-root time axis so short and long times both show.
+
+    const synth::Params p = synth::sanitize(layerLibrary[selectedLayerNum].synth);
+    const uint16_t top = kBeatGraphStartY + 13;
+    const uint16_t bottom = kBeatGraphEndY - 10;
+    const uint16_t height = bottom - top;
+    const float a = sqrtf(synth::attackSeconds(p.attack));
+    const float d = sqrtf(3.0f * synth::decaySeconds(p.ampDecay));
+    const float hold = 0.5f;  // a fixed "held" part, so the sustain level is visible
+    const float r = sqrtf(3.0f * synth::decaySeconds(p.release));
+    const float total = a + d + hold + r;
+    const float sustain = p.sustain / 100.0f;
+    lcd.setForeColor(GRAY_25);
+    lcd.drawHLine(kBeatGraphStartX, bottom, kBeatGraphWidth);
+    lcd.setForeColor(CYAN);
+    int previous = -1;
+    for (uint16_t x = 0; x < kBeatGraphWidth; x++) {
+        const float t = (static_cast<float>(x) / kBeatGraphWidth) * total;
+        float level;
+        if (t < a) {
+            level = t / a;
+        } else if (t < a + d) {
+            const float k = (t - a) / d;  // 0..1 over 3 time constants
+            level = sustain + ((1.0f - sustain) * expf(-3.0f * k));
+        } else if (t < a + d + hold) {
+            level = sustain + ((1.0f - sustain) * expf(-3.0f));
+        } else {
+            const float k = (t - a - d - hold) / r;
+            level = (sustain + ((1.0f - sustain) * expf(-3.0f))) * expf(-3.0f * k);
+        }
+        const int y = bottom - static_cast<int>(level * height);
+        if (previous < 0) previous = y;
+        const int y0 = (y < previous) ? y : previous;
+        const int y1 = (y < previous) ? previous : y;
+        lcd.drawVLine(kBeatGraphStartX + x, static_cast<uint16_t>(y0), static_cast<uint16_t>(y1 - y0 + 1));
+        previous = y;
+    }
+    // Where the note is let go.
+    const uint16_t releaseX = static_cast<uint16_t>(((a + d + hold) / total) * kBeatGraphWidth);
+    lcd.setForeColor(GRAY_50);
+    lcd.drawVLine(kBeatGraphStartX + releaseX, top, height);
+    char line[40];
+    snprintf(line, sizeof(line), "GATE %d%%  ADD: RANDOM  TAP: VARY", p.gate);
+    lcd.setFont(FONT_05x07);
+    lcd.setAlignment(LEFT);
+    lcd.setForeColor(GRAY_50);
+    lcd.drawText(line, strlen(line), kBeatGraphStartX, kBeatGraphEndY - 6);
 }
 
 void Controller::lcd_drawSynthLfoGraph() {
@@ -3975,18 +4065,13 @@ void Controller::lcd_drawSynthLfoGraph() {
 
     if (!synthLfoPageActive()) return;
     const synth::Params p = synth::sanitize(layerLibrary[selectedLayerNum].synth);
-    lcd.setBackColor(BLACK);
-    lcd.clearRect(kBeatGraphStartX, kBeatGraphStartY, kBeatGraphWidth + 1, kBeatGraphHeight + 1);
-    lcd.setFont(FONT_05x07);
-    lcd.setAlignment(LEFT);
-    lcd.setForeColor(GRAY_75);
-    lcd.drawText("SYNTH  LFO", 10, kBeatGraphStartX, kBeatGraphStartY + 2);
     char info[24];
     if (p.lfoDepth == 0) {
         snprintf(info, sizeof(info), "OFF: TURN DEPTH");
     } else {
         snprintf(info, sizeof(info), "%s %s", synth::kLfoTargetNames[p.lfoTarget], synth::kLfoRates[p.lfoRate].name);
     }
+    lcd.setFont(FONT_05x07);
     lcd.setAlignment(RIGHT);
     lcd.setForeColor((p.lfoDepth == 0) ? MAGENTA : GRAY_75);
     lcd.drawText(info, static_cast<uint8_t>(strlen(info)), kBeatGraphEndX, kBeatGraphStartY + 2);
@@ -4038,29 +4123,43 @@ void Controller::lcd_updateSynthLfoCursor() {
 }
 
 void Controller::lcd_drawSynthGraph() {
-    /// @brief OSC page: one cycle of the waveform. FILTER page: how far the filter envelope
-    /// opens and how fast it closes (1 s shown), with the GATE as a bar underneath.
+    /// @brief The display area of the shown synth page: SOUND = preset, OSC = one cycle of the
+    /// waveform, FILTER = the filter envelope over 1 s, AMP = the level envelope, LFO = the wave.
 
-    if (synthLfoPageActive()) {
-        lcd_drawSynthLfoGraph();
-        return;
-    }
-    if (!synthInstPageActive() || (menu == LAYER_INST_2_MENU)) return;
+    if (!synthInstPageActive()) return;
+    const uint8_t page = synthPageNow();
+    if (page == SYNTH_PAGE_ROUTING) return;
     const synth::Params p = synth::sanitize(layerLibrary[selectedLayerNum].synth);
-    const bool osc = (menu == LAYER_INST_0_MENU);
 
     lcd.setBackColor(BLACK);
     lcd.clearRect(kBeatGraphStartX, kBeatGraphStartY, kBeatGraphWidth + 1, kBeatGraphHeight + 1);
     lcd.setFont(FONT_05x07);
     lcd.setAlignment(LEFT);
     lcd.setForeColor(GRAY_75);
-    lcd.drawText(osc ? "SYNTH  OSC" : "SYNTH  FILTER", osc ? 10 : 13, kBeatGraphStartX, kBeatGraphStartY + 2);
+    if (page != SYNTH_PAGE_SOUND) {
+        char title[24];
+        snprintf(title, sizeof(title), "SYNTH  %s", kSynthPageNames[page]);
+        lcd.drawText(title, strlen(title), kBeatGraphStartX, kBeatGraphStartY + 2);
+    }
+    switch (page) {
+        case SYNTH_PAGE_SOUND:
+            lcd_drawSynthSoundGraph();
+            return;
+        case SYNTH_PAGE_AMP:
+            lcd_drawSynthAmpGraph();
+            return;
+        case SYNTH_PAGE_LFO:
+            lcd_drawSynthLfoGraph();
+            return;
+        default:
+            break;
+    }
 
     const uint16_t top = kBeatGraphStartY + 13;
     const uint16_t bottom = kBeatGraphEndY - 4;
     const uint16_t height = bottom - top;
 
-    if (osc) {
+    if (page == SYNTH_PAGE_OSC) {
         // Waveform, 2 cycles across the strip. WAVE = SAMPLE shows the layer's loaded sample as
         // the cycle (or a hint if there is none).
         const Layer& layer = layerLibrary[selectedLayerNum];
@@ -4094,24 +4193,21 @@ void Controller::lcd_drawSynthGraph() {
             previous = y;
         }
     } else {
-        // Filter envelope over 1 s: starts at ENV AMT and decays with DECAY.
+        // FILTER: the filter envelope over 1 s (starts at ENV AMT, decays with DECAY), with the
+        // filter type named.
+        lcd.setAlignment(RIGHT);
+        lcd.setForeColor(GRAY_75);
+        lcd.drawText(synth::kFilterTypeNames[p.filterType], strlen(synth::kFilterTypeNames[p.filterType]), kBeatGraphEndX, kBeatGraphStartY + 2);
+        lcd.setAlignment(LEFT);
         const float seconds = 0.02f * exp2f((p.decay / 100.0f) * 6.64f);
         const float amount = p.envAmount / 100.0f;
         lcd.setForeColor(CYAN);
-        const uint16_t envBottom = bottom - 5;
-        const uint16_t envHeight = envBottom - top;
         for (uint16_t x = 0; x < kBeatGraphWidth; x += 2) {
             const float t = static_cast<float>(x) / kBeatGraphWidth;
             const float e = amount * expf(-t / seconds);
-            const uint16_t h = static_cast<uint16_t>(e * envHeight);
-            if (h > 0) lcd.drawVLine(kBeatGraphStartX + x, envBottom - h, h);
+            const uint16_t h = static_cast<uint16_t>(e * height);
+            if (h > 0) lcd.drawVLine(kBeatGraphStartX + x, bottom - h, h);
         }
-        // GATE: the share of the time until the next beat that the note is held.
-        const uint16_t gateWidth = static_cast<uint16_t>((p.gate / 100.0f) * kBeatGraphWidth);
-        lcd.setForeColor(GRAY_50);
-        lcd.drawHLine(kBeatGraphStartX, bottom - 1, kBeatGraphWidth);
-        lcd.setForeColor(WHITE);
-        if (gateWidth > 0) lcd.fillRect(kBeatGraphStartX, bottom - 2, gateWidth, 3);
     }
 }
 

@@ -5,7 +5,28 @@ SD-card package is named after it). Rolling back = installing an older package.
 
 ## v1.13
 
-**SYNTH: its own LFO page, synth sounds in drumkits and the instrument copy (step 4d)**
+**SYNTH: presets, random sounds, AMP envelope, filter types, its own LFO page, synth sounds in
+drumkits and the instrument copy (step 4d)**
+
+- **Six synth pages** (Layer Instrument of a SYNTH layer; the layer key steps through them):
+  SOUND → OSC → FILTER → AMP → LFO → routing. Two pages share each `LAYER_INST_x_MENU`
+  (`kSynthPageMenu`, `Controller::synthPage`); the menu opens on SOUND.
+- **SOUND page:** **PRESET** (knob 1) browses 32 factory sounds with epic and silly names
+  (`ACID TRIP`, `WUBZILLA`, `DRAGONROAR`, `BOOMSTICK`, `TSS TSS`, …; basses, leads, plucks, keys,
+  pads, strings, brass, drums and effects) and then the USER slots; every step plays a note.
+  **SAVE TO** (knob 2) picks USER 01–16; **ADD** saves the sound there
+  (`System/Preset/SynthUser.rws`, "RWSYNUSR" + 16 × [used, 20 values], loaded at start-up).
+- **Random sounds:** on OSC / FILTER / AMP / LFO, **ADD hold** = a new random sound on release
+  (a bass, lead, pluck, pad or effect with values in that family's useful ranges), **ADD tap** = a
+  variation (three settings move 5–15 steps, sometimes the waveform). ADD used with a knob or
+  UP/DOWN does nothing on release.
+- **Undo:** a **CLEAR tap** on any synth page brings back the sound from when the Layer
+  Instrument menu was opened. CLEAR hold still resets.
+- **AMP page:** **ATTACK** (1 ms–3 s), **AMP DECAY** (5 ms–5 s) to **SUSTAIN**, **RELEASE**
+  (5 ms–5 s), and **GATE** (moved here from FILTER). The defaults reproduce the old fixed 2 ms /
+  full / 12 ms envelope, so existing sounds are unchanged. The display draws the envelope.
+- **FILT TYPE** (FILTER page, knob 7): LP 24 (as before), LP 12, BAND, HIGH, tapped from the same
+  ladder (classic mode mixing), so it costs a few multiplies per sample.
 
 - **LFO page** for SYNTH layers: pressing the layer key in the Layer Instrument menu now goes OSC
   → FILTER → **LFO** → routing. Knobs: **1 LFO SHAPE** (SINE, TRIANGLE, SAW DOWN, SQUARE, RANDOM
@@ -37,8 +58,9 @@ SD-card package is named after it). Rolling back = installing an older package.
   either side of the root (was two), so TRANSPOSE and the NOTE knob reach as far. The beat's
   note byte now uses its spare bit 7: degrees -64..63 (host-tested packing; it is never stored on
   SD, the `.rwn` file keeps one signed byte per note as before).
-- Projects: the `.rwn` sound section is now "SYN4" (15 values per layer, the last 5 are the
-  LFO). v1.12 ("SYN2") and v1.11 ("SYN1") projects still load.
+- Projects: the `.rwn` sound section is now "SYN5" (20 values per layer: sound, LFO, AMP,
+  filter type), drumkits "SYK3". v1.12 ("SYN2") and v1.11 ("SYN1") projects still load, as do
+  the v1.13 test builds' files.
 
 Under the hood: `synth::pack/unpack/isDefault` are the single place for the sound's file layout
 (project, drumkit), host-tested for round trips, old shorter records and junk. `SynthVoice.h`

@@ -5,9 +5,12 @@
 // No hardware, HAL or Controller dependencies, so the exact same code runs on the device (in the
 // I2S audio interrupt) and in the host unit test (02 Software/Tests/test_synth_voice.cpp).
 //
-//   oscillator (PolyBLEP saw/square, triangle, sine)
-//     -> 4-pole low-pass "ladder" with saturated resonance feedback and DRIVE
-//     -> amp envelope (2 ms attack, held for GATE, 12 ms release)
+//   oscillator (PolyBLEP saw/square, triangle, sine, sample cycle) + DETUNE, SUB, NOISE
+//     -> 4-pole "ladder" with saturated resonance feedback and DRIVE; FILTER TYPE taps it as
+//        low-pass 24 or 12 dB, band-pass or high-pass (v1.13)
+//     -> amp envelope: ATTACK, DECAY to SUSTAIN while the note is held (GATE), RELEASE (v1.13;
+//        before: fixed 2 ms attack, full level, 12 ms release - still the default)
+//     -> the layer's LFO on cutoff, pitch or level (v1.13)
 //   filter envelope: jumps to 1 at every note and decays with DECAY; ENV AMT sets how far it
 //   opens the filter. Velocity (the beat's FLAT/GHOST setting) scales it: accent for free.
 //
@@ -26,6 +29,10 @@ namespace synth {
 enum Wave : uint8_t { kSaw = 0, kSquare, kTriangle, kSine, kSample, kWaveCount };
 
 inline constexpr const char* kWaveNames[kWaveCount] = {"SAW", "SQUARE", "TRIANGLE", "SINE", "SAMPLE"};
+
+// FILTER TYPE: which output of the ladder is heard.
+enum FilterType : uint8_t { kLowPass24 = 0, kLowPass12, kBandPass, kHighPass, kFilterTypeCount };
+inline constexpr const char* kFilterTypeNames[kFilterTypeCount] = {"LP 24", "LP 12", "BAND", "HIGH"};
 
 // The layer's own LFO (Layer Instrument LFO page of a SYNTH layer, v1.13).
 enum LfoShape : uint8_t { kLfoSine = 0, kLfoTriangle, kLfoSaw, kLfoSquare, kLfoRandom, kLfoShapeCount };
@@ -76,7 +83,18 @@ struct Params {
     uint8_t lfoDepth = 0;          // 0 = LFO off
     uint8_t lfoTarget = kLfoCutoff;
     uint8_t lfoRetrig = 0;         // 0 = FREE (keeps running), 1 = NOTE (restarts with every note)
+    // AMP page (v1.13). The defaults give the v1.11/v1.12 sound: ~2 ms attack, full level while
+    // held, ~12 ms release.
+    uint8_t attack = 10;           // 1 ms .. 3 s
+    uint8_t ampDecay = 50;         // 5 ms .. 5 s, towards SUSTAIN
+    uint8_t sustain = 100;         // level while the note is held after the decay
+    uint8_t release = 13;          // 5 ms .. 5 s after the note ends
+    uint8_t filterType = kLowPass24;
 };
+
+// Envelope times in seconds for AMP 0..100 (exponential: fine control at the short end).
+inline float attackSeconds(uint8_t x) { return 0.001f * exp2f((static_cast<float>(x) / 100.0f) * 11.55f); }   // 1 ms .. 3 s
+inline float decaySeconds(uint8_t x) { return 0.005f * exp2f((static_cast<float>(x) / 100.0f) * 9.97f); }     // 5 ms .. 5 s
 
 constexpr uint8_t kMaxParam = 100;
 // LFO depth 100: CUTOFF +-3 octaves; PITCH +-12 semitones with a cubic curve (depth 20 is a
@@ -91,10 +109,12 @@ constexpr float kMaxDetuneCents = 40.0f;
 inline Params sanitize(const Params& p) {
     Params s = p;
     if (s.wave >= kWaveCount) s.wave = kSaw;
-    uint8_t* fields[10] = {&s.cutoff, &s.resonance, &s.envAmount, &s.decay, &s.gate, &s.drive, &s.detune, &s.sub, &s.noise, &s.lfoDepth};
+    uint8_t* fields[14] = {&s.cutoff, &s.resonance, &s.envAmount, &s.decay, &s.gate, &s.drive, &s.detune,
+                           &s.sub, &s.noise, &s.lfoDepth, &s.attack, &s.ampDecay, &s.sustain, &s.release};
     for (uint8_t* f : fields) {
         if (*f > kMaxParam) *f = kMaxParam;
     }
+    if (s.filterType >= kFilterTypeCount) s.filterType = kLowPass24;
     if (s.lfoShape >= kLfoShapeCount) s.lfoShape = kLfoTriangle;
     if (s.lfoRate >= kLfoRateCount) s.lfoRate = 5;
     if (s.lfoTarget >= kLfoTargetCount) s.lfoTarget = kLfoCutoff;
@@ -123,11 +143,11 @@ inline float lfoValue(uint8_t shape, float phase, float hold) {
     }
 }
 
-// File layout of one layer's sound (project .rwn "SYN4" and drumkit "SYK2" sections):
+// File layout of one layer's sound (project .rwn "SYN5", drumkit "SYK3", user presets):
 // wave, cutoff, resonance, env amount, decay, gate, drive, detune, sub, noise,
-// LFO shape, rate, depth, target, retrig.
-// Older files hold fewer values ("SYN1" 7, "SYN2" 10); the rest keep their defaults.
-constexpr uint8_t kPackedSize = 15;
+// LFO shape, rate, depth, target, retrig, attack, amp decay, sustain, release, filter type.
+// Older files hold fewer values ("SYN1" 7, "SYN2" 10, test builds 15); the rest keep defaults.
+constexpr uint8_t kPackedSize = 20;
 
 inline void pack(const Params& p, uint8_t* d) {
     d[0] = p.wave;
@@ -145,13 +165,19 @@ inline void pack(const Params& p, uint8_t* d) {
     d[12] = p.lfoDepth;
     d[13] = p.lfoTarget;
     d[14] = p.lfoRetrig;
+    d[15] = p.attack;
+    d[16] = p.ampDecay;
+    d[17] = p.sustain;
+    d[18] = p.release;
+    d[19] = p.filterType;
 }
 
-// Reads `count` values (7..15); never trusts them (sanitized: a damaged file can't index a table).
+// Reads `count` values (7..20); never trusts them (sanitized: a damaged file can't index a table).
 inline Params unpack(const uint8_t* d, uint8_t count) {
     Params p;
-    uint8_t* fields[kPackedSize] = {&p.wave, &p.cutoff, &p.resonance, &p.envAmount, &p.decay, &p.gate, &p.drive, &p.detune,
-                                    &p.sub, &p.noise, &p.lfoShape, &p.lfoRate, &p.lfoDepth, &p.lfoTarget, &p.lfoRetrig};
+    uint8_t* fields[kPackedSize] = {&p.wave,     &p.cutoff,  &p.resonance, &p.envAmount, &p.decay,    &p.gate,     &p.drive,
+                                    &p.detune,   &p.sub,     &p.noise,     &p.lfoShape,  &p.lfoRate,  &p.lfoDepth, &p.lfoTarget,
+                                    &p.lfoRetrig, &p.attack, &p.ampDecay,  &p.sustain,   &p.release,  &p.filterType};
     for (uint8_t i = 0; (i < count) && (i < kPackedSize); i++) *fields[i] = d[i];
     return sanitize(p);
 }
@@ -200,6 +226,7 @@ struct Voice {
     float lfoSmooth = 0.0f; // shape value smoothed per block (no zipper on SQUARE/RANDOM steps)
     float lfoGain = 1.0f;   // LEVEL target: gain at the end of the last block (ramped per sample)
     bool lfoJump = false;   // retriggered: take the new value at once instead of smoothing to it
+    bool ampDecaying = false;  // amp envelope: false = ATTACK rising, true = DECAY/SUSTAIN
     float s1 = 0.0f, s2 = 0.0f, s3 = 0.0f, s4 = 0.0f;  // filter stages
     const float* table = nullptr;
     uint32_t tableLength = 0;
@@ -239,6 +266,7 @@ inline void start(Voice& v, const NoteOn& n) {
     v.velocity = n.velocity;
     v.gateLeft = (n.gateSamples > 0) ? n.gateSamples : 1;
     v.filterEnv = 1.0f;
+    v.ampDecaying = false;  // ATTACK again, from wherever the level is now (no click)
     v.active = true;
 
     // DETUNE: the second oscillator starts at a random phase (like a free-running analog
@@ -413,8 +441,34 @@ inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t co
     const float postWet = (driveAmount * 4.0f > 1.0f) ? 1.0f : (driveAmount * 4.0f);  // fades in over 0..25
     v.filterEnv *= decayBlockCoef(p.decay, blocksPerSecond);
 
-    const float attackStep = 1.0f / (0.002f * sampleRate);  // 2 ms
-    const float releaseCoef = expf(-1.0f / (0.012f * sampleRate));  // 12 ms
+    // Amp envelope (AMP page): linear ATTACK to full, exponential DECAY towards SUSTAIN while
+    // held, exponential RELEASE after the gate.
+    const float attackStep = 1.0f / (attackSeconds(p.attack) * sampleRate);
+    const float sustainLevel = static_cast<float>(p.sustain) / 100.0f;
+    const float ampDecayCoef = expf(-1.0f / (decaySeconds(p.ampDecay) * sampleRate));
+    const float releaseCoef = expf(-1.0f / (decaySeconds(p.release) * sampleRate));
+    // FILTER TYPE: weights of the input and the four stages (classic ladder mode mixing).
+    float wx = 0.0f, w1 = 0.0f, w2 = 0.0f, w4 = 1.0f, typeGain = 1.0f;
+    switch (p.filterType) {
+        case kLowPass12:
+            w2 = 1.0f;
+            w4 = 0.0f;
+            break;
+        case kBandPass:  // 2 * (y1 - y2): 6 dB per octave on each side, +- the resonance peak
+            w1 = 2.0f;
+            w2 = -2.0f;
+            w4 = 0.0f;
+            typeGain = 1.6f;
+            break;
+        case kHighPass:  // x - 2 y1 + y2: 12 dB per octave below the cutoff
+            wx = 1.0f;
+            w1 = -2.0f;
+            w2 = 1.0f;
+            w4 = 0.0f;
+            break;
+        default:
+            break;
+    }
     float dt = v.increment * pitchRatio;  // LFO on PITCH = vibrato
     if (dt > 0.45f) dt = 0.45f;            // stays below Nyquist even at the top of a big swing
 
@@ -456,12 +510,20 @@ inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t co
         if (v.gateLeft > 0) {
             v.gateLeft--;
             if (v.gateLeft == 0) events |= kGateEnded;
-            v.amp += attackStep;
-            if (v.amp > 1.0f) v.amp = 1.0f;
+            if (!v.ampDecaying) {
+                v.amp += attackStep;
+                if (v.amp >= 1.0f) {
+                    v.amp = 1.0f;
+                    v.ampDecaying = true;
+                }
+            } else {
+                v.amp = sustainLevel + ((v.amp - sustainLevel) * ampDecayCoef);
+            }
         } else {
             v.amp *= releaseCoef;
         }
-        float y = v.s4 * makeup;
+        const float filtered = (p.filterType == kLowPass24) ? v.s4 : (((wx * x) + (w1 * v.s1) + (w2 * v.s2) + (w4 * v.s4)) * typeGain);
+        float y = filtered * makeup;
         if (postDriveOn) y += postWet * ((saturate(y * postGain) * postNorm) - y);
         out[i] = y * v.amp * v.gain * (lfoGainStart + (lfoGainStep * static_cast<float>(i + 1)));
     }
