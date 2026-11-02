@@ -3636,12 +3636,12 @@ void Controller::lcd_drawEuclidStrip() {
         }
     }
 
-    // Hint: CLEAR restores the beats from before the page opened (the key is not shown
-    // anywhere else on this page). Bottom right, below the ticks; the font has no '='.
+    // Hint: a CLEAR tap restores the beats from before the page opened, holding it erases the
+    // layer (the keys are not shown anywhere else on this page). Bottom right; no '=' in the font.
     lcd.setFont(FONT_05x07);
     lcd.setAlignment(RIGHT);
     lcd.setForeColor(GRAY_50);
-    lcd.drawText("CLEAR: UNDO", 11, kBeatGraphEndX, kBeatGraphEndY - 6);
+    lcd.drawText("CLEAR: UNDO  HOLD: ERASE", 24, kBeatGraphEndX, kBeatGraphEndY - 6);
 }
 
 void Controller::lcd_updateEuclidPlayhead() {
@@ -3809,10 +3809,11 @@ void Controller::lcd_drawNoteStrip() {
         lcd.drawText(keys, strlen(keys), kBeatGraphStartX, kBeatGraphEndY - 6);
     }
 
-    // CLEAR undoes the note edits made since the page opened (as on the EUCLID page).
+    // A CLEAR tap undoes the note edits made since the page opened; holding it erases the layer
+    // (as on the EUCLID page).
     lcd.setAlignment(RIGHT);
     lcd.setForeColor(GRAY_50);
-    lcd.drawText("CLEAR: UNDO", 11, kBeatGraphEndX, kBeatGraphEndY - 6);
+    lcd.drawText("CLEAR: UNDO  HOLD: ERASE", 24, kBeatGraphEndX, kBeatGraphEndY - 6);
 }
 
 /* Lcd SYNTH Pages (Layer Inst menu of a SYNTH layer) -------------------------*/

@@ -117,7 +117,8 @@ and once more back to the edit page.
 | **6 GRID** | Length of each step, from 1:32 to 1:4 |
 | **7 LENGTH** | **REPEAT** repeats the pattern over the whole song, **ONCE** lays it down once |
 | **8 MODE** | **REPLACE** replaces the layer's beats; **MERGE** adds the hits on top of the beats you already have, which keep their fills |
-| **CLEAR** | Restores the beats the layer had when you opened the page (the page shows **CLEAR: UNDO** as a reminder) |
+| **CLEAR** (tap) | Restores the beats the layer had when you opened the page |
+| **CLEAR** (hold) | Erases all of the layer's beats in this bank, as on the edit page (v1.11). The page shows **CLEAR: UNDO  HOLD: ERASE** as a reminder. |
 
 - **You hear changes immediately.** The pattern is written to the layer on every turn, so you can
   shape it while the sequencer plays.
@@ -190,7 +191,8 @@ NOTE). Once more goes back to the edit page.
 | **UP / DOWN** (TONE, SYNTH) | Move the pad keyboard an octave down or up; the strip shows the range, e.g. `PADS C4-E5`. (v1.10) |
 | **ADD hold** | A new melody over the bank's beats, in the scale, starting and ending on the root. (v1.10) |
 | **ADD tap** | A variation: a few notes move a step or two. Tap again and again to let it evolve. (v1.10) |
-| **CLEAR** | Undoes the note edits made since the page opened (**CLEAR: UNDO**), including generated melodies. |
+| **CLEAR** (tap) | Undoes the note edits made since the page opened, including generated melodies. |
+| **CLEAR** (hold) | Erases all of the layer's beats in this bank, as on the edit page (v1.11). To remove a single beat, use a CLEAR tap on the edit page. |
 
 **Workflow:** put beats on the layer (record, ADD, EUCLID…), open the NOTE page, set MODE to TONE
 and pick ROOT and SCALE. Then either:

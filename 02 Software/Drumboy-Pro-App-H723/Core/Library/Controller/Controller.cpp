@@ -508,6 +508,18 @@ void Controller::update() {
         if ((layerSongResetActionFlag) && (selectedLayerNum != -1)) {
             layerSongResetActionFlag = false;
             layerSong_resetAllBeats(selectedLayerNum, activeSongBank);
+            // On the EUCLID / NOTE page the empty layer becomes the page's new starting point, so
+            // the next knob turn (or CLEAR tap) cannot bring the erased beats back.
+            if (euclidPageActive()) {
+                euclid_captureBase();
+                euclidTruncated = false;
+                lcd_drawEuclidStrip();
+            } else if (notePageActive()) {
+                note_captureBase();
+                noteTransposeTotal = 0;
+                lcd_drawNoteData(7);
+                lcd_redrawNotePage();
+            }
         }
         if (noteMelodyActionFlag) {
             noteMelodyActionFlag = false;

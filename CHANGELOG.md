@@ -28,6 +28,14 @@ SD-card package is named after it). Rolling back = installing an older package.
   Instrument menu and NEW FILE reset the sound. Not part of drumkits or the instrument copy.
 - Coming next (4b/4c): DETUNE, SUB, NOISE, per-beat SLIDE, single-cycle WAVs from the card.
 
+**Fix: erasing beats on the EUCLID and NOTE pages**
+
+- On these pages CLEAR only undid, so a layer could not be erased there, including TONE and
+  SYNTH layers, which are edited on the NOTE page (reported from a hardware test). Now, as on
+  the edit page, **holding CLEAR erases all of the layer's beats** in the bank; a **tap** still
+  undoes. After an erase the page starts over from the empty layer, so the next EUCLID knob turn
+  or CLEAR tap can't bring the erased beats back. The hint reads **CLEAR: UNDO  HOLD: ERASE**.
+
 Under the hood: the voice is a pure header, `Global/SynthVoice.h`, host-tested in
 `test_synth_voice.cpp` (2.19 million checks). The tests cover every waveform at maximum resonance,
 drive and envelope, filter stability, gate and release, click-free retrigger, glide and accent.

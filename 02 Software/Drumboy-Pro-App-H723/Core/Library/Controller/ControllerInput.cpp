@@ -899,15 +899,16 @@ void Controller::keyboard_action() {
                                             break;
 
                                         case LAYER_SONG_MENU:
-                                            if (layerSongPage == 1) {
-                                                // EUCLID page: CLEAR puts back the beats from before the page opened.
-                                                euclid_restore();
-                                            } else if (layerSongPage == 2) {
-                                                // NOTE page: CLEAR puts back the notes from before the page opened.
-                                                note_restore();
-                                            } else if (layerLibrary[selectedLayerNum].bankLibrary[activeSongBank].lastActiveBeatNum != -1) {
+                                            // On every page, holding CLEAR erases all of the layer's beats in this
+                                            // bank. A tap erases the selected beat (edit page) or undoes the page's
+                                            // edits (EUCLID: beats, NOTE: notes); see the release handler.
+                                            if (layerLibrary[selectedLayerNum].bankLibrary[activeSongBank].lastActiveBeatNum != -1) {
                                                 layerSongResetKeyFlag = true;
                                                 startLongKeyTimer();
+                                            } else if (layerSongPage == 1) {
+                                                euclid_restore();  // empty layer: nothing to erase, undo at once
+                                            } else if (layerSongPage == 2) {
+                                                note_restore();
                                             }
                                             break;
 
@@ -1055,9 +1056,16 @@ void Controller::keyboard_action() {
                                     layerInstResetKeyFlag = false;
                                 }
                                 if (layerSongResetKeyFlag) {
+                                    // Released before the long press: a tap.
                                     keyboard.longKeyCounter = 0;
                                     layerSongResetKeyFlag = false;
-                                    layerSong_resetSelectedBeat();
+                                    if (layerSongPage == 1) {
+                                        euclid_restore();  // EUCLID page: back to the beats from when the page opened
+                                    } else if (layerSongPage == 2) {
+                                        note_restore();    // NOTE page: back to the notes from when the page opened
+                                    } else {
+                                        layerSong_resetSelectedBeat();
+                                    }
                                 }
                                 if (rhythmUnlockKeyFlag) {
                                     keyboard.longKeyCounter = 0;
