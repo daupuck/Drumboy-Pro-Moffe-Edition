@@ -237,7 +237,9 @@ keyboard, melody generator) and goes through EQ, filters, effects, reverb and th
 other layer.
 
 **The sound** is set in the Layer Instrument menu (**I + layer key**), which shows synth pages for
-a SYNTH layer. Press the layer key again to go to the next page:
+a SYNTH layer. Press the layer key again to go to the next page. On all synth pages the **10 pads
+are a scale keyboard** for the synth, so you can play it while shaping the sound (v1.13; same
+scale and octave as on the NOTE page, where UP/DOWN sets the octave):
 
 ```
  Page 1 OSC:     [1 WAVE]      [2 DETUNE]     [ waveform ]

@@ -2296,6 +2296,9 @@ void Controller::note_audition() {
 }
 
 bool Controller::noteKeysActive() const {
+    // NOTE page of a TONE/SYNTH layer, and (v1.13) the Layer Instrument pages of a SYNTH layer,
+    // so the sound can be played across the keyboard while it is being shaped.
+    if (synthInstPageActive()) return true;
     return notePageActive() && (selectedLayerNum != -1) && tone::playsNotes(layerLibrary[selectedLayerNum].toneMode);
 }
 
@@ -2565,7 +2568,7 @@ void Controller::note_padPressed(uint8_t pad_) {
         return;
     }
 
-    if (!playActive && keyboard.shiftKeyPress && (selectedBeatNum >= 0) && (selectedBeatNum <= bank.lastActiveBeatNum)) {
+    if (!playActive && keyboard.shiftKeyPress && notePageActive() && (selectedBeatNum >= 0) && (selectedBeatNum <= bank.lastActiveBeatNum)) {
         // ADD is a modifier here: no new melody / variation when it is released.
         if (noteMelodyKeyFlag) {
             stopLongKeyTimer();
