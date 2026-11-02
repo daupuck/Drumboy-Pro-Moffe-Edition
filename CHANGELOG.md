@@ -3,6 +3,33 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v1.13
+
+**SYNTH: filter LFO, synth sounds in drumkits and the instrument copy (step 4d)**
+
+- **Filter LFO:** on the FILTER page of a SYNTH layer, **SHIFT + CUTOFF** assigns one of the 10
+  global LFOs to the cutoff (`--` = none), exactly like SHIFT + LEVEL / PITCH on sample layers.
+  The sign box under CUTOFF shows which one. The LFO's rate, shape, phase and depth (LFO menu)
+  apply; depth 100 sweeps the cutoff 3 octaves down and up. It moves the filter continuously,
+  also during long notes, and the step of a square or random LFO is smoothed over ~2 ms so it
+  does not click.
+- **Drumkits** now include each layer's MODE (DRUM / TONE / SYNTH) and its whole SYNTH sound,
+  filter LFO included. Saved as a "SYK1" section after the kit's "EOF": older firmware reads a
+  fixed size and never sees it. Kits saved by older versions have no such section: loading one
+  leaves the layers' MODE and synth sound as they are, so an old drum kit never wipes a synth line.
+- **Instrument copy/paste** (Layer Instrument menu) carries MODE and the SYNTH sound too: a synth
+  layer pastes as the same synth, and the page swaps between sample and synth pages if needed.
+- Projects: the `.rwn` sound section is now "SYN3" (11 values per layer, the 11th is the filter
+  LFO). v1.12 ("SYN2") and v1.11 ("SYN1") projects still load.
+
+Under the hood: `synth::pack/unpack/isDefault` are the single place for the sound's file layout
+(project, drumkit), host-tested for round trips, old shorter records and junk; the voice takes
+the LFO as a per-block cutoff offset (`render(..., cutoffModOctaves)`), clamped and NaN-safe.
+`tone_setMode()` is now the one click-free way to switch a layer's MODE (NOTE page, drumkit load,
+paste). The LFO lookup lives in `ControllerLayer.cpp` because the 64 KB LFO table is a header
+constant and using it from `ControllerAudio.cpp` would put a second copy in flash. App +3.5 KB.
+No new compiler warnings.
+
 ## v1.12
 
 **SYNTH: DETUNE, SUB, NOISE, SLIDE and sample waveforms (steps 4b + 4c)**
@@ -27,6 +54,12 @@ SD-card package is named after it). Rolling back = installing an older package.
   previous note was still sounding; with GATE below 100 it had usually faded out (gate plus
   release) before the next beat, so the next note jumped. The voice now remembers its last pitch
   and GLIDE slides from it, as on TONE layers; only the very first note after a mode change jumps.
+- **Fix: DRIVE was hardly audible** (found in hardware testing). It only clipped before the
+  filter, which smoothed the harmonics away, and the level makeup cancelled the rest. DRIVE now
+  also saturates after the filter (1–30× gain, normalised, fading in over 0–25): from warm to
+  loud and square-ish. DRIVE 0 stays clean; the default (25) is a little warmer than before.
+- **Fix: DETUNE was too subtle** in its first take (25 cents in one direction); now ±40 cents
+  around the note with a random start phase for the second oscillator.
 
 Under the hood: SLIDE shares the beat's note byte (bits 0-5 note, bit 6 slide; host-tested
 packing), so it costs no RAM; snapshots carry it through MOVE, SHIFT ALL and EUCLID MERGE. The

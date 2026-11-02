@@ -22,7 +22,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 const uint8_t kVersionMajor                         = 0x01;
-const uint8_t kVersionMinor                         = 0x0C;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMinor                         = 0x0D;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/
@@ -7384,8 +7384,9 @@ const float kAudioBlocksPerSecond                   = 44100.0f / I2S_BLOCK_SIZE;
 // size stay exactly as before and older firmware simply ignores them.
 const char kNoteFileEnd[]                           = ".rwn";
 const char kNoteFileRef[]                           = "RWNOTES1";
-const char kSynthFileRef[]                          = "SYN2";  // SYNTH sounds after the notes' "EOF"
-const uint8_t kSynthFileParams                      = 10;      // wave, cutoff, resonance, env amount, decay, gate, drive, detune, sub, noise
+const char kSynthFileRef[]                          = "SYN3";  // SYNTH sounds after the notes' "EOF" (SYN1/SYN2 still read)
+const uint8_t kSynthFileParams                      = synth::kPackedSize;  // see synth::pack (11 values per layer)
+const char kDrumkitSynthRef[]                       = "SYK1";  // drumkit tail: MODE + SYNTH sound per layer (v1.13)
 const char kSlideFileRef[]                          = "SLD1";  // beats with SLIDE, after the SYNTH sounds
 
 // layer_playBeat() flags from the sequencer (SLIDE, 303 style):
@@ -7534,6 +7535,9 @@ struct LayerInstCopy {
     bool mute                                       = kInitialLayerMute;
     bool fill                                       = kInitialLayerFill;
     bool style                                      = kInitialLayerStyle;
+
+    uint8_t toneMode                                = tone::kModeDrum;  // v1.13: MODE and the SYNTH sound travel too
+    synth::Params synth;
 };
 
 struct LayerSongCopy {

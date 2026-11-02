@@ -1582,8 +1582,9 @@ SdResult Controller::sd_clearFile(uint8_t fileNum_) {
 //   10 x [mode, root, scale, glide]
 //   10 layers x 5 banks x { count, count x [start interval hi, lo, note] }  (only notes != root)
 //   "EOF"
-//   "SYN2" + 10 x [wave, cutoff, resonance, env amount, decay, gate, drive, detune, sub, noise]
-//          + "EOF"   (v1.12; v1.11 wrote "SYN1" with the first 7 values, still read)
+//   "SYN3" + 10 x [wave, cutoff, resonance, env amount, decay, gate, drive, detune, sub, noise,
+//                  LFO on cutoff] + "EOF"   (v1.13; "SYN2" from v1.12 has the first 10 values,
+//          "SYN1" from v1.11 the first 7; both still read)
 //   "SLD1" + 10 layers x 5 banks x { count, count x [start interval hi, lo] } + "EOF"   (v1.12)
 // Mode 2 (SYNTH) is read as DRUM by v1.09/v1.10, which stop at the first "EOF".
 // Notes are matched to beats by start interval on load (positions are unique within a bank),
@@ -1607,11 +1608,7 @@ SdResult Controller::sd_saveNotes(uint8_t fileNum_) {
     for (uint8_t l = 0; (l < kLayerLibrarySize) && !needed; l++) {
         const Layer& layer = layerLibrary[l];
         if ((layer.toneMode != tone::kModeDrum) || (layer.toneRoot != 0) || (layer.toneScale != tone::kDefaultScale) || (layer.toneGlide != 0)) needed = true;
-        const synth::Params def;
-        const synth::Params& s = layer.synth;
-        if ((s.wave != def.wave) || (s.cutoff != def.cutoff) || (s.resonance != def.resonance) || (s.envAmount != def.envAmount) ||
-            (s.decay != def.decay) || (s.gate != def.gate) || (s.drive != def.drive) || (s.detune != def.detune) ||
-            (s.sub != def.sub) || (s.noise != def.noise)) needed = true;
+        if (!synth::isDefault(layer.synth)) needed = true;
         for (uint8_t b = 0; (b < kBankLibrarySize) && !needed; b++) {
             const Bank& bank = layer.bankLibrary[b];
             for (int16_t k = 0; k <= bank.lastActiveBeatNum; k++) {
@@ -1669,20 +1666,7 @@ SdResult Controller::sd_saveNotes(uint8_t fileNum_) {
     // v1.11+: the SYNTH sound of every layer, after the part v1.09/v1.10 read (they stop at
     // "EOF" and see a SYNTH layer as a DRUM layer with its notes intact).
     uint8_t sound[kLayerLibrarySize * kSynthFileParams];
-    for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
-        const synth::Params& s = layerLibrary[l].synth;
-        uint8_t* d = &sound[l * kSynthFileParams];
-        d[0] = s.wave;
-        d[1] = s.cutoff;
-        d[2] = s.resonance;
-        d[3] = s.envAmount;
-        d[4] = s.decay;
-        d[5] = s.gate;
-        d[6] = s.drive;
-        d[7] = s.detune;
-        d[8] = s.sub;
-        d[9] = s.noise;
-    }
+    for (uint8_t l = 0; l < kLayerLibrarySize; l++) synth::pack(layerLibrary[l].synth, &sound[l * kSynthFileParams]);
     if (sd_write(kSynthFileRef, strlen(kSynthFileRef)) != FR_OK) errorCount += 1;
     if (sd_write(sound, sizeof(sound)) != FR_OK) errorCount += 1;
     if (sd_write("EOF", 3) != FR_OK) errorCount += 1;
@@ -1763,33 +1747,21 @@ void Controller::sd_loadNotes(uint8_t fileNum_) {
             }
         }
 
-        // SYNTH sounds after the notes' "EOF": "SYN2" (v1.12, 10 values) or "SYN1" (v1.11, 7).
-        // Files from v1.09/v1.10 end there: their layers keep the default sound.
+        // SYNTH sounds after the notes' "EOF": "SYN3" (v1.13, 11 values), "SYN2" (v1.12, 10) or
+        // "SYN1" (v1.11, 7). Files from v1.09/v1.10 end there: their layers keep the default sound.
         char eof[3];
         char tag[5] = {};
         uint8_t sound[kLayerLibrarySize * kSynthFileParams];
         uint8_t perLayer = 0;
         if (ok && (sd_read(eof, 3) == FR_OK) && (sd_read(tag, 4) == FR_OK)) {
+            if (strncmp(tag, "SYN3", 4) == 0) perLayer = 11;
             if (strncmp(tag, "SYN2", 4) == 0) perLayer = 10;
             if (strncmp(tag, "SYN1", 4) == 0) perLayer = 7;
         }
+        static_assert(kSynthFileParams == 11, "SYN3 holds 11 values per layer");
         if ((perLayer > 0) && (sd_read(sound, kLayerLibrarySize * perLayer) == FR_OK)) {
             for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
-                const uint8_t* d = &sound[l * perLayer];
-                synth::Params s;
-                s.wave = d[0];
-                s.cutoff = d[1];
-                s.resonance = d[2];
-                s.envAmount = d[3];
-                s.decay = d[4];
-                s.gate = d[5];
-                s.drive = d[6];
-                if (perLayer >= 10) {
-                    s.detune = d[7];
-                    s.sub = d[8];
-                    s.noise = d[9];
-                }
-                layerLibrary[l].synth = synth::sanitize(s);  // a damaged file can never index outside a table
+                layerLibrary[l].synth = synth::unpack(&sound[l * perLayer], perLayer);  // sanitized
             }
 
             // Beats with SLIDE (v1.12+), after the sounds' "EOF".
@@ -2055,6 +2027,9 @@ SdResult Controller::sd_loadDrumkit(uint8_t kitNum_) {
                         layerInst_setStyle(i, (bool)data[offset + 22]);
                     }
 
+                    // MODE + SYNTH sounds (v1.13 kits only; older kits leave them as they are)
+                    sd_loadDrumkitSynth(drumkitName);
+
                     // 5.4 ASSET REFERENCE EXTRACTION
                     // Extract instrument/sample names and activation markers per layer.
                     char instName[kLayerLibrarySize][kFileNameSize + 1];
@@ -2186,6 +2161,28 @@ SdResult Controller::sd_loadDrumkit(uint8_t kitNum_) {
     // Re-enable keyboard interrupts before returning to caller.
     keyboard_enable();
     return result;
+}
+
+void Controller::sd_loadDrumkitSynth(const char* drumkitName_) {
+    /// @brief Reads the "SYK1" tail of a drumkit (MODE + SYNTH sound per layer, v1.13+). A kit
+    /// saved by older firmware has none: its layers keep their current MODE and sound, so loading
+    /// an old drum kit never wipes a synth line. Values are range-checked (sanitized).
+
+    if (f_open(&sd.file, drumkitName_, FA_READ) != FR_OK) return;
+    char tag[sizeof(kDrumkitSynthRef)] = {};
+    uint8_t tail[kLayerLibrarySize * (1 + synth::kPackedSize)];
+    const bool ok = (f_lseek(&sd.file, strlen(kDrumkitRef) + kDrumkitByteSize + 3) == FR_OK) &&  // + "EOF"
+                    (sd_read(tag, strlen(kDrumkitSynthRef)) == FR_OK) && (strncmp(tag, kDrumkitSynthRef, strlen(kDrumkitSynthRef)) == 0) &&
+                    (sd_read(tail, sizeof(tail)) == FR_OK);
+    f_close(&sd.file);
+    if (!ok) return;
+
+    for (uint8_t i = 0; i < kLayerLibrarySize; i++) {
+        const uint8_t* d = &tail[i * (1 + synth::kPackedSize)];
+        if (layerLibrary[i].toneMode == tone::kModeSynth) synth_silence(i);  // the sound changes under it
+        layerLibrary[i].synth = synth::unpack(d + 1, synth::kPackedSize);
+        tone_setMode(i, (d[0] < tone::kModeCount) ? d[0] : tone::kModeDrum);
+    }
 }
 
 SdResult Controller::sd_saveDrumkit(uint8_t kitNum_) {
@@ -2408,7 +2405,18 @@ SdResult Controller::sd_saveDrumkit(uint8_t kitNum_) {
                 // Commit EOF marker only when all previous writes succeeded.
                 if (errorCount == 0) {
                     if (sd_write(eof, strlen(eof)) == FR_OK) {
-                        result = SD_OK;
+                        // 5.4 SYNTH TAIL (v1.13): MODE + SYNTH sound of every layer after the
+                        // "EOF". Older firmware reads a fixed size and never sees it.
+                        uint8_t tail[kLayerLibrarySize * (1 + synth::kPackedSize)];
+                        for (uint8_t i = 0; i < kLayerLibrarySize; i++) {
+                            uint8_t* d = &tail[i * (1 + synth::kPackedSize)];
+                            d[0] = layerLibrary[i].toneMode;
+                            synth::pack(layerLibrary[i].synth, d + 1);
+                        }
+                        if ((sd_write(kDrumkitSynthRef, strlen(kDrumkitSynthRef)) == FR_OK) && (sd_write(tail, sizeof(tail)) == FR_OK) &&
+                            (sd_write(eof, strlen(eof)) == FR_OK)) {
+                            result = SD_OK;
+                        }
                     }
                 }
             }

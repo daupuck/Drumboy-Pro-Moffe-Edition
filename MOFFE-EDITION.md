@@ -5,7 +5,7 @@ Moffe Edition is **unofficial community firmware** for the Drumboy Pro, based on
 is not affiliated with or endorsed by Randomwaves. This page collects everything that is new
 compared with the factory firmware: what each feature does and how to use it on the device.
 
-- **Current version:** v1.12 — download from the
+- **Current version:** v1.13 — download from the
   [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest);
   how to install: [README → Install](README.md#install)
 - **User manual:** published by Randomwaves at [randomwaves.io](https://www.randomwaves.io) (it
@@ -24,9 +24,10 @@ compared with the factory firmware: what each feature does and how to use it on 
 > a Drumboy Pro by the maintainer: song mode (v1.07); the melody layers with notes, GLIDE and
 > TRANSPOSE, and the CPU meter (v1.09: CPU PEAK about 42 % with all 10 layers playing, two of them
 > TONE, and chorus, delay, reverb and both filters on); the pad keyboard and the melody generator
-> (v1.10); SYNTH layers and erasing on the EUCLID/NOTE pages (v1.11). Not yet tested on a device:
-> DETUNE, SUB, NOISE, WAVE = SAMPLE and SLIDE (v1.12) and saving/reloading notes; the other
-> features are in hardware testing. Each release says what has been tested on hardware.
+> (v1.10); SYNTH layers and erasing on the EUCLID/NOTE pages (v1.11); DETUNE, SUB, NOISE, DRIVE,
+> GLIDE, WAVE = SAMPLE and SLIDE (v1.12). Not yet tested on a device: the filter LFO and synth
+> sounds in drumkits and the instrument copy (v1.13). Each release says what has been tested on
+> hardware.
 
 ## Knob numbering
 
@@ -251,12 +252,12 @@ a SYNTH layer:
 | **LEVEL / PITCH** | As for samples, including their LFOs. PITCH 1.00 = the notes as shown on the NOTE page. |
 | **SUB** | Adds a square wave one octave below: more weight for basses. (v1.12) |
 | **NOISE** | Adds white noise: breath, grit, hi-hat-like textures with a short GATE. (v1.12) |
-| **CUTOFF** | How open the filter is when no envelope is applied. |
+| **CUTOFF** | How open the filter is when no envelope is applied. **SHIFT + CUTOFF** picks one of the 10 LFOs to sweep it (the box under CUTOFF shows which, `--` = none); set its speed, shape and depth in the LFO menu. Depth 100 = 3 octaves down and up. (v1.13) |
 | **RESONANCE** | The peak at the cutoff: from smooth to squelchy. |
 | **ENV AMT** | How far each note opens the filter. With a low CUTOFF this gives the "wow" of acid basslines. |
 | **DECAY** | How fast the filter closes again after each note, from 20 ms (a pluck) to 2 s (a slow sweep). |
 | **GATE** | How long each note is held: a share of the time until the next beat. Low = short staccato, 100 = notes run into each other. |
-| **DRIVE** | Saturation in the filter: from clean to gritty. |
+| **DRIVE** | Saturation in and after the filter: 0 = clean, 25–50 warm and thick, 75–100 loud and square-ish. It also makes the sound louder, so lower LEVEL a bit at high values. |
 
 - **Your own waveforms (WAVE = SAMPLE):** put single-cycle WAVs (one period of a waveform,
   typically 600 samples; free collections exist online) in an instrument folder on the card. Load
@@ -273,9 +274,15 @@ a SYNTH layer:
 - **A first acid bass:** EUCLID E(7,16) on a layer → NOTE page: MODE SYNTH, ROOT A, SCALE MINOR,
   hold ADD → Layer Instrument: WAVE SAW, CUTOFF 20, RESONANCE 70, ENV AMT 70, DECAY 25, GATE 40.
   Then turn CUTOFF and RESONANCE while it plays.
+- **A filter wobble:** in the LFO menu, turn LFO 1 on (SINE, rate 1/4); on the synth layer's
+  FILTER page hold **SHIFT** and turn **CUTOFF** until it shows ` 01`. CUTOFF sets the centre,
+  the LFO's DEPTH how far it swings. (v1.13)
 - **Saved with the project** (in the `.rwn` file). Older Moffe versions open the project with the
   layer as a DRUM layer and its notes intact. CLEAR (hold) in the Layer Instrument menu resets the
-  sound; drumkits and the instrument copy don't include it yet.
+  sound.
+- **Drumkits and the instrument copy** (v1.13) include MODE and the whole synth sound, so a saved
+  kit brings its synth basses back and a pasted synth layer is the same synth. Kits saved before
+  v1.13 don't change the layers' MODE or synth sound when loaded.
 - **CPU:** about 1–2 % per playing synth layer; check the IO menu's CPU meter.
 
 ---
@@ -325,13 +332,13 @@ a SYNTH layer:
 | v1.09 | Melody layers (TONE) on the NOTE page; audio CPU meter in the IO menu |
 | v1.10 | Pads as a scale keyboard (step entry, live recording); melody generator and variations |
 | v1.11 | SYNTH layers: a built-in synth voice with filter, envelope, gate and accent |
-| v1.12 | SYNTH: DETUNE, SUB, NOISE, WAVE = SAMPLE (single-cycle WAVs); SLIDE per beat |
+| v1.12 | SYNTH: DETUNE, SUB, NOISE, WAVE = SAMPLE (single-cycle WAVs); SLIDE per beat; stronger DRIVE |
+| v1.13 | SYNTH: filter LFO (SHIFT + CUTOFF); synth sounds in drumkits and the instrument copy |
 
 ## Coming next
 
 Plans, not promises; each step is released only after it has been tried on a device.
 
-- **More SYNTH ideas:** a filter LFO, synth sounds in drumkits and the instrument copy.
 - **Song transpose and harmony:** each song-mode step can change key, and a layer can follow
   another a third or fifth higher.
 
@@ -341,10 +348,10 @@ The step-by-step guide (which file to download, where to put it, what the screen
 to do if something goes wrong) is in the **[README → Install](README.md#install)**. In short:
 
 1. Back up the whole SD card.
-2. Download `Drumboy_Pro_Fw_Moffe_01_12.bin` from the
+2. Download `Drumboy_Pro_Fw_Moffe_01_13.bin` from the
    [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest).
 3. Copy it, with its exact name, to the root of the card as the only `Drumboy_Pro_Fw…bin` there.
-4. Power on: *UPDATING FIRMWARE V1.12* → *FIRMWARE UPDATED* → sunglasses.
+4. Power on: *UPDATING FIRMWARE V1.13* → *FIRMWARE UPDATED* → sunglasses.
 
 **Roll back:** install `Drumboy_Pro_Fw_01_01.bin` (factory, in the release Assets and in
 `02 Software/Firmware/`) the same way. The bootloader accepts any version, older or newer.

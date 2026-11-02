@@ -3875,7 +3875,8 @@ void Controller::lcd_drawSynthPage(uint8_t layerNum_) {
         lcd.drawText(kHeaderSynthGate, kMenuHeaderTextSize, kMenuHeaderX[6], kMenuHeaderY[6]);
         lcd.drawText(kHeaderSynthDrive, kMenuHeaderTextSize, kMenuHeaderX[7], kMenuHeaderY[7]);
         lcd_setMenuSignState(CYAN);
-        for (uint8_t i = 0; i < 6; i++) lcd.drawText("  %", kMenuSignTextSize, kMenuSignBoxX[slots[i]], kMenuSignBoxY[slots[i]]);
+        for (uint8_t i = 1; i < 6; i++) lcd.drawText("  %", kMenuSignTextSize, kMenuSignBoxX[slots[i]], kMenuSignBoxY[slots[i]]);
+        // slot 0 (CUTOFF) shows its LFO instead, drawn with the value below
     }
 
     // 4. VALUES + DISPLAY
@@ -3924,6 +3925,11 @@ void Controller::lcd_drawSynthData(uint8_t slot_) {
             default: return;
         }
         snprintf(text, sizeof(text), "%10.10s", kNumberDataLibrary[value].nameLongR);
+        if (slot_ == 0) {
+            // CUTOFF's sign box shows its LFO (SHIFT + CUTOFF), like LEVEL and PITCH do.
+            lcd_setMenuSignState(CYAN);
+            lcd.drawText(kLfoNameDataLibrary[p.lfoCutoff].nameShortR, kMenuSignTextSize, kMenuSignBoxX[0], kMenuSignBoxY[0]);
+        }
     }
     lcd_setMenuDataState(WHITE);
     lcd.drawText(text, kMenuDataTextSize, kMenuDataX[slot_], kMenuDataY[slot_]);

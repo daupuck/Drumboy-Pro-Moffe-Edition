@@ -583,7 +583,9 @@ void Controller::processAudioLayer() {
             }
             aBD.mixerInMode = layerLibrary[i].mixerInMode;  // routing (EQ / filter / effect / reverb) as for samples
             if (voice.active) {
-                const uint8_t events = synth::render(voice, layerLibrary[i].synth, audioLayer[i], I2S_BLOCK_SIZE, kAudioSampleRate);
+                // Filter LFO: one of the 10 global LFOs moves CUTOFF (SHIFT + CUTOFF assigns it).
+                const float cutoffMod = synth_cutoffMod(i);
+                const uint8_t events = synth::render(voice, layerLibrary[i].synth, audioLayer[i], I2S_BLOCK_SIZE, kAudioSampleRate, cutoffMod);
                 if (events & synth::kGateEnded) io.midi.txTriggerNoteOff[i] = true;
                 if (events & synth::kVoiceEnded) {
                     lD.beatStartFlag = false;

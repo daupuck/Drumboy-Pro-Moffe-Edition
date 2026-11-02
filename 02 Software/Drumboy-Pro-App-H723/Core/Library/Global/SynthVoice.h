@@ -39,9 +39,23 @@ struct Params {
     uint8_t detune = 0;  // 0 = one oscillator; 1..100 = two, spread up to +-40 cents around the note
     uint8_t sub = 0;     // level of a square one octave down
     uint8_t noise = 0;   // level of white noise
+    uint8_t lfoCutoff = 0;  // 0 = none, 1..10 = which global LFO moves CUTOFF (the voice only sees
+                            // the result, as render()'s cutoffModOctaves)
 };
 
 constexpr uint8_t kMaxParam = 100;
+constexpr uint8_t kMaxLfoAssign = 10;  // the device has 10 global LFOs
+// An LFO at depth 100 moves the cutoff this many octaves down and up (6 octaves of sweep).
+constexpr float kLfoCutoffOctaves = 3.0f;
+
+// Cutoff offset in octaves for a global LFO value (0..1, 0.5 = centre) at depth 0..1.
+inline float lfoCutoffOctaves(float lfoValue, float depth) {
+    if (!(lfoValue >= 0.0f)) lfoValue = 0.0f;  // also catches NaN
+    if (lfoValue > 1.0f) lfoValue = 1.0f;
+    if (!(depth >= 0.0f)) depth = 0.0f;
+    if (depth > 1.0f) depth = 1.0f;
+    return (lfoValue - 0.5f) * 2.0f * depth * kLfoCutoffOctaves;
+}
 // DETUNE 100 = the two oscillators 40 cents below and above the note (80 cents apart): about
 // 5 Hz of beating on a 110 Hz bass. (v1.12's first take was 25 cents in one direction, which was
 // too subtle to hear on short bass notes.)
@@ -54,7 +68,47 @@ inline Params sanitize(const Params& p) {
     for (uint8_t* f : fields) {
         if (*f > kMaxParam) *f = kMaxParam;
     }
+    if (s.lfoCutoff > kMaxLfoAssign) s.lfoCutoff = 0;
     return s;
+}
+
+// File layout of one layer's sound (project .rwn "SYN3" and drumkit "SYK1" sections):
+// wave, cutoff, resonance, env amount, decay, gate, drive, detune, sub, noise, LFO on cutoff.
+// Older files hold fewer values ("SYN1" 7, "SYN2" 10); the rest keep their defaults.
+constexpr uint8_t kPackedSize = 11;
+
+inline void pack(const Params& p, uint8_t* d) {
+    d[0] = p.wave;
+    d[1] = p.cutoff;
+    d[2] = p.resonance;
+    d[3] = p.envAmount;
+    d[4] = p.decay;
+    d[5] = p.gate;
+    d[6] = p.drive;
+    d[7] = p.detune;
+    d[8] = p.sub;
+    d[9] = p.noise;
+    d[10] = p.lfoCutoff;
+}
+
+// Reads `count` values (7..11); never trusts them (sanitized: a damaged file can't index a table).
+inline Params unpack(const uint8_t* d, uint8_t count) {
+    Params p;
+    uint8_t* fields[kPackedSize] = {&p.wave, &p.cutoff, &p.resonance, &p.envAmount, &p.decay, &p.gate,
+                                    &p.drive, &p.detune, &p.sub, &p.noise, &p.lfoCutoff};
+    for (uint8_t i = 0; (i < count) && (i < kPackedSize); i++) *fields[i] = d[i];
+    return sanitize(p);
+}
+
+inline bool isDefault(const Params& p) {
+    const Params def;
+    uint8_t a[kPackedSize], b[kPackedSize];
+    pack(p, a);
+    pack(def, b);
+    for (uint8_t i = 0; i < kPackedSize; i++) {
+        if (a[i] != b[i]) return false;
+    }
+    return true;
 }
 
 // A note as prepared by the sequencer (or a pad) for the audio interrupt.
@@ -83,6 +137,7 @@ struct Voice {
     uint32_t gateLeft = 0;  // samples until release
     float amp = 0.0f;       // amp envelope 0..1
     float filterEnv = 0.0f; // filter envelope 0..1
+    float cutoffMod = 0.0f; // LFO offset in octaves, smoothed per block (no zipper on square LFOs)
     float s1 = 0.0f, s2 = 0.0f, s3 = 0.0f, s4 = 0.0f;  // filter stages
     const float* table = nullptr;
     uint32_t tableLength = 0;
@@ -215,7 +270,8 @@ inline float decayBlockCoef(uint8_t decay, float blocksPerSecond) {
 }
 
 // Renders `count` samples into out (overwriting). Returns kGateEnded / kVoiceEnded flags.
-inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t count, float sampleRate) {
+// cutoffModOctaves: CUTOFF offset from the layer's LFO (see lfoCutoffOctaves), 0 = none.
+inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t count, float sampleRate, float cutoffModOctaves = 0.0f) {
     uint8_t events = 0;
     if (!v.active) {
         for (uint16_t i = 0; i < count; i++) out[i] = 0.0f;
@@ -232,8 +288,11 @@ inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t co
             v.glideCoef = 0.0f;
         }
     }
+    if (!(cutoffModOctaves >= -kLfoCutoffOctaves)) cutoffModOctaves = -kLfoCutoffOctaves;  // also NaN
+    if (cutoffModOctaves > kLfoCutoffOctaves) cutoffModOctaves = kLfoCutoffOctaves;
+    v.cutoffMod += (cutoffModOctaves - v.cutoffMod) * 0.5f;
     const float envOctaves = (static_cast<float>(p.envAmount) / 100.0f) * 6.0f * v.filterEnv * (0.4f + (0.6f * v.velocity));
-    float fc = cutoffHz(p.cutoff, envOctaves);
+    float fc = cutoffHz(p.cutoff, envOctaves + v.cutoffMod);
     const float maxFc = sampleRate * 0.42f;
     if (fc > maxFc) fc = maxFc;
     const float w = 6.2831853f * fc / sampleRate;
@@ -308,7 +367,9 @@ inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t co
         const float phase = v.phase, phase2 = v.phase2, phaseSub = v.phaseSub;
         const float pitch = v.incrementTarget;  // where the note ended up (after any glide)
         const uint32_t noiseState = v.noiseState;
+        const float cutoffMod = v.cutoffMod;
         stop(v);
+        v.cutoffMod = cutoffMod;  // the LFO keeps its place for the next note
         v.phase = phase;  // oscillators keep running in phase: no click on the next note
         v.phase2 = phase2;
         v.phaseSub = phaseSub;

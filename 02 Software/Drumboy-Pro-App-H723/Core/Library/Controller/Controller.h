@@ -1128,6 +1128,7 @@ class Controller {
     void synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_, uint8_t beatFlags_);
     void note_setSlide(bool slide_);             // NOTE page: ADD + UP / DOWN on the selected beat
     void synth_change(EncoderFunc function_, bool up_);
+    float synth_cutoffMod(uint8_t layerNum_) const;  // filter LFO, octaves (audio ISR, per block)
     void synth_silence(uint8_t layerNum_);       // stops the voice (mode change, reset)
     void lcd_drawSynthPage(uint8_t layerNum_);
     void lcd_drawSynthData(uint8_t slot_);
@@ -1135,6 +1136,8 @@ class Controller {
     void tone_setGlide(uint8_t layerNum_, uint8_t glide_);
     void tone_resetLayer(uint8_t layerNum_);
     void tone_resetAll();
+    void tone_setMode(uint8_t layerNum_, uint8_t mode_);  // DRUM / TONE / SYNTH, click-free
+    void sd_loadDrumkitSynth(const char* drumkitName_);   // optional "SYK1" tail of a drumkit
     void lcd_drawLayerSongNoteMenu(uint8_t layerNum_);
     void lcd_drawNoteData(uint8_t slot_);
     void lcd_drawNoteStrip();

@@ -425,7 +425,92 @@ static void testDriveIsAudible() {
     }
 }
 
+static void testCutoffLfo() {
+    // Mapping: centre = 0, ends = +-3 octaves at full depth, scaled by depth, clamped, NaN-safe.
+    CHECK(std::fabs(lfoCutoffOctaves(0.5f, 1.0f)) < 1e-6f, "centre is no offset");
+    CHECK(std::fabs(lfoCutoffOctaves(1.0f, 1.0f) - kLfoCutoffOctaves) < 1e-6f, "top = +3 octaves");
+    CHECK(std::fabs(lfoCutoffOctaves(0.0f, 1.0f) + kLfoCutoffOctaves) < 1e-6f, "bottom = -3 octaves");
+    CHECK(std::fabs(lfoCutoffOctaves(1.0f, 0.5f) - (kLfoCutoffOctaves * 0.5f)) < 1e-6f, "depth scales");
+    CHECK(lfoCutoffOctaves(1.0f, 0.0f) == 0.0f, "depth 0 = off");
+    CHECK(std::fabs(lfoCutoffOctaves(7.0f, 9.0f)) <= kLfoCutoffOctaves, "clamped");
+    CHECK(lfoCutoffOctaves(NAN, NAN) == -0.0f || std::fabs(lfoCutoffOctaves(NAN, NAN)) <= kLfoCutoffOctaves, "NaN safe");
+
+    // The voice gets brighter with the LFO up and darker with it down (high-frequency energy:
+    // first difference of the output), and garbage modulation is clamped.
+    auto brightness = [](float mod) {
+        Params p;
+        p.cutoff = 20;  // ~110 Hz: the +-3 octaves sweep 14 Hz .. 900 Hz
+        p.envAmount = 0;
+        p.drive = 0;
+        Voice v;
+        start(v, note(110.0f, 44100));
+        std::vector<float> out;
+        float block[kBlock];
+        for (int b = 0; b < 400; b++) {
+            render(v, p, block, kBlock, kFs, mod);
+            for (uint16_t i = 0; i < kBlock; i++) {
+                CHECK(std::isfinite(block[i]), "finite with mod %f", mod);
+                out.push_back(block[i]);
+            }
+        }
+        double e = 0.0;
+        for (size_t i = out.size() / 2; i < out.size(); i++) e += std::fabs(out[i] - out[i - 1]);
+        return e;
+    };
+    const double down = brightness(-3.0f), mid = brightness(0.0f), up = brightness(3.0f);
+    CHECK(up > mid * 1.5 && mid > down * 1.5, "LFO opens/closes the filter: %f %f %f", down, mid, up);
+    CHECK(std::isfinite(brightness(1e30f)) && std::isfinite(brightness(-1e30f)) && std::isfinite(brightness(NAN)), "extreme mod is clamped");
+
+    // Smoothing: a jump in the LFO (square LFO) reaches the target within a few blocks.
+    Params p;
+    Voice v;
+    start(v, note(110.0f, 44100));
+    float block[kBlock];
+    for (int b = 0; b < 12; b++) render(v, p, block, kBlock, kFs, 2.0f);
+    CHECK(std::fabs(v.cutoffMod - 2.0f) < 0.01f, "smoothed mod settles: %f", v.cutoffMod);
+}
+
+static void testPackUnpack() {
+    // Round trip of every field, old shorter records, sanitizing, isDefault.
+    Params p;
+    p.wave = kSine;
+    p.cutoff = 1;
+    p.resonance = 2;
+    p.envAmount = 3;
+    p.decay = 4;
+    p.gate = 5;
+    p.drive = 6;
+    p.detune = 7;
+    p.sub = 8;
+    p.noise = 9;
+    p.lfoCutoff = 10;
+    uint8_t d[kPackedSize];
+    pack(p, d);
+    const Params q = unpack(d, kPackedSize);
+    uint8_t e[kPackedSize];
+    pack(q, e);
+    bool same = true;
+    for (uint8_t i = 0; i < kPackedSize; i++) same = same && (d[i] == e[i]);
+    CHECK(same, "pack/unpack round trip");
+    CHECK(!isDefault(p) && isDefault(Params{}), "isDefault");
+
+    const Params v12 = unpack(d, 10);  // "SYN2": no LFO byte -> none
+    CHECK(v12.noise == 9 && v12.lfoCutoff == 0, "SYN2 record");
+    const Params v11 = unpack(d, 7);   // "SYN1": DETUNE/SUB/NOISE keep defaults
+    CHECK(v11.drive == 6 && v11.detune == 0 && v11.sub == 0 && v11.noise == 0, "SYN1 record");
+
+    uint8_t junk[kPackedSize];
+    for (uint8_t i = 0; i < kPackedSize; i++) junk[i] = 0xEE;
+    const Params j = unpack(junk, kPackedSize);
+    CHECK(j.wave == kSaw && j.cutoff == kMaxParam && j.lfoCutoff == 0, "junk is sanitized");
+    Params lfoOnly;
+    lfoOnly.lfoCutoff = 3;
+    CHECK(!isDefault(lfoOnly), "an LFO alone makes the sound non-default (file is saved)");
+}
+
 int main() {
+    testCutoffLfo();
+    testPackUnpack();
     testDriveIsAudible();
     testDetuneIsAudible();
     testDetuneSubNoise();
