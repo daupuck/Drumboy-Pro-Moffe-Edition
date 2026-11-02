@@ -34,9 +34,9 @@ constexpr uint8_t kSceneCount = 13;
 const char* const kSceneNames[kSceneCount] = {"SHOWTIME", "ORBIT", "PHASE", "SPECTRUM", "SPECTRO", "TUNNEL", "METERS",
                                               "RAIN", "FIREWORKS", "MANDALA", "DISCO", "RIDGES", "LIFE"};
 constexpr uint8_t kThemeCount = 7;
-const char* const kThemeNames[kThemeCount] = {"BUMBLEBEE", "SYNTHWAVE", "ACID", "OCEAN", "FIRE", "ICE", "RAINBOW"};
-const uint8_t kThemeBase[kThemeCount] = {30, 213, 60, 110, 0, 140, 0};
-const uint8_t kThemeSpread[kThemeCount] = {22, 100, 50, 70, 45, 50, 255};
+const char* const kThemeNames[kThemeCount] = {"GOLD RUSH", "SYNTHWAVE", "ACID", "OCEAN", "FIRE", "ICE", "RAINBOW"};
+const uint8_t kThemeBase[kThemeCount] = {20, 213, 60, 110, 0, 140, 0};      // GOLD RUSH: orange to gold
+const uint8_t kThemeSpread[kThemeCount] = {26, 100, 50, 70, 45, 50, 255};
 
 constexpr uint16_t kScopeCols = 432;    // 2 px each, x 48..911
 constexpr uint16_t kPhasePoints = 360;

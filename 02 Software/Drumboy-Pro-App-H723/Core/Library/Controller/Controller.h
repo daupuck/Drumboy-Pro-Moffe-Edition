@@ -602,8 +602,7 @@ class Controller {
     void lcd_clearInitSdAlert();
     // Song functions
     void lcd_drawEncoderBankTab();
-    void lcd_drawLabelChip(const char* text_, uint16_t centerX_, uint16_t y_);
-    void lcd_drawHazardStripes(uint16_t y_);
+    void lcd_drawFooterLabel(const char* text_, uint16_t centerX_, uint16_t y_);
     void lcd_drawSongBankTab(uint8_t bankNum_, bool mode_);
     void lcd_drawSongBankShift();
     // Menu functions

@@ -416,86 +416,64 @@ void Controller::lcd_drawEdition(bool animate_) {
         lcd_drawEditionShades(0);
     }
 
-    // 2. NAME: black letters on a yellow block between two hazard-stripe bands (v1.14
-    // "Bumblebee"), the letters one by one when animated.
-    lcd_drawHazardStripes(kEditionStripeTopY);
-    lcd_drawHazardStripes(kEditionStripeBottomY);
+    // 2. NAME: large gold letters with an orange drop shadow (v1.14 "Gold Rush"), one by one
+    // when animated. drawTextScaled leaves the background alone, so the shadow goes first.
     lcd.setFont(FONT_14x18);
     lcd.setSpacing(kEditionNameSpacing);
-    const uint16_t nameLength = strlen(kEditionName);
-    {
-        const uint16_t width = lcd.getTextScaledWidth(nameLength, kEditionNameScale);
-        lcd.setForeColor(kEditionAccentColor);
-        lcd.fillRect(kEditionCenterX - (width / 2) - kEditionBlockPad, kEditionNameY - kEditionBlockPad,
-                     width + (2 * kEditionBlockPad), (kFontHeight_14x18 * kEditionNameScale) + (2 * kEditionBlockPad));
-    }
-    lcd.setForeColor(BLACK);
     lcd.setBackColor(BLACK);
+    const uint16_t nameLength = strlen(kEditionName);
     if (animate_) {
         lcd.setAlignment(LEFT);
         const uint16_t width = lcd.getTextScaledWidth(nameLength, kEditionNameScale);
         const uint16_t cell = (kFontWidth_14x18 + kEditionNameSpacing) * kEditionNameScale;
         const uint16_t xStart = kEditionCenterX - (width / 2);
         for (uint16_t i = 0; i < nameLength; i++) {
+            lcd.setForeColor(kEditionShadowColor);
+            lcd.drawTextScaled(&kEditionName[i], 1, xStart + (i * cell) + kEditionShadowOffset, kEditionNameY + kEditionShadowOffset, kEditionNameScale);
+            lcd.setForeColor(kEditionAccentColor);
             lcd.drawTextScaled(&kEditionName[i], 1, xStart + (i * cell), kEditionNameY, kEditionNameScale);
             HAL_Delay(kEditionLetterMs);
         }
     } else {
         lcd.setAlignment(CENTER);
+        lcd.setForeColor(kEditionShadowColor);
+        lcd.drawTextScaled(kEditionName, nameLength, kEditionCenterX + kEditionShadowOffset, kEditionNameY + kEditionShadowOffset, kEditionNameScale);
+        lcd.setForeColor(kEditionAccentColor);
         lcd.drawTextScaled(kEditionName, nameLength, kEditionCenterX, kEditionNameY, kEditionNameScale);
     }
 
-    // 3. LABEL: small, wide-spaced, fading in through three grey levels.
+    // 3. LABEL: small, wide-spaced, fading in to warm grey, then a gold line under it.
     lcd.setFont(FONT_14x18);
     lcd.setSpacing(kEditionLabelSpacing);
     lcd.setAlignment(CENTER);
     const uint16_t labelLength = strlen(kEditionLabel);
     if (animate_) {
-        const RGB16Color steps[3] = {GRAY_50, GRAY_75, WHITE};
+        const RGB16Color steps[3] = {GRAY_25, GRAY_50, kEditionLabelColor};
         for (uint8_t s = 0; s < 3; s++) {
             lcd.setForeColor(steps[s]);
             lcd.drawText(kEditionLabel, labelLength, kEditionCenterX, kEditionLabelY);
             HAL_Delay(kEditionLabelFadeMs);
         }
     } else {
-        lcd.setForeColor(WHITE);
+        lcd.setForeColor(kEditionLabelColor);
         lcd.drawText(kEditionLabel, labelLength, kEditionCenterX, kEditionLabelY);
     }
+    lcd.setForeColor(kEditionAccentColor);
+    lcd.fillRect(kEditionCenterX - (kEditionUnderlineWidth / 2), kEditionUnderlineY, kEditionUnderlineWidth, 3);
 
     // 4. RESTORE DEFAULT FONT STATE (setFont resets spacing).
     lcd.setFont(FONT_07x09);
     lcd.setAlignment(LEFT);
 }
 
-void Controller::lcd_drawHazardStripes(uint16_t y_) {
-    /// @brief A full-width band of diagonal yellow/black hazard stripes (boot screen, v1.14).
-    /// Drawn row by row as short horizontal runs, so it costs a few hundred fills.
-
-    lcd.setForeColor(kEditionAccentColor);
-    for (uint16_t row = 0; row < kEditionStripeHeight; row++) {
-        const int16_t shift = static_cast<int16_t>(kEditionStripeHeight - row);  // leaning right: "/"
-        for (int16_t x = static_cast<int16_t>(shift - (2 * kEditionStripeWidth)); x < static_cast<int16_t>(lcd.getWidth()); x += 2 * kEditionStripeWidth) {
-            int16_t x0 = x;
-            int16_t w = kEditionStripeWidth;
-            if (x0 < 0) {
-                w = static_cast<int16_t>(w + x0);
-                x0 = 0;
-            }
-            if (w > 0) lcd.drawHLine(static_cast<uint16_t>(x0), static_cast<uint16_t>(y_ + row), w);
-        }
-    }
-}
-
 void Controller::lcd_clearEdition() {
-    /// @brief Clears the edition name block, label and stripes (the shades go with the logo
-    /// fade-out).
+    /// @brief Clears the edition name (with its shadow), the label and its line (the shades go
+    /// with the logo fade-out).
 
     lcd.setBackColor(BLACK);
-    const uint16_t top = kEditionNameY - kEditionBlockPad;
-    const uint16_t bottom = kEditionLabelY + kFontHeight_14x18;
+    const uint16_t top = kEditionNameY;
+    const uint16_t bottom = kEditionUnderlineY + 3;
     lcd.clearRect(kEditionCenterX - 240, top, 480, bottom - top);
-    lcd.clearRect(0, kEditionStripeTopY, lcd.getWidth(), kEditionStripeHeight);
-    lcd.clearRect(0, kEditionStripeBottomY, lcd.getWidth(), kEditionStripeHeight);
 }
 
 void Controller::lcd_clearLogo(bool animate_) {
@@ -592,7 +570,7 @@ void Controller::lcd_drawPage(bool animate_) {
     }
 
     // 6. FOOTER LABELS: the panel image has them in the factory magenta; the Moffe Edition
-    // draws its own black-on-yellow chips over them.
+    // draws its own orange labels over them.
     lcd_drawEncoderBankTab();
     lcd_drawSongBankTab(activeSongBank, false);
 }
@@ -968,20 +946,15 @@ void Controller::lcd_clearInitSdAlert() {
 
 /* Lcd Bank Functions --------------------------------------------------------*/
 
-void Controller::lcd_drawLabelChip(const char* text_, uint16_t centerX_, uint16_t y_) {
-    /// @brief A footer label as a black-on-yellow chip (v1.14 Moffe Edition "Bumblebee" look).
-    /// Centred at centerX_, text top at y_ (FONT_07x09). Leaves the background colour black.
+void Controller::lcd_drawFooterLabel(const char* text_, uint16_t centerX_, uint16_t y_) {
+    /// @brief A footer label (KNOB, SONG) in the Moffe Edition orange (v1.14 "Gold Rush").
+    /// Drawn over the factory magenta label in the SD card's panel image.
 
-    const uint16_t length = static_cast<uint16_t>(strlen(text_));
-    const uint16_t width = static_cast<uint16_t>((length * (kFontWidth_07x09 + 1)) + 8);
-    lcd.setForeColor(kAccentColor);
-    lcd.fillRect(static_cast<uint16_t>(centerX_ - (width / 2)), static_cast<uint16_t>(y_ - 2), width, kFontHeight_07x09 + 4);
     lcd.setAlignment(CENTER);
     lcd.setFont(FONT_07x09);
-    lcd.setBackColor(kAccentColor);
-    lcd.setForeColor(BLACK);
-    lcd.drawText(text_, length, centerX_, y_);
     lcd.setBackColor(BLACK);
+    lcd.setForeColor(kAccent2Color);
+    lcd.drawText(text_, static_cast<uint16_t>(strlen(text_)), centerX_, y_);
 }
 
 void Controller::lcd_drawEncoderBankTab() {
@@ -993,14 +966,14 @@ void Controller::lcd_drawEncoderBankTab() {
     lcd.setFont(FONT_07x09);
 
     // 2. LABEL DRAW
-    // Draw static KNOB footer label: a black-on-yellow chip (Moffe Edition palette).
-    lcd_drawLabelChip("KNOB", 76, 463);
+    // Draw static KNOB footer label: in the Moffe Edition orange.
+    lcd_drawFooterLabel("KNOB", 76, 463);
 
     // 3. BANK VALUE DRAW
     // Draw two-digit active encoder bank index.
     lcd.setForeColor(WHITE);
-    char textData[3];
-    sprintf(textData, "%02d", activeEncoderBank + 1);
+    char textData[4];
+    snprintf(textData, sizeof(textData), "%02d", (activeEncoderBank + 1) % 100);
     lcd.drawText(textData, 2, 76, 489);
 }
 
@@ -1013,8 +986,8 @@ void Controller::lcd_drawSongBankTab(uint8_t bank_, bool mode_) {
     lcd.setFont(FONT_07x09);
 
     // 2. LABEL DRAW
-    // Draw static SONG footer label: a black-on-yellow chip (Moffe Edition palette).
-    lcd_drawLabelChip("SONG", 886, 463);
+    // Draw static SONG footer label: in the Moffe Edition orange.
+    lcd_drawFooterLabel("SONG", 886, 463);
 
     // 3. HIGHLIGHT STATE APPLY
     // Select highlighted color when requested (a bank change waiting for the loop end).
@@ -1022,8 +995,8 @@ void Controller::lcd_drawSongBankTab(uint8_t bank_, bool mode_) {
 
     // 4. BANK VALUE DRAW
     // Draw two-digit selected bank index.
-    char textData[3];
-    sprintf(textData, "%02d", bank_ + 1);
+    char textData[4];
+    snprintf(textData, sizeof(textData), "%02d", (bank_ + 1) % 100);
     lcd.drawText(textData, 2, 886, 489);
 }
 
@@ -1676,7 +1649,7 @@ void Controller::lcd_drawLayerBox(uint8_t layerNum_) {
 
     // 1. COLOR SELECT
     // Use selected or default row color.
-    (layerNum_ == selectedLayerNum) ? lcd.setForeColor(kAccentColor) : lcd.setForeColor(GRAY_75);
+    (layerNum_ == selectedLayerNum) ? lcd.setForeColor(kLayerSelectedColor) : lcd.setForeColor(GRAY_75);
 
     // 2. BORDER DRAW
     // Draw top and bottom horizontal border lines.

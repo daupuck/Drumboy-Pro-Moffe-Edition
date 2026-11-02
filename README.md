@@ -23,7 +23,7 @@ rolled back to the factory firmware the same way.
 > SD card first** and keep the factory firmware for rolling back. Modifying the firmware may affect
 > your warranty with Randomwaves.
 
-## 🐝 New in v1.14: a synth, a light show and a new look
+## ✨ New in v1.14: a synth, a light show and a new look
 
 The biggest Moffe Edition update yet. Highlights:
 
@@ -40,8 +40,8 @@ The biggest Moffe Edition update yet. Highlights:
 - 🌈 **VISUALS:** 13 full-screen visuals that dance to your music. Fireworks for every hit, a Game of
   Life seeded by your drums, digital rain, a kaleidoscope, a disco floor, "Unknown Pleasures" ridges,
   spectrum, oscilloscope, VU needles and more. Press **HOME** on the home screen.
-- 🖤💛 **The Moffe Edition look:** bold black and bumblebee yellow throughout, and a boot screen with
-  hazard stripes. Works with any SD card.
+- 🏆 **The Moffe Edition look:** a warm gold-and-orange "Gold Rush" style throughout, and a boot
+  screen with a golden MOFFE. Works with any SD card.
 
 → **[What's new, explained](MOFFE-EDITION.md#whats-new-in-v114--the-big-one)** ·
 **[Full user guide](MOFFE-EDITION.md)** · **[Changelog](CHANGELOG.md)**
@@ -63,7 +63,7 @@ The biggest Moffe Edition update yet. Highlights:
 | 🎧 | [**Sample preview**](MOFFE-EDITION.md#3-sample-preview--layer-instrument-menu-v105) | Hear a sample *before* you load it. Your ears will thank you. |
 | 📊 | [**CPU meter**](MOFFE-EDITION.md#audio-cpu-meter-v109) | See how busy the audio engine is (IO menu), so you know how much room is left. |
 | 🛟 | [**Safer saving and fixes**](MOFFE-EDITION.md#improvements-and-fixes) | A full card or a failed save no longer leaves half-written files, plus a stack of bug fixes. |
-| 🐝 | [**The look and the boot screen**](MOFFE-EDITION.md#9-the-moffe-edition-look-v114) | Black and bumblebee yellow, sunglasses and hazard stripes. Purely cosmetic. Deeply important. |
+| 🏆 | [**The look and the boot screen**](MOFFE-EDITION.md#9-the-moffe-edition-look-v114) | Gold and orange, sunglasses with a golden rim. Purely cosmetic. Deeply important. |
 
 ## Install
 
@@ -134,8 +134,8 @@ Put the card back in the Drumboy Pro and switch it on. You should see:
 
 1. **UPDATING FIRMWARE** with the version (e.g. **V1.14**) and a line that fills up.
 2. **FIRMWARE UPDATED** for a few seconds.
-3. The normal start-up, now with **sunglasses, hazard stripes and MOFFE EDITION** on the logo. If
-   you see the sunglasses, it worked. The sunglasses don't lie.
+3. The normal start-up, now with **sunglasses and a golden MOFFE EDITION** on the logo. If you see
+   the sunglasses, it worked. The sunglasses don't lie.
 
 The bootloader then moves the package to `System/Firmware/` on the card, so the next start-ups are
 normal and quick. That's it, go make some noise.
