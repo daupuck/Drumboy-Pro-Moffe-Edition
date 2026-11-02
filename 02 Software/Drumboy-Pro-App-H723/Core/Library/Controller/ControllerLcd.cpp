@@ -416,7 +416,7 @@ void Controller::lcd_drawEdition(bool animate_) {
         lcd_drawEditionShades(0);
     }
 
-    // 2. NAME: large gold letters with a deep violet drop shadow (v1.14 "Gold Rush"), one by one
+    // 2. NAME: large gold letters with a deep ruby drop shadow (v1.14 "Gold Rush"), one by one
     // when animated. drawTextScaled leaves the background alone, so the shadow goes first.
     lcd.setFont(FONT_14x18);
     lcd.setSpacing(kEditionNameSpacing);
@@ -442,7 +442,7 @@ void Controller::lcd_drawEdition(bool animate_) {
         lcd.drawTextScaled(kEditionName, nameLength, kEditionCenterX, kEditionNameY, kEditionNameScale);
     }
 
-    // 3. LABEL: small, wide-spaced, fading in to violet, then a gold line under it.
+    // 3. LABEL: small, wide-spaced, fading in to ruby, then a gold line under it.
     lcd.setFont(FONT_14x18);
     lcd.setSpacing(kEditionLabelSpacing);
     lcd.setAlignment(CENTER);
@@ -570,7 +570,7 @@ void Controller::lcd_drawPage(bool animate_) {
     }
 
     // 6. FOOTER LABELS: the panel image has them in the factory magenta; the Moffe Edition
-    // draws its own violet labels over them.
+    // draws its own ruby labels over them.
     lcd_drawEncoderBankTab();
     lcd_drawSongBankTab(activeSongBank, false);
 }
@@ -947,7 +947,7 @@ void Controller::lcd_clearInitSdAlert() {
 /* Lcd Bank Functions --------------------------------------------------------*/
 
 void Controller::lcd_drawFooterLabel(const char* text_, uint16_t centerX_, uint16_t y_) {
-    /// @brief A footer label (KNOB, SONG) in the Moffe Edition violet (v1.14 "Gold Rush").
+    /// @brief A footer label (KNOB, SONG) in the Moffe Edition ruby (v1.14 "Gold Rush").
     /// Drawn over the factory magenta label in the SD card's panel image.
 
     lcd.setAlignment(CENTER);
@@ -966,7 +966,7 @@ void Controller::lcd_drawEncoderBankTab() {
     lcd.setFont(FONT_07x09);
 
     // 2. LABEL DRAW
-    // Draw static KNOB footer label: in the Moffe Edition violet.
+    // Draw static KNOB footer label: in the Moffe Edition ruby.
     lcd_drawFooterLabel("KNOB", 76, 463);
 
     // 3. BANK VALUE DRAW
@@ -986,7 +986,7 @@ void Controller::lcd_drawSongBankTab(uint8_t bank_, bool mode_) {
     lcd.setFont(FONT_07x09);
 
     // 2. LABEL DRAW
-    // Draw static SONG footer label: in the Moffe Edition violet.
+    // Draw static SONG footer label: in the Moffe Edition ruby.
     lcd_drawFooterLabel("SONG", 886, 463);
 
     // 3. HIGHLIGHT STATE APPLY
@@ -2136,13 +2136,17 @@ void Controller::lcd_drawBeat(uint8_t layerNum_, uint8_t bankNum_, uint8_t beatN
             uint16_t yStart = kImageLayerY[layerNum_] + kSongOffsetY;
 
             // Draw beat shape based on fill type
+            // The selected beat's marker is twice as wide (v1.14), so it is easy to find on the
+            // line; the clear below covers the whole beat, so a deselected beat is thin again.
+            const uint16_t span = xEnd - xStart + 1;
+            const uint16_t marker = selected_ ? ((span >= 4) ? 4 : span) : 2;
             if ((fillType == 0) && (fillPattern < 2)) {
-                lcd.clearRect(xStart, yStart, xEnd - xStart + 1, kSongHeight);
-                lcd.drawRect(xStart, yStart, 2, kSongHeight);
+                lcd.clearRect(xStart, yStart, span, kSongHeight);
+                lcd.fillRect(xStart, yStart, marker, kSongHeight);
             } else if ((fillType == 0) && (fillPattern == 2)) {
-                lcd.clearRect(xStart, yStart, xEnd - xStart + 1, kSongHeight);
+                lcd.clearRect(xStart, yStart, span, kSongHeight);
                 for (uint8_t i = 0; i < 4; i++) {
-                    lcd.drawPixel(xStart, yStart + (i * 3));
+                    lcd.fillRect(xStart, yStart + (i * 3), (marker > 2) ? marker : 1, 1);
                 }
             } else {
                 lcd.fillRect(xStart, yStart, xEnd - xStart, kSongHeight);

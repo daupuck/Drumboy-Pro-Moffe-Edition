@@ -631,21 +631,21 @@ const RGB16Color GRAY_85                            = 0xDEDB;
 const RGB16Color GRAY_90                            = 0xE73C;
 const RGB16Color GRAY_95                            = 0xF79E;
 
-// Moffe Edition palette (v1.14 "Gold Rush"): golden yellow where the factory UI used cyan, violet
-// (gold's opposite on the colour wheel, so the two never blend) where it used magenta, light gold
-// for the selected layer.
+// Moffe Edition palette (v1.14 "Gold Rush"): golden yellow where the factory UI used cyan, ruby
+// red where it used magenta (clearly red and much darker than gold, so the two never blend),
+// light gold for the selected layer.
 const RGB16Color kMoffeGold                         = 0xFE03;  // #FFC21A
-const RGB16Color kMoffeViolet                       = 0xB45F;  // #B388FF
-const RGB16Color kMoffeDeepViolet                   = 0x5976;  // #5B2DB3
+const RGB16Color kMoffeRuby                         = 0xF9EB;  // #FF3D5A
+const RGB16Color kMoffeDeepRuby                     = 0x8885;  // #8A1028
 const RGB16Color kMoffeLightGold                    = 0xFF0F;  // #FFE27A
 const RGB16Color kAccentColor                       = kMoffeGold;
-const RGB16Color kAccent2Color                      = kMoffeViolet;
+const RGB16Color kAccent2Color                      = kMoffeRuby;
 
 /*----------------------------------------------------------------------------*/
 
 const RGB16Color kLayerColorPalette[]               = {WHITE, GRAY_75, WHITE, GRAY_75, WHITE, GRAY_75, WHITE, GRAY_75, WHITE, GRAY_75};
 
-const RGB16Color kBeatSelectedColor                 = kAccentColor;
+const RGB16Color kBeatSelectedColor                 = kMoffeRuby;  // must stand out from the light gold beats of the selected layer
 const RGB16Color kLayerSelectedColor                = kMoffeLightGold;
 
 const RGB16Color kMenuHLineColor                    = GRAY_50;
@@ -740,11 +740,11 @@ const uint8_t kEditionLabelSpacing                  = 10;
 const uint16_t kEditionCenterX                      = 480;
 const uint16_t kEditionNameY                        = kImageLogoY + 190;
 const uint16_t kEditionLabelY                       = kImageLogoY + 256;
-// v1.14 "Gold Rush" boot screen: gold name with a deep violet drop shadow, EDITION in violet with
+// v1.14 "Gold Rush" boot screen: gold name with a deep ruby drop shadow, EDITION in ruby with
 // a gold line under it.
-const RGB16Color kEditionShadowColor                = kMoffeDeepViolet;
+const RGB16Color kEditionShadowColor                = kMoffeDeepRuby;
 const uint16_t kEditionShadowOffset                 = 4;
-const RGB16Color kEditionLabelColor                 = kMoffeViolet;
+const RGB16Color kEditionLabelColor                 = kMoffeRuby;
 const uint16_t kEditionUnderlineWidth               = 160;
 const uint16_t kEditionUnderlineY                   = kEditionLabelY + 26;
 const uint16_t kEditionShadesTop                    = 96;     // logo rows covered by the shades: 96..120

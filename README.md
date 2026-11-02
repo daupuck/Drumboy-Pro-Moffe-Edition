@@ -40,7 +40,7 @@ The biggest Moffe Edition update yet. Highlights:
 - 🌈 **VISUALS:** 13 full-screen visuals that dance to your music. Fireworks for every hit, a Game of
   Life seeded by your drums, digital rain, a kaleidoscope, a disco floor, "Unknown Pleasures" ridges,
   spectrum, oscilloscope, VU needles and more. Press **HOME** on the home screen.
-- 🏆 **The Moffe Edition look:** a gold-and-violet "Gold Rush" style throughout, and a boot
+- 🏆 **The Moffe Edition look:** a gold-and-ruby "Gold Rush" style throughout, and a boot
   screen with a golden MOFFE. Works with any SD card.
 
 → **[What's new, explained](MOFFE-EDITION.md#whats-new-in-v114--the-big-one)** ·
@@ -63,7 +63,7 @@ The biggest Moffe Edition update yet. Highlights:
 | 🎧 | [**Sample preview**](MOFFE-EDITION.md#3-sample-preview--layer-instrument-menu-v105) | Hear a sample *before* you load it. Your ears will thank you. |
 | 📊 | [**CPU meter**](MOFFE-EDITION.md#audio-cpu-meter-v109) | See how busy the audio engine is (IO menu), so you know how much room is left. |
 | 🛟 | [**Safer saving and fixes**](MOFFE-EDITION.md#improvements-and-fixes) | A full card or a failed save no longer leaves half-written files, plus a stack of bug fixes. |
-| 🏆 | [**The look and the boot screen**](MOFFE-EDITION.md#9-the-moffe-edition-look-v114) | Gold and violet, sunglasses with a golden rim. Purely cosmetic. Deeply important. |
+| 🏆 | [**The look and the boot screen**](MOFFE-EDITION.md#9-the-moffe-edition-look-v114) | Gold and ruby, sunglasses with a golden rim. Purely cosmetic. Deeply important. |
 
 ## Install
 
