@@ -528,7 +528,7 @@ void Controller::update() {
         // 12. OUTBOUND MIDI TRANSMISSION
         // Enqueue pending MIDI note events for each layer into the TX ring buffer.
         for (uint8_t i = 0; i < kLayerLibrarySize; i++) {
-            if (layerLibrary[i].toneMode == tone::kModeTone) {
+            if (tone::playsNotes(layerLibrary[i].toneMode)) {
                 // TONE layer: send the beat's own note. A new beat retriggers without its own
                 // Note Off, so the held note is released first: external synths get a clean
                 // monophonic line.
@@ -581,7 +581,7 @@ void Controller::update() {
                 Layer& layer = layerLibrary[layerNum];
 
                 // Trigger audio if layer is active and unmuted
-                if ((!layer.mute) && (layer.samplePlay))
+                if ((!layer.mute) && layerSounds(layerNum))
                     layer_playBeat(layerNum, 1.0f);
 
                 // Write note to the current sequencer step if Recording is enabled

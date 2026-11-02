@@ -5,7 +5,7 @@ Moffe Edition is **unofficial community firmware** for the Drumboy Pro, based on
 is not affiliated with or endorsed by Randomwaves. This page collects everything that is new
 compared with the factory firmware: what each feature does and how to use it on the device.
 
-- **Current version:** v1.10 — download from the
+- **Current version:** v1.11 — download from the
   [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest);
   how to install: [README → Install](README.md#install)
 - **User manual:** published by Randomwaves at [randomwaves.io](https://www.randomwaves.io) (it
@@ -24,8 +24,8 @@ compared with the factory firmware: what each feature does and how to use it on 
 > a Drumboy Pro by the maintainer: song mode (v1.07); the melody layers with notes, GLIDE and
 > TRANSPOSE, and the CPU meter (v1.09: CPU PEAK about 42 % with all 10 layers playing, two of them
 > TONE, and chorus, delay, reverb and both filters on); the pad keyboard and the melody generator
-> (v1.10). Saving and reloading notes is still to be confirmed; the other features are in
-> hardware testing. Each release says what has been tested on hardware.
+> (v1.10). Not yet tested on a device: SYNTH layers (v1.11) and saving/reloading notes; the other
+> features are in hardware testing. Each release says what has been tested on hardware.
 
 ## Knob numbering
 
@@ -179,15 +179,15 @@ NOTE). Once more goes back to the edit page.
 
 | Control | What it does |
 |---|---|
-| **1 MODE** | **DRUM**: the layer plays as before and ignores the notes. **TONE**: every beat plays at its note. |
+| **1 MODE** | **DRUM**: the layer plays as before and ignores the notes. **TONE**: every beat plays its sample at its note. **SYNTH**: every beat plays the built-in synth at its note ([section 7](#7-synth-layers--a-built-in-synth-voice-v111), v1.11). |
 | **2 NOTE** | The note of the selected beat, e.g. `D#4`. Only notes of the scale are offered, two octaves either side of the root. |
 | **5 ROOT** | The key: C to B. |
 | **6 SCALE** | Chromatic, major, minor, dorian, phrygian, lydian, mixolydian, harmonic minor, pentatonic major, pentatonic minor, blues. |
 | **7 GLIDE** | 0 = off. Higher values slide from the previous note into the next one, from a quick 303-style slide up to half a second. |
 | **8 TRANSPOSE** | Moves every note of the bank one scale step up or down, keeping the melody intact. It stops when the highest or lowest note reaches the edge of the range. The value shows how far you have moved since the page opened. |
 | **LEFT / RIGHT** | Select the beat whose note you edit (ADD + LEFT/RIGHT still moves it). |
-| **The 10 pads** (TONE) | A scale keyboard: pad 1 is the root, the others the next notes of the scale. Stopped: the selected beat gets the note and the next beat is selected. Playing: play along; with REC, record. (v1.10) |
-| **UP / DOWN** (TONE) | Move the pad keyboard an octave down or up; the strip shows the range, e.g. `PADS C4-E5`. (v1.10) |
+| **The 10 pads** (TONE, SYNTH) | A scale keyboard: pad 1 is the root, the others the next notes of the scale. Stopped: the selected beat gets the note and the next beat is selected. Playing: play along; with REC, record. (v1.10) |
+| **UP / DOWN** (TONE, SYNTH) | Move the pad keyboard an octave down or up; the strip shows the range, e.g. `PADS C4-E5`. (v1.10) |
 | **ADD hold** | A new melody over the bank's beats, in the scale, starting and ending on the root. (v1.10) |
 | **ADD tap** | A variation: a few notes move a step or two. Tap again and again to let it evolve. (v1.10) |
 | **CLEAR** | Undoes the note edits made since the page opened (**CLEAR: UNDO**), including generated melodies. |
@@ -221,6 +221,47 @@ A quick bassline: EUCLID page E(5,16), then the NOTE page, MODE TONE, hold ADD u
   sampler, higher notes play the sample faster, so they are also shorter. Outside the NOTE page
   the pads, and MIDI in, play the root; on the NOTE page of a TONE layer the pads only play that
   layer (go back to the edit page to play the drums).
+
+## 7. SYNTH layers – a built-in synth voice (v1.11)
+
+Set **MODE** on the NOTE page to **SYNTH** and the layer becomes a monophonic subtractive synth:
+no sample needed. It plays its notes exactly like a TONE layer (scale, GLIDE, TRANSPOSE, pad
+keyboard, melody generator) and goes through EQ, filters, effects, reverb and the mixer like any
+other layer.
+
+**The sound** is set in the Layer Instrument menu (**I + layer key**), which shows synth pages for
+a SYNTH layer:
+
+```
+ Page 1 OSC:     [1 WAVE]    [ ]          [ waveform ]
+                 [5 LEVEL]   [6 PITCH]
+ Page 2 FILTER:  [1 CUTOFF]  [2 RESO]     [ filter envelope + gate ]
+                 [5 ENV AMT] [6 DECAY]    [7 GATE]     [8 DRIVE]
+ Page 3:         routing to EQ / FILTER / EFFECT / REVERB, as for samples
+```
+
+| Control | What it does |
+|---|---|
+| **WAVE** | Saw (bright, the classic bass), square (hollow), triangle (soft), sine (pure, sub-bass). |
+| **LEVEL / PITCH** | As for samples, including their LFOs. PITCH 1.00 = the notes as shown on the NOTE page. |
+| **CUTOFF** | How open the filter is when no envelope is applied. |
+| **RESONANCE** | The peak at the cutoff: from smooth to squelchy. |
+| **ENV AMT** | How far each note opens the filter. With a low CUTOFF this gives the "wow" of acid basslines. |
+| **DECAY** | How fast the filter closes again after each note, from 20 ms (a pluck) to 2 s (a slow sweep). |
+| **GATE** | How long each note is held: a share of the time until the next beat. Low = short staccato, 100 = notes run into each other. |
+| **DRIVE** | Saturation in the filter: from clean to gritty. |
+
+- **Accent:** the beat's **VELOCITY** on the edit page decides it. FLAT beats play full and
+  bright, GHOST beats softer and with less filter: put a few FLAT beats between GHOST beats for a
+  classic accented line.
+- **MIDI out** sends the notes with their real length (Note Off when the gate ends).
+- **A first acid bass:** EUCLID E(7,16) on a layer → NOTE page: MODE SYNTH, ROOT A, SCALE MINOR,
+  hold ADD → Layer Instrument: WAVE SAW, CUTOFF 20, RESONANCE 70, ENV AMT 70, DECAY 25, GATE 40.
+  Then turn CUTOFF and RESONANCE while it plays.
+- **Saved with the project** (in the `.rwn` file). Older Moffe versions open the project with the
+  layer as a DRUM layer and its notes intact. CLEAR (hold) in the Layer Instrument menu resets the
+  sound; drumkits and the instrument copy don't include it yet.
+- **CPU:** about 1–2 % per playing synth layer; check the IO menu's CPU meter.
 
 ---
 
@@ -268,14 +309,14 @@ A quick bassline: EUCLID page E(5,16), then the NOTE page, MODE TONE, hold ADD u
 | v1.08 | EUCLID page shows the CLEAR: UNDO hint |
 | v1.09 | Melody layers (TONE) on the NOTE page; audio CPU meter in the IO menu |
 | v1.10 | Pads as a scale keyboard (step entry, live recording); melody generator and variations |
+| v1.11 | SYNTH layers: a built-in synth voice with filter, envelope, gate and accent |
 
 ## Coming next
 
 Plans, not promises; each step is released only after it has been tried on a device.
 
-- **SYNTH layers:** a built-in synth voice as a third MODE next to DRUM and TONE: oscillators
-  (or single-cycle WAVs from the card), a resonant filter with envelope, accent and slide. The
-  CPU meter shows there is room for one on every layer.
+- **More SYNTH:** DETUNE (a second oscillator), SUB, NOISE, per-beat SLIDE (303-style legato),
+  then single-cycle WAVs from the card as waveforms.
 - **Song transpose and harmony:** each song-mode step can change key, and a layer can follow
   another a third or fifth higher.
 
@@ -285,10 +326,10 @@ The step-by-step guide (which file to download, where to put it, what the screen
 to do if something goes wrong) is in the **[README → Install](README.md#install)**. In short:
 
 1. Back up the whole SD card.
-2. Download `Drumboy_Pro_Fw_Moffe_01_10.bin` from the
+2. Download `Drumboy_Pro_Fw_Moffe_01_11.bin` from the
    [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest).
 3. Copy it, with its exact name, to the root of the card as the only `Drumboy_Pro_Fw…bin` there.
-4. Power on: *UPDATING FIRMWARE V1.10* → *FIRMWARE UPDATED* → sunglasses.
+4. Power on: *UPDATING FIRMWARE V1.11* → *FIRMWARE UPDATED* → sunglasses.
 
 **Roll back:** install `Drumboy_Pro_Fw_01_01.bin` (factory, in the release Assets and in
 `02 Software/Firmware/`) the same way. The bootloader accepts any version, older or newer.

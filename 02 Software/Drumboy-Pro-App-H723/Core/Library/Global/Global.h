@@ -22,7 +22,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 const uint8_t kVersionMajor                         = 0x01;
-const uint8_t kVersionMinor                         = 0x0A;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMinor                         = 0x0B;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/
@@ -971,6 +971,13 @@ const char kHeaderNoteRoot[]                        = "ROOT      ";
 const char kHeaderNoteScale[]                       = "SCALE     ";
 const char kHeaderNoteGlide[]                       = "GLIDE     ";
 const char kHeaderNoteTranspose[]                   = "TRANSPOSE ";
+const char kHeaderSynthWave[]                       = "WAVE      ";
+const char kHeaderSynthCutoff[]                     = "CUTOFF    ";
+const char kHeaderSynthReso[]                       = "RESONANCE ";
+const char kHeaderSynthEnvAmt[]                     = "ENV AMT   ";
+const char kHeaderSynthDecay[]                      = "DECAY     ";
+const char kHeaderSynthGate[]                       = "GATE      ";
+const char kHeaderSynthDrive[]                      = "DRIVE     ";
 const char kHeaderVolume[]                          = "VOLUME    ";
 const char kHeaderWet[]                             = "WET       ";
 
@@ -1298,10 +1305,19 @@ typedef enum {
     ENC_NOTE_GLIDE                                  = 0x75,
     ENC_NOTE_TRANSPOSE                              = 0x76,  // every note of the bank, in scale steps
 
+    // SYNTH layers: Layer Inst pages 1-2 (LEVEL and PITCH reuse ENC_INST_0_LEVEL/PITCH)
+    ENC_SYNTH_WAVE                                  = 0x77,
+    ENC_SYNTH_CUTOFF                                = 0x78,
+    ENC_SYNTH_RESO                                  = 0x79,
+    ENC_SYNTH_ENVAMT                                = 0x7A,
+    ENC_SYNTH_DECAY                                 = 0x7B,
+    ENC_SYNTH_GATE                                  = 0x7C,
+    ENC_SYNTH_DRIVE                                 = 0x7D,
+
     // Must equal the number of rows before the trailing NONE row in kEncoderFuncDataLibrary,
     // which is indexed by EncoderFunc value. Never stored on SD (only the global map is
     // persisted, and it is range-checked against kMaxEncoderGlobalFunction).
-    ENC_FNC_NONE                                    = 0x77
+    ENC_FNC_NONE                                    = 0x7E
 } EncoderFunc;
 
 const EncoderFunc encoderLocalFunction[][8] = {
@@ -1492,6 +1508,13 @@ constexpr EncoderFuncData kEncoderFuncDataLibrary[] = {
     {ENC_NOTE_SCALE,          ENC_RES_S, "SCALE     ", "NOTE  ", "   ", false},
     {ENC_NOTE_GLIDE,          ENC_RES_F, "GLIDE     ", "NOTE  ", "  %", false},
     {ENC_NOTE_TRANSPOSE,      ENC_RES_S, "TRANSPOSE ", "NOTE  ", "   ", false},
+    {ENC_SYNTH_WAVE,          ENC_RES_S, "WAVE      ", "SYNTH ", "   ", false},
+    {ENC_SYNTH_CUTOFF,        ENC_RES_F, "CUTOFF    ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_RESO,          ENC_RES_F, "RESONANCE ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_ENVAMT,        ENC_RES_F, "ENV AMT   ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_DECAY,         ENC_RES_F, "DECAY     ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_GATE,          ENC_RES_F, "GATE      ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_DRIVE,         ENC_RES_F, "DRIVE     ", "SYNTH ", "  %", false},
 
     // Row for ENC_FNC_NONE itself, so lookups with function == ENC_FNC_NONE stay in bounds.
     {ENC_FNC_NONE,            ENC_RES_F, "----------", "      ", "   ", true}
@@ -1535,6 +1558,13 @@ const EncoderFunc kEncoderEuclidFunction[8]         = {ENC_EUCLID_STEPS, ENC_EUC
 // note strip.
 const EncoderFunc kEncoderNoteFunction[8]           = {ENC_NOTE_MODE, ENC_NOTE_NOTE, ENC_FNC_NONE, ENC_FNC_NONE,
                                                        ENC_NOTE_ROOT, ENC_NOTE_SCALE, ENC_NOTE_GLIDE, ENC_NOTE_TRANSPOSE};
+
+// Knob maps of the Layer Inst pages while the selected layer is a SYNTH layer (instead of the
+// LAYER_INST_0/1/2_MENU rows): OSC, FILTER, and the unchanged routing page without INST/SAMPLE.
+const EncoderFunc kEncoderSynthFunction[3][8]       = {
+    {ENC_SYNTH_WAVE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_INST_0_LEVEL, ENC_INST_0_PITCH, ENC_FNC_NONE, ENC_FNC_NONE},
+    {ENC_SYNTH_CUTOFF, ENC_SYNTH_RESO, ENC_FNC_NONE, ENC_FNC_NONE, ENC_SYNTH_ENVAMT, ENC_SYNTH_DECAY, ENC_SYNTH_GATE, ENC_SYNTH_DRIVE},
+    {ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_INST_2_EQ, ENC_INST_2_FILTER, ENC_INST_2_EFFECT, ENC_INST_2_REVERB}};
 
 const uint8_t kMinEncoderResolution                 = 0;
 const uint8_t kMaxEncoderResolution                 = 8;
@@ -7320,7 +7350,14 @@ const char kSongModeText[3][5]                      = {"OFF", "LOOP", "ONCE"};
 // TONE layers: per-beat notes in a scale (Layer Song NOTE page, host-testable).
 #include "ToneScale.h"
 
-const char kToneModeText[2][11]                     = {"      DRUM", "      TONE"};
+// SYNTH layers: one subtractive voice per layer, rendered in the audio ISR (host-testable).
+#include "SynthVoice.h"
+
+const char kToneModeText[tone::kModeCount][11]      = {"      DRUM", "      TONE", "     SYNTH"};
+
+// The synth voice's C4 (MIDI 60) at PITCH 1.00, matching TONE layers' "the sample is a C4".
+const float kSynthC4Hz                              = 261.6256f;
+const float kAudioSampleRate                        = 44100.0f;
 
 // Audio blocks per second (44.1 kHz / 32 samples): the rate at which glide is applied.
 const float kAudioBlocksPerSecond                   = 44100.0f / I2S_BLOCK_SIZE;
@@ -7329,6 +7366,8 @@ const float kAudioBlocksPerSecond                   = 44100.0f / I2S_BLOCK_SIZE;
 // size stay exactly as before and older firmware simply ignores them.
 const char kNoteFileEnd[]                           = ".rwn";
 const char kNoteFileRef[]                           = "RWNOTES1";
+const char kSynthFileRef[]                          = "SYN1";  // v1.11+: SYNTH sounds after the notes' "EOF"
+const uint8_t kSynthFileParams                      = 7;       // wave, cutoff, resonance, env amount, decay, gate, drive
 
 // Where the chain lives in the project file's 1500-byte drumkit-style block. Both ranges are
 // unused by every other reader/writer: 175..179 lies between the reverb (..174) and the LFO
@@ -7400,6 +7439,7 @@ struct Layer {
     uint8_t toneScale                               = tone::kDefaultScale;
     uint8_t toneGlide                               = 0;
     float toneGlideCoef                             = 0.0f;  // derived from toneGlide (tone::glideBlockCoef)
+    synth::Params synth;                                     // SYNTH sound (Layer Inst pages 1-2), saved in the .rwn file
 
     Bank bankLibrary[kBankLibrarySize];
 

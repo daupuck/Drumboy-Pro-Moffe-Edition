@@ -240,11 +240,12 @@ void Controller::keyboard_action() {
                             // which writes beats that play the loaded sound.
                             const bool inInstMenu = (menu == LAYER_INST_0_MENU) || (menu == LAYER_INST_1_MENU) || (menu == LAYER_INST_2_MENU);
                             const bool auditionSelected = inInstMenu && previewActive && (!recordActive) && (layerNum == selectedLayerNum) &&
+                                                          (layer.toneMode != tone::kModeSynth) &&
                                                           (layer.sampleSelected != -1) &&
                                                           (strcmp(layer.sampleSelectedData.fileName, layer.sampleLoadedData.fileName) != 0);
                             if (auditionSelected) {
                                 preview_start(layerNum);
-                            } else if ((!layer.mute) && (layer.samplePlay)) {
+                            } else if ((!layer.mute) && layerSounds(layerNum)) {
                                 // TONE layers: on the NOTE page the pad plays the selected beat's note.
                                 layer_playBeat(layerNum, 1.0f, note_auditionNote(layerNum));
                             }
@@ -790,6 +791,7 @@ void Controller::keyboard_action() {
                                         case LAYER_INST_1_MENU:
 
                                         case LAYER_INST_2_MENU:
+                                            if (synthLayerSelected()) break;  // a SYNTH layer has no sample to load
                                             if (menuTab < 4) {
                                                 if (!((strcmp(layerLibrary[selectedLayerNum].instSelectedData.fileName, layerLibrary[selectedLayerNum].instLoadedData.fileName) == 0) && (strcmp(layerLibrary[selectedLayerNum].sampleSelectedData.fileName, layerLibrary[selectedLayerNum].sampleLoadedData.fileName) == 0))) {
                                                     layerInst_setInstLoaded(selectedLayerNum);
@@ -1879,6 +1881,8 @@ void Controller::encoder_update() {
                 enc.function = kEncoderEuclidFunction[i];
             } else if ((menuSafe == LAYER_SONG_MENU) && (layerSongPage == 2)) {
                 enc.function = kEncoderNoteFunction[i];
+            } else if (synthInstPageActive()) {
+                enc.function = kEncoderSynthFunction[layerInstPage()][i];  // SYNTH layer: OSC / FILTER / routing
             } else {
                 enc.function = encoderLocalFunction[menuSafe][i];
             }
@@ -2049,7 +2053,7 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
     if ((encoder[encoderNum_].function >= ENC_LFO_ACTIVE) && (encoder[encoderNum_].function <= ENC_LFO_DEPTH) && (selectedLfoNum == -1)) return;
     if ((encoder[encoderNum_].function >= ENC_INST_0_INST) && (encoder[encoderNum_].function <= ENC_SONG_SHIFT) && (selectedLayerNum == -1)) return;
     if ((encoder[encoderNum_].function >= ENC_EUCLID_STEPS) && (encoder[encoderNum_].function <= ENC_EUCLID_MODE) && (selectedLayerNum == -1)) return;
-    if ((encoder[encoderNum_].function >= ENC_NOTE_MODE) && (encoder[encoderNum_].function <= ENC_NOTE_TRANSPOSE) && (selectedLayerNum == -1)) return;
+    if ((encoder[encoderNum_].function >= ENC_NOTE_MODE) && (encoder[encoderNum_].function <= ENC_SYNTH_DRIVE) && (selectedLayerNum == -1)) return;
 
     // 2. PARAMETER INCREMENT DISPATCH
     switch (encoder[encoderNum_].function) {
@@ -2653,6 +2657,16 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
             note_change(encoder[encoderNum_].function, true);
             break;
 
+        case ENC_SYNTH_WAVE:
+        case ENC_SYNTH_CUTOFF:
+        case ENC_SYNTH_RESO:
+        case ENC_SYNTH_ENVAMT:
+        case ENC_SYNTH_DECAY:
+        case ENC_SYNTH_GATE:
+        case ENC_SYNTH_DRIVE:
+            synth_change(encoder[encoderNum_].function, true);
+            break;
+
         default:
             break;
     }
@@ -2675,7 +2689,7 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
     if ((encoder[encoderNum_].function >= ENC_LFO_ACTIVE) && (encoder[encoderNum_].function <= ENC_LFO_DEPTH) && (selectedLfoNum == -1)) return;
     if ((encoder[encoderNum_].function >= ENC_INST_0_INST) && (encoder[encoderNum_].function <= ENC_SONG_SHIFT) && (selectedLayerNum == -1)) return;
     if ((encoder[encoderNum_].function >= ENC_EUCLID_STEPS) && (encoder[encoderNum_].function <= ENC_EUCLID_MODE) && (selectedLayerNum == -1)) return;
-    if ((encoder[encoderNum_].function >= ENC_NOTE_MODE) && (encoder[encoderNum_].function <= ENC_NOTE_TRANSPOSE) && (selectedLayerNum == -1)) return;
+    if ((encoder[encoderNum_].function >= ENC_NOTE_MODE) && (encoder[encoderNum_].function <= ENC_SYNTH_DRIVE) && (selectedLayerNum == -1)) return;
 
     // 2. PARAMETER DECREMENT DISPATCH
     switch (encoder[encoderNum_].function) {
@@ -3247,6 +3261,16 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
         case ENC_NOTE_GLIDE:
         case ENC_NOTE_TRANSPOSE:
             note_change(encoder[encoderNum_].function, false);
+            break;
+
+        case ENC_SYNTH_WAVE:
+        case ENC_SYNTH_CUTOFF:
+        case ENC_SYNTH_RESO:
+        case ENC_SYNTH_ENVAMT:
+        case ENC_SYNTH_DECAY:
+        case ENC_SYNTH_GATE:
+        case ENC_SYNTH_DRIVE:
+            synth_change(encoder[encoderNum_].function, false);
             break;
 
         default:

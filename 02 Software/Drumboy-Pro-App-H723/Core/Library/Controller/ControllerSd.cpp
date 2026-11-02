@@ -1582,6 +1582,8 @@ SdResult Controller::sd_clearFile(uint8_t fileNum_) {
 //   10 x [mode, root, scale, glide]
 //   10 layers x 5 banks x { count, count x [start interval hi, lo, note] }  (only notes != root)
 //   "EOF"
+//   "SYN1" + 10 x [wave, cutoff, resonance, env amount, decay, gate, drive] + "EOF"   (v1.11+)
+// Mode 2 (SYNTH) is read as DRUM by v1.09/v1.10, which stop at the first "EOF".
 // Notes are matched to beats by start interval on load (positions are unique within a bank),
 // so the file never depends on slot order. Older firmware never opens it.
 
@@ -1603,6 +1605,10 @@ SdResult Controller::sd_saveNotes(uint8_t fileNum_) {
     for (uint8_t l = 0; (l < kLayerLibrarySize) && !needed; l++) {
         const Layer& layer = layerLibrary[l];
         if ((layer.toneMode != tone::kModeDrum) || (layer.toneRoot != 0) || (layer.toneScale != tone::kDefaultScale) || (layer.toneGlide != 0)) needed = true;
+        const synth::Params def;
+        const synth::Params& s = layer.synth;
+        if ((s.wave != def.wave) || (s.cutoff != def.cutoff) || (s.resonance != def.resonance) || (s.envAmount != def.envAmount) ||
+            (s.decay != def.decay) || (s.gate != def.gate) || (s.drive != def.drive)) needed = true;
         for (uint8_t b = 0; (b < kBankLibrarySize) && !needed; b++) {
             const Bank& bank = layer.bankLibrary[b];
             for (int16_t k = 0; k <= bank.lastActiveBeatNum; k++) {
@@ -1656,6 +1662,25 @@ SdResult Controller::sd_saveNotes(uint8_t fileNum_) {
     }
 
     if (sd_write("EOF", 3) != FR_OK) errorCount += 1;
+
+    // v1.11+: the SYNTH sound of every layer, after the part v1.09/v1.10 read (they stop at
+    // "EOF" and see a SYNTH layer as a DRUM layer with its notes intact).
+    uint8_t sound[kLayerLibrarySize * kSynthFileParams];
+    for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+        const synth::Params& s = layerLibrary[l].synth;
+        uint8_t* d = &sound[l * kSynthFileParams];
+        d[0] = s.wave;
+        d[1] = s.cutoff;
+        d[2] = s.resonance;
+        d[3] = s.envAmount;
+        d[4] = s.decay;
+        d[5] = s.gate;
+        d[6] = s.drive;
+    }
+    if (sd_write(kSynthFileRef, strlen(kSynthFileRef)) != FR_OK) errorCount += 1;
+    if (sd_write(sound, sizeof(sound)) != FR_OK) errorCount += 1;
+    if (sd_write("EOF", 3) != FR_OK) errorCount += 1;
+
     if (f_close(&sd.file) != FR_OK) errorCount += 1;
     return (errorCount == 0) ? SD_OK : SD_ERROR;
 }
@@ -1677,7 +1702,7 @@ void Controller::sd_loadNotes(uint8_t fileNum_) {
         // Settings, range-checked so a damaged file can never index outside a table.
         for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
             Layer& layer = layerLibrary[l];
-            layer.toneMode = (settings[(l * 4) + 0] == tone::kModeTone) ? tone::kModeTone : tone::kModeDrum;
+            layer.toneMode = (settings[(l * 4) + 0] < tone::kModeCount) ? settings[(l * 4) + 0] : tone::kModeDrum;
             layer.toneRoot = (settings[(l * 4) + 1] < tone::kRootCount) ? settings[(l * 4) + 1] : 0;
             layer.toneScale = tone::safeScale(settings[(l * 4) + 2]);
             tone_setGlide(l, settings[(l * 4) + 3]);
@@ -1709,6 +1734,27 @@ void Controller::sd_loadNotes(uint8_t fileNum_) {
                         }
                     }
                 }
+            }
+        }
+
+        // SYNTH sounds (v1.11+), after the notes' "EOF". Files from v1.09/v1.10 end there:
+        // their layers keep the default sound.
+        char eof[3];
+        char tag[sizeof(kSynthFileRef)] = {};
+        uint8_t sound[kLayerLibrarySize * kSynthFileParams];
+        if (ok && (sd_read(eof, 3) == FR_OK) && (sd_read(tag, strlen(kSynthFileRef)) == FR_OK) &&
+            (strncmp(tag, kSynthFileRef, strlen(kSynthFileRef)) == 0) && (sd_read(sound, sizeof(sound)) == FR_OK)) {
+            for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+                const uint8_t* d = &sound[l * kSynthFileParams];
+                synth::Params s;
+                s.wave = d[0];
+                s.cutoff = d[1];
+                s.resonance = d[2];
+                s.envAmount = d[3];
+                s.decay = d[4];
+                s.gate = d[5];
+                s.drive = d[6];
+                layerLibrary[l].synth = synth::sanitize(s);  // a damaged file can never index outside a table
             }
         }
     }

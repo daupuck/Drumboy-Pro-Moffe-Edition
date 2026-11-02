@@ -20,7 +20,12 @@
 namespace tone {
 
 constexpr uint8_t kModeDrum = 0;
-constexpr uint8_t kModeTone = 1;
+constexpr uint8_t kModeTone = 1;   // the sample, played at each beat's note
+constexpr uint8_t kModeSynth = 2;  // the built-in synth voice (SynthVoice.h), played at each beat's note
+constexpr uint8_t kModeCount = 3;
+
+// TONE and SYNTH layers both play notes (scale, glide, transpose, pad keyboard, generator).
+inline bool playsNotes(uint8_t mode) { return (mode == kModeTone) || (mode == kModeSynth); }
 
 constexpr uint8_t kRootCount = 12;
 

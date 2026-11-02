@@ -271,6 +271,13 @@ class Controller {
     // is triggered) and the note currently held on the MIDI output (0xFF = none), so the right
     // Note Off is sent before the next note.
     volatile uint8_t toneMidiNote[kLayerLibrarySize] = {};
+
+    // SYNTH voices (one per layer), rendered by processAudioLayer() in the audio ISR. A trigger
+    // (sequencer ISR, pad or knob in the main loop) fills synthPending under a critical section
+    // and sets synthPendingFlag; the audio ISR starts the voice at the next block.
+    synth::Voice synthVoice[kLayerLibrarySize];
+    synth::NoteOn synthPending[kLayerLibrarySize];
+    volatile bool synthPendingFlag[kLayerLibrarySize] = {};
     uint8_t toneMidiSounding[kLayerLibrarySize] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
     // Song mode (Rhythm menu knobs 5-8). The chain is project data (saved in the .rwf file);
@@ -1007,7 +1014,9 @@ class Controller {
 
     /* Layer Functions ------------------------------------------- */
 
-    void layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_ = 0);  // note_: scale degree, used by TONE layers
+    // note_: scale degree (TONE/SYNTH layers); lengthIntervals_: time until the next beat, for the
+    // SYNTH gate (0 = an eighth note, for pads and auditions)
+    void layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_ = 0, uint16_t lengthIntervals_ = 0);
 
     /* Layer Inst Functions -------------------------------------- */
 
@@ -1107,6 +1116,19 @@ class Controller {
     void note_padPressed(uint8_t pad_);
     void note_shiftKeys(bool up_);
     void note_melody(bool fresh_);          // fresh: new melody (ADD hold); else variation (ADD tap)
+
+    /* SYNTH Layers ----------------------------------------- */
+
+    bool layerSounds(uint8_t layerNum_) const;   // has something to play: a loaded sample, or SYNTH mode
+    bool synthLayerSelected() const;             // the selected layer is a SYNTH layer
+    bool synthInstPageActive() const;            // Layer Inst menu showing a SYNTH layer's pages
+    uint8_t layerInstPage() const;               // 0..2 for LAYER_INST_0..2_MENU
+    void synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_);
+    void synth_change(EncoderFunc function_, bool up_);
+    void synth_silence(uint8_t layerNum_);       // stops the voice (mode change, reset)
+    void lcd_drawSynthPage(uint8_t layerNum_);
+    void lcd_drawSynthData(uint8_t slot_);
+    void lcd_drawSynthGraph();
     void tone_setGlide(uint8_t layerNum_, uint8_t glide_);
     void tone_resetLayer(uint8_t layerNum_);
     void tone_resetAll();

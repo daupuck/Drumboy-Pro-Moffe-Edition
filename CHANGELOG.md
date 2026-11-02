@@ -3,6 +3,41 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v1.11
+
+**SYNTH layers — a built-in synth voice (step 4a)**
+
+- **MODE on the NOTE page has a third value: DRUM → TONE → SYNTH.** A SYNTH layer plays its notes
+  with a built-in voice instead of a sample; no sample needs to be loaded. Everything from the
+  NOTE page works the same: scale, root, GLIDE, TRANSPOSE, the pad keyboard and the melody
+  generator. The layer goes through EQ, filters, effects, reverb, mixer and LFOs like any other.
+- **Layer Instrument menu (I + layer) of a SYNTH layer:**
+  - **Page 1 OSC:** **1 WAVE** (saw, square, triangle, sine), **5 LEVEL**, **6 PITCH** (as for
+    samples, LFOs included). The display shows the waveform.
+  - **Page 2 FILTER:** **1 CUTOFF**, **2 RESONANCE**, **5 ENV AMT** (how far each note opens the
+    filter), **6 DECAY** (how fast it closes, 20 ms – 2 s), **7 GATE** (how long a note is held,
+    as % of the time until the next beat), **8 DRIVE** (saturation). The display shows the filter
+    envelope and the gate.
+  - **Page 3** routing (EQ / FILTER / EFFECT / REVERB) as before.
+- **Accent for free:** a beat's VELOCITY decides the accent. FLAT beats play full and bright;
+  GHOST beats softer and darker.
+- **MIDI out:** a SYNTH layer sends its notes with the real note length (Note Off when the gate
+  ends).
+- **Saved with the project** in the `.rwn` file, after the part older firmware reads: v1.09/v1.10
+  open the project with the layer as a DRUM layer and its notes intact. CLEAR in the Layer
+  Instrument menu and NEW FILE reset the sound. Not part of drumkits or the instrument copy.
+- Coming next (4b/4c): DETUNE, SUB, NOISE, per-beat SLIDE, single-cycle WAVs from the card.
+
+Under the hood: the voice is a pure header, `Global/SynthVoice.h`, host-tested in
+`test_synth_voice.cpp` (2.19 million checks). The tests cover every waveform at maximum resonance,
+drive and envelope, filter stability, gate and release, click-free retrigger, glide and accent.
+It uses a PolyBLEP saw/square, a 4-pole low-pass with soft-clipped resonance feedback (all states
+provably inside ±1), a 2 ms attack and a 12 ms release. Filter coefficients are computed once per
+32-sample block. The sequencer prepares each note (pitch, level, velocity, gate from the beat
+length) and hands it to the audio ISR under a critical section; drum and TONE layers run the
+same code as before. RAM_D1 +856 B (91.8 %), flash +8.6 KB, `processAudioLayer` +1.9 KB (the
+voice is inlined). No new compiler warnings.
+
 ## v1.10
 
 **Play and generate melodies (NOTE page of a TONE layer)**

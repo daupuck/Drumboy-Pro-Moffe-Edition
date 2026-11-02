@@ -128,8 +128,14 @@ void Controller::updatePlayTimerPeriod() {
 /* Layer Functions -----------------------------------------------------------*/
 ////////////////////////////////////////////////////////////////////////////////
 
-void Controller::layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_) {
+void Controller::layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_) {
     /// @brief Prepares and triggers layer beat playback with LFO/style-dependent modulation.
+
+    // 0. SYNTH LAYERS have their own voice and need no sample.
+    if (layerLibrary[layerNum_].toneMode == tone::kModeSynth) {
+        synth_playBeat(layerNum_, fillVolMultiplier_, note_, lengthIntervals_);
+        return;
+    }
 
     // 1. CONTEXT LOAD
     // Resolve layer, play-state buffers, and temporary beat structures.
@@ -485,6 +491,8 @@ void Controller::layerInst_reset(uint8_t layerNum_) {
     layerInst_setMute(layerNum_, false);
     layerInst_setFill(layerNum_, true);
     layerInst_setStyle(layerNum_, true);
+    layerLibrary[layerNum_].synth = synth::Params{};  // the SYNTH sound belongs to the instrument too
+    if (synthInstPageActive() && (selectedLayerNum == layerNum_)) lcd_drawSynthPage(layerNum_);
 }
 
 void Controller::layerInst_menuRight() {
@@ -523,6 +531,16 @@ void Controller::layerInst_menuUp() {
     Layer& layer = layerLibrary[selectedLayerNum];
 
     /// @brief Increments or toggles parameter mapped to active Layer Inst tab/page.
+
+    // SYNTH layer: tabs whose knob is a synth setting (or empty) edit that instead; LEVEL, PITCH
+    // and the routing page keep their normal handling below.
+    if (synthInstPageActive() && (menuTab < 8)) {
+        const EncoderFunc f = kEncoderSynthFunction[layerInstPage()][menuTab];
+        if (f != encoderLocalFunction[menu][menuTab]) {
+            synth_change(f, true);
+            return;
+        }
+    }
 
     // 1. TAB/PAGE-BASED DISPATCH
     // Route encoder-up action to the correct parameter set for active page.
@@ -634,6 +652,15 @@ void Controller::layerInst_menuDown() {
     Layer& layer = layerLibrary[selectedLayerNum];
 
     /// @brief Decrements or toggles parameter mapped to active Layer Inst tab/page.
+
+    // SYNTH layer: see layerInst_menuUp().
+    if (synthInstPageActive() && (menuTab < 8)) {
+        const EncoderFunc f = kEncoderSynthFunction[layerInstPage()][menuTab];
+        if (f != encoderLocalFunction[menu][menuTab]) {
+            synth_change(f, false);
+            return;
+        }
+    }
 
     // 1. TAB/PAGE-BASED DISPATCH
     // Route encoder-down action to the correct parameter set for active page.
@@ -2230,12 +2257,165 @@ void Controller::note_audition() {
 
     if ((selectedLayerNum == -1) || playActive) return;
     Layer& layer = layerLibrary[selectedLayerNum];
-    if ((layer.toneMode != tone::kModeTone) || layer.mute || !layer.samplePlay) return;
+    if (!tone::playsNotes(layer.toneMode) || layer.mute || !layerSounds(selectedLayerNum)) return;
     layer_playBeat(selectedLayerNum, 1.0f, note_auditionNote(selectedLayerNum));
 }
 
 bool Controller::noteKeysActive() const {
-    return notePageActive() && (selectedLayerNum != -1) && (layerLibrary[selectedLayerNum].toneMode == tone::kModeTone);
+    return notePageActive() && (selectedLayerNum != -1) && tone::playsNotes(layerLibrary[selectedLayerNum].toneMode);
+}
+
+/* SYNTH Layers ----------------------------------------------------------------*/
+
+bool Controller::layerSounds(uint8_t layerNum_) const {
+    const Layer& layer = layerLibrary[layerNum_];
+    return layer.samplePlay || (layer.toneMode == tone::kModeSynth);
+}
+
+bool Controller::synthLayerSelected() const {
+    return (selectedLayerNum != -1) && (layerLibrary[selectedLayerNum].toneMode == tone::kModeSynth);
+}
+
+uint8_t Controller::layerInstPage() const {
+    return (menu == LAYER_INST_1_MENU) ? 1 : ((menu == LAYER_INST_2_MENU) ? 2 : 0);
+}
+
+bool Controller::synthInstPageActive() const {
+    return ((menu == LAYER_INST_0_MENU) || (menu == LAYER_INST_1_MENU) || (menu == LAYER_INST_2_MENU)) && synthLayerSelected();
+}
+
+void Controller::synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_) {
+    /// @brief Prepares a SYNTH note (pitch from note/root/scale/PITCH, level, velocity, gate) and
+    /// hands it to the audio ISR. Called from the sequencer ISR and from the main loop.
+    /// LEVEL, PITCH and PROB follow the layer's settings and LFOs like samples (with STYLE on).
+
+    Layer& layer = layerLibrary[layerNum_];
+    LayerPlayData& lD = layerPlayData[layerNum_];
+
+    int16_t nLevel = layer.level;
+    int16_t nPitch = layer.pitch;
+    if (layer.style) {
+        // Probability (PROB on Layer Inst page 2 of a sample layer, kept for SYNTH layers too).
+        int16_t nProbability = layer.probability;
+        if ((layer.lfoProbability) && (lfoLibrary[layer.lfoProbability - 1].active)) {
+            Lfo& lfo = lfoLibrary[layer.lfoProbability - 1];
+            const float lfoData = kLfoDataLibrary[lfo.type][(uint16_t)floor(lfo.sampleCounter)];
+            nProbability = clamp((int16_t)(layer.probability + round(100 * (lfoData - 0.5) * kNumberDataLibrary[lfo.depth].stdMultiplier)), (int16_t)kMinLayerProbability, (int16_t)kMaxLayerProbability);
+        }
+        if ((rand() % 10000) > (kNumberDataLibrary[nProbability].stdMultiplier * 10000.0f)) return;
+
+        if ((layer.lfoLevel) && (lfoLibrary[layer.lfoLevel - 1].active)) {
+            Lfo& lfo = lfoLibrary[layer.lfoLevel - 1];
+            const float lfoData = kLfoDataLibrary[lfo.type][(uint16_t)floor(lfo.sampleCounter)];
+            nLevel = clamp((int16_t)(layer.level + round(50 * (lfoData - 0.5) * kNumberDataLibrary[lfo.depth].stdMultiplier)), (int16_t)kMinLayerLevel, (int16_t)kMaxLayerLevel);
+        }
+        if ((layer.lfoPitch) && (lfoLibrary[layer.lfoPitch - 1].active)) {
+            Lfo& lfo = lfoLibrary[layer.lfoPitch - 1];
+            const float lfoData = kLfoDataLibrary[lfo.type][(uint16_t)floor(lfo.sampleCounter)];
+            nPitch = clamp((int16_t)(layer.pitch + round(100 * (lfoData - 0.5) * kNumberDataLibrary[lfo.depth].stdMultiplier)), (int16_t)kMinLayerPitch, (int16_t)kMaxLayerPitch);
+        }
+    }
+
+    // Pitch: C4 at PITCH 1.00, moved by the note in ROOT/SCALE.
+    const int semis = tone::semitones(note_, layer.toneScale, layer.toneRoot);
+    const float speed = tone::clampIncrement(kLayerPitchDataLibrary[nPitch].data * tone::ratio(semis));
+
+    // Gate: GATE % of the time until the next beat (an eighth note for pads and auditions).
+    const uint32_t length = (lengthIntervals_ > 0) ? lengthIntervals_ : (kMeasureInterval / 2);
+    const float samplesPerInterval = static_cast<float>(playTimerPeriod) * (kAudioSampleRate / 1000000.0f);
+    uint32_t gateSamples = static_cast<uint32_t>((static_cast<float>(layer.synth.gate) / 100.0f) * static_cast<float>(length) * samplesPerInterval);
+    if (gateSamples < 64) gateSamples = 64;  // even GATE 0 is a short blip, not silence
+
+    synth::NoteOn n;
+    n.increment = speed * (kSynthC4Hz / kAudioSampleRate);
+    n.gain = kLayerVolumeCoef * kNumberDataLibrary[nLevel].powMultiplier * fillVolMultiplier_ * mixer.masterVolumeFloat;
+    n.velocity = (fillVolMultiplier_ >= 0.99f) ? 1.0f : 0.5f;  // FLAT = accent, GHOST = softer and darker
+    n.gateSamples = gateSamples;
+    n.glideCoef = (layer.toneGlide > 0) ? layer.toneGlideCoef : 0.0f;
+
+    toneMidiNote[layerNum_] = tone::midiNote(semis);
+    lD.beatStartFlag = true;
+    lD.beatEndFlag = false;
+
+    // Publish under a critical section: the audio ISR must never see a half-written note.
+    const uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    synthPending[layerNum_] = n;
+    synthPendingFlag[layerNum_] = true;
+    __set_PRIMASK(primask);
+}
+
+void Controller::synth_silence(uint8_t layerNum_) {
+    /// @brief Stops a SYNTH voice at once (mode change, new file) and releases its MIDI note.
+
+    const uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    synthPendingFlag[layerNum_] = false;
+    synth::stop(synthVoice[layerNum_]);
+    __set_PRIMASK(primask);
+    if (toneMidiSounding[layerNum_] != 0xFF) {
+        uint8_t off[3] = {(uint8_t)(0x80 + io.midi.txChannel), toneMidiSounding[layerNum_], 0x64};
+        enqueueMidiTx(off, 3);
+        toneMidiSounding[layerNum_] = 0xFF;
+    }
+}
+
+void Controller::synth_change(EncoderFunc function_, bool up_) {
+    /// @brief Handles a SYNTH knob on the Layer Inst pages (also UP/DOWN on the focused tab).
+
+    if (selectedLayerNum == -1) return;
+    synth::Params& p = layerLibrary[selectedLayerNum].synth;
+    uint8_t* value = nullptr;
+    uint8_t slot = 0;
+    switch (function_) {
+        case ENC_SYNTH_WAVE:
+            if (up_ && (p.wave < synth::kWaveCount - 1)) {
+                p.wave++;
+            } else if (!up_ && (p.wave > 0)) {
+                p.wave--;
+            } else {
+                return;
+            }
+            lcd_drawSynthData(0);
+            lcd_drawSynthGraph();
+            note_audition();
+            return;
+        case ENC_SYNTH_CUTOFF:
+            value = &p.cutoff;
+            slot = 0;
+            break;
+        case ENC_SYNTH_RESO:
+            value = &p.resonance;
+            slot = 1;
+            break;
+        case ENC_SYNTH_ENVAMT:
+            value = &p.envAmount;
+            slot = 4;
+            break;
+        case ENC_SYNTH_DECAY:
+            value = &p.decay;
+            slot = 5;
+            break;
+        case ENC_SYNTH_GATE:
+            value = &p.gate;
+            slot = 6;
+            break;
+        case ENC_SYNTH_DRIVE:
+            value = &p.drive;
+            slot = 7;
+            break;
+        default:
+            return;  // ENC_FNC_NONE: empty slot
+    }
+    if (up_ && (*value < synth::kMaxParam)) {
+        (*value)++;
+    } else if (!up_ && (*value > 0)) {
+        (*value)--;
+    } else {
+        return;
+    }
+    lcd_drawSynthData(slot);
+    if ((function_ == ENC_SYNTH_DECAY) || (function_ == ENC_SYNTH_GATE) || (function_ == ENC_SYNTH_ENVAMT)) lcd_drawSynthGraph();
 }
 
 void Controller::note_padPressed(uint8_t pad_) {
@@ -2250,7 +2430,7 @@ void Controller::note_padPressed(uint8_t pad_) {
     Bank& bank = layer.bankLibrary[activeSongBank];
     const int8_t note = tone::keyDegree(pad_, noteKeysOctave, layer.toneScale);
 
-    if ((!layer.mute) && (layer.samplePlay)) layer_playBeat(layerNum, 1.0f, note);
+    if ((!layer.mute) && layerSounds(layerNum)) layer_playBeat(layerNum, 1.0f, note);
 
     if (recordActive) {
         if (!metronome.precountState) {
@@ -2331,9 +2511,11 @@ void Controller::tone_resetLayer(uint8_t layerNum_) {
     /// and are reset with them). A note still held on the MIDI output is released.
 
     Layer& layer = layerLibrary[layerNum_];
+    if (layer.toneMode == tone::kModeSynth) synth_silence(layerNum_);
     layer.toneMode = tone::kModeDrum;
     layer.toneRoot = 0;
     layer.toneScale = tone::kDefaultScale;
+    layer.synth = synth::Params{};
     tone_setGlide(layerNum_, 0);
     layerPlayData[layerNum_].toneLastIncrement = 0.0f;
     if (toneMidiSounding[layerNum_] != 0xFF) {
@@ -2357,13 +2539,26 @@ void Controller::note_change(EncoderFunc function_, bool up_) {
 
     switch (function_) {
         case ENC_NOTE_MODE: {
-            const uint8_t mode = up_ ? tone::kModeTone : tone::kModeDrum;
-            if (mode == layer.toneMode) return;
+            // DRUM -> TONE -> SYNTH (and back).
+            if (up_ && (layer.toneMode >= tone::kModeCount - 1)) return;
+            if (!up_ && (layer.toneMode == tone::kModeDrum)) return;
+            const uint8_t mode = static_cast<uint8_t>(up_ ? layer.toneMode + 1 : layer.toneMode - 1);
+            if (layer.toneMode == tone::kModeSynth) synth_silence(selectedLayerNum);  // leaving SYNTH
+            if (mode == tone::kModeSynth) {
+                // Entering SYNTH: a sample that is still sounding stops (the voice replaces it).
+                const uint32_t primask = __get_PRIMASK();
+                __disable_irq();
+                layerPlayData[selectedLayerNum].activeBeatPlayData.active = false;
+                layerPlayData[selectedLayerNum].activeBeatPlayData.newBeatFlag = false;
+                __set_PRIMASK(primask);
+            }
             if (mode == tone::kModeDrum) {
                 const uint8_t root = layer.toneRoot, scale = layer.toneScale, glide = layer.toneGlide;
+                const synth::Params sound = layer.synth;
                 tone_resetLayer(selectedLayerNum);  // releases a held MIDI note
                 layer.toneRoot = root;              // ...but keeps the settings for next time
                 layer.toneScale = scale;
+                layer.synth = sound;
                 tone_setGlide(selectedLayerNum, glide);
             }
             layer.toneMode = mode;

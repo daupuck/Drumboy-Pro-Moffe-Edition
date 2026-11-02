@@ -2760,6 +2760,12 @@ void Controller::lcd_drawLfo_DepthData(uint8_t lfoNum_) {
 void Controller::lcd_drawLayerInst0Menu(uint8_t layerNum_, bool graph_) {
     /// @brief Draws Layer Instrument page-0 layout and values.
 
+    // SYNTH layer: the OSC page instead of the sample page.
+    if (synthInstPageActive() && (layerNum_ == selectedLayerNum)) {
+        lcd_drawSynthPage(layerNum_);
+        return;
+    }
+
     // 1. MENU ICON DRAW
     // Draw layer instrument menu icon area.
     lcd_drawMenuIcon(LAYER_INST_0_MENU);
@@ -2809,6 +2815,12 @@ void Controller::lcd_drawLayerInst0Menu(uint8_t layerNum_, bool graph_) {
 void Controller::lcd_drawLayerInst1Menu(uint8_t layerNum_) {
     /// @brief Draws Layer Instrument page-1 timing/probability fields.
 
+    // SYNTH layer: the FILTER page instead of start/end/timing/probability.
+    if (synthInstPageActive() && (layerNum_ == selectedLayerNum)) {
+        lcd_drawSynthPage(layerNum_);
+        return;
+    }
+
     // 1. HEADER DRAW
     // Draw headers for start/end/timing/probability fields.
     lcd_setMenuHeaderState(CYAN);
@@ -2827,6 +2839,25 @@ void Controller::lcd_drawLayerInst1Menu(uint8_t layerNum_) {
 
 void Controller::lcd_drawLayerInst2Menu(uint8_t layerNum_) {
     /// @brief Draws Layer Instrument page-2 routing fields.
+
+    // SYNTH layer: same routing page, but knobs 1-2 and the display area belong to no sample.
+    if (synthInstPageActive() && (layerNum_ == selectedLayerNum)) {
+        lcd.setBackColor(BLACK);
+        lcd_clearMenuTab(0);
+        lcd_clearMenuTab(1);
+        lcd.clearRect(kMenuSignBoxX[1] - 70, kMenuSignBoxY[1], 70, kMenuSignBoxHeight);
+        lcd.setForeColor(GRAY_50);
+        lcd.clearRect(493, 30, 325, 60);
+        lcd.drawVLine(kMenuLineX[3], kMenuLineY[3], kMenuLineHeight);
+        lcd.setFont(FONT_05x07);
+        lcd.setAlignment(LEFT);
+        lcd.setForeColor(GRAY_75);
+        lcd.drawText("SYNTH  ROUTING", 14, kBeatGraphStartX, kBeatGraphStartY + 2);
+        if (menuTab < 2) {  // the focused tab's marker was in a cleared slot
+            lcd.drawRGB16Image((const RGB16Color*)(RAM_ICON_SELECT_PALETTE_ADDRESS), (const uint8_t*)(RAM_ICON_SELECT_ON_DATA_ADDRESS), 64,
+                               kMenuSelectX[menuTab], kMenuSelectY[menuTab], kIconSelectWidth, kIconSelectHeight);
+        }
+    }
 
     // 1. HEADER DRAW
     // Draw headers for EQ/Filter/Effect/Reverb routing.
@@ -2854,6 +2885,7 @@ void Controller::lcd_drawLayerInst2Menu(uint8_t layerNum_) {
 
 void Controller::lcd_drawLayerInst_InstData(uint8_t layerNum_) {
     /// @brief Draws selected instrument name with load-state coloring.
+    if (synthInstPageActive()) return;  // SYNTH pages use this slot
 
     // 1. CONTEXT LOAD
     // Resolve layer reference for selected and loaded instrument data.
@@ -2874,6 +2906,7 @@ void Controller::lcd_drawLayerInst_InstData(uint8_t layerNum_) {
 
 void Controller::lcd_drawLayerInst_SampleData(uint8_t layerNum_) {
     /// @brief Draws selected sample name and related status details.
+    if (synthInstPageActive()) return;  // SYNTH pages use this slot
 
     // 1. CONTEXT LOAD
     // Resolve layer reference for selected and loaded sample data.
@@ -2922,6 +2955,7 @@ void Controller::lcd_drawLayerInst_SampleData(uint8_t layerNum_) {
 
 void Controller::lcd_drawLayerInst_GraphData(uint8_t layerNum_) {
     /// @brief Draws sample waveform graph plus bit-depth and duration metadata.
+    if (synthInstPageActive()) return;  // SYNTH pages draw their own graph
 
     // 1. CONTEXT LOAD
     // Resolve layer and loaded sample data references.
@@ -3071,6 +3105,7 @@ void Controller::lcd_drawLayerInst_GraphData(uint8_t layerNum_) {
 
 void Controller::lcd_drawLayerInst_LevelData(uint8_t layerNum_) {
     /// @brief Draws layer level value and assigned LFO label.
+    if (synthInstPageActive() && (menu != LAYER_INST_0_MENU)) return;  // only on the SYNTH OSC page
 
     // 1. CONTEXT LOAD
     // Resolve layer reference for level and LFO assignment.
@@ -3089,6 +3124,7 @@ void Controller::lcd_drawLayerInst_LevelData(uint8_t layerNum_) {
 
 void Controller::lcd_drawLayerInst_PitchData(uint8_t layerNum_) {
     /// @brief Draws layer pitch value and assigned LFO label.
+    if (synthInstPageActive() && (menu != LAYER_INST_0_MENU)) return;  // only on the SYNTH OSC page
 
     // 1. CONTEXT LOAD
     // Resolve layer reference for pitch and LFO assignment.
@@ -3107,6 +3143,7 @@ void Controller::lcd_drawLayerInst_PitchData(uint8_t layerNum_) {
 
 void Controller::lcd_drawLayerInst_DirectionData(uint8_t layerNum_) {
     /// @brief Draws layer direction value and assigned LFO label.
+    if (synthInstPageActive()) return;  // not a SYNTH setting
 
     // 1. CONTEXT LOAD
     // Resolve layer reference for direction and LFO assignment.
@@ -3125,6 +3162,7 @@ void Controller::lcd_drawLayerInst_DirectionData(uint8_t layerNum_) {
 
 void Controller::lcd_drawLayerInst_ResolutionData(uint8_t layerNum_) {
     /// @brief Draws layer resolution value and assigned LFO label.
+    if (synthInstPageActive()) return;  // not a SYNTH setting
 
     // 1. CONTEXT LOAD
     // Resolve layer reference for resolution and LFO assignment.
@@ -3143,6 +3181,7 @@ void Controller::lcd_drawLayerInst_ResolutionData(uint8_t layerNum_) {
 
 void Controller::lcd_drawLayerInst_StartData(uint8_t layerNum_) {
     /// @brief Draws start-position value and assigned LFO label.
+    if (synthInstPageActive()) return;  // not a SYNTH setting
 
     // 1. CONTEXT LOAD
     // Resolve layer reference for start position and LFO assignment.
@@ -3161,6 +3200,7 @@ void Controller::lcd_drawLayerInst_StartData(uint8_t layerNum_) {
 
 void Controller::lcd_drawLayerInst_EndData(uint8_t layerNum_) {
     /// @brief Draws end-position value and assigned LFO label.
+    if (synthInstPageActive()) return;  // not a SYNTH setting
 
     // 1. CONTEXT LOAD
     // Resolve layer reference for end position and LFO assignment.
@@ -3179,6 +3219,7 @@ void Controller::lcd_drawLayerInst_EndData(uint8_t layerNum_) {
 
 void Controller::lcd_drawLayerInst_TimingData(uint8_t layerNum_) {
     /// @brief Draws timing-offset value and assigned LFO label.
+    if (synthInstPageActive()) return;  // not a SYNTH setting
 
     // 1. CONTEXT LOAD
     // Resolve layer reference for timing and LFO assignment.
@@ -3197,6 +3238,7 @@ void Controller::lcd_drawLayerInst_TimingData(uint8_t layerNum_) {
 
 void Controller::lcd_drawLayerInst_ProbabilityData(uint8_t layerNum_) {
     /// @brief Draws probability value and assigned LFO label.
+    if (synthInstPageActive()) return;  // not a SYNTH setting
 
     // 1. CONTEXT LOAD
     // Resolve layer reference for probability and LFO assignment.
@@ -3669,7 +3711,7 @@ void Controller::lcd_drawNoteData(uint8_t slot_) {
 
     switch (slot_) {
         case 0:
-            snprintf(text, sizeof(text), "%s", kToneModeText[(layer.toneMode == tone::kModeTone) ? 1 : 0]);
+            snprintf(text, sizeof(text), "%10.10s", kToneModeText[(layer.toneMode < tone::kModeCount) ? layer.toneMode : 0]);
             break;
         case 1:
             if ((selectedBeatNum >= 0) && (selectedBeatNum <= bank.lastActiveBeatNum)) {
@@ -3678,7 +3720,7 @@ void Controller::lcd_drawNoteData(uint8_t slot_) {
             } else {
                 snprintf(text, sizeof(text), "%s", kDataDashR);
             }
-            if (layer.toneMode != tone::kModeTone) color = GRAY_50;  // edited, but not heard as a DRUM layer
+            if (!tone::playsNotes(layer.toneMode)) color = GRAY_50;  // edited, but not heard as a DRUM layer
             break;
         case 4:
             snprintf(text, sizeof(text), "%10.10s", tone::kNoteNames[layer.toneRoot % tone::kRootCount]);
@@ -3687,7 +3729,7 @@ void Controller::lcd_drawNoteData(uint8_t slot_) {
             snprintf(text, sizeof(text), "%10.10s", tone::kScales[tone::safeScale(layer.toneScale)].name);
             break;
         case 6:
-            snprintf(text, sizeof(text), "%s", kNumberDataLibrary[layer.toneGlide].nameLongR);
+            snprintf(text, sizeof(text), "%10.10s", kNumberDataLibrary[layer.toneGlide].nameLongR);
             break;
         case 7:
             snprintf(value, sizeof(value), (noteTransposeTotal > 0) ? "+%d" : "%d", noteTransposeTotal);
@@ -3717,7 +3759,7 @@ void Controller::lcd_drawNoteStrip() {
     if (!notePageActive() || (selectedLayerNum == -1)) return;
     const Layer& layer = layerLibrary[selectedLayerNum];
     const Bank& bank = layer.bankLibrary[activeSongBank];
-    const bool toneOn = (layer.toneMode == tone::kModeTone);
+    const bool toneOn = tone::playsNotes(layer.toneMode);
 
     lcd.setBackColor(BLACK);
     lcd.clearRect(kBeatGraphStartX, kBeatGraphStartY, kBeatGraphWidth + 1, kBeatGraphHeight + 1);
@@ -3771,6 +3813,149 @@ void Controller::lcd_drawNoteStrip() {
     lcd.setAlignment(RIGHT);
     lcd.setForeColor(GRAY_50);
     lcd.drawText("CLEAR: UNDO", 11, kBeatGraphEndX, kBeatGraphEndY - 6);
+}
+
+/* Lcd SYNTH Pages (Layer Inst menu of a SYNTH layer) -------------------------*/
+
+void Controller::lcd_drawSynthPage(uint8_t layerNum_) {
+    /// @brief Draws the OSC page (LAYER_INST_0_MENU) or FILTER page (LAYER_INST_1_MENU) of a
+    /// SYNTH layer. Clears everything a sample page may have left first.
+
+    if (!synthInstPageActive() || (menu == LAYER_INST_2_MENU)) return;
+    const bool osc = (menu == LAYER_INST_0_MENU);
+
+    // 1. CLEAR SLOTS, SAMPLE DETAILS AND THE DISPLAY AREA
+    lcd.setBackColor(BLACK);
+    const uint8_t slots[6] = {0, 1, 4, 5, 6, 7};
+    for (uint8_t i = 0; i < 6; i++) lcd_clearMenuTab(slots[i]);
+    lcd.clearRect(kMenuSignBoxX[1] - 70, kMenuSignBoxY[1], 70, kMenuSignBoxHeight);
+    lcd.setForeColor(GRAY_50);
+    lcd.clearRect(493, 30, 325, 60);
+    lcd.drawVLine(kMenuLineX[3], kMenuLineY[3], kMenuLineHeight);
+
+    // 2. ICON + LAYER NUMBER
+    lcd_drawMenuIcon(menu);
+    lcd_setMenuHeaderState(CYAN);
+    lcd.drawText(kDataMenuNum + layerNum_, 1, kMenuNumX, kMenuNumY);
+
+    // 3. HEADERS + SIGNS
+    lcd_setMenuHeaderState(CYAN);
+    if (osc) {
+        lcd.drawText(kHeaderSynthWave, kMenuHeaderTextSize, kMenuHeaderX[0], kMenuHeaderY[0]);
+        lcd.drawText(kHeaderLevel, kMenuHeaderTextSize, kMenuHeaderX[4], kMenuHeaderY[4]);
+        lcd.drawText(kHeaderPitch, kMenuHeaderTextSize, kMenuHeaderX[5], kMenuHeaderY[5]);
+        lcd_setMenuSignState(CYAN);
+        lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[0], kMenuSignBoxY[0]);
+    } else {
+        lcd.drawText(kHeaderSynthCutoff, kMenuHeaderTextSize, kMenuHeaderX[0], kMenuHeaderY[0]);
+        lcd.drawText(kHeaderSynthReso, kMenuHeaderTextSize, kMenuHeaderX[1], kMenuHeaderY[1]);
+        lcd.drawText(kHeaderSynthEnvAmt, kMenuHeaderTextSize, kMenuHeaderX[4], kMenuHeaderY[4]);
+        lcd.drawText(kHeaderSynthDecay, kMenuHeaderTextSize, kMenuHeaderX[5], kMenuHeaderY[5]);
+        lcd.drawText(kHeaderSynthGate, kMenuHeaderTextSize, kMenuHeaderX[6], kMenuHeaderY[6]);
+        lcd.drawText(kHeaderSynthDrive, kMenuHeaderTextSize, kMenuHeaderX[7], kMenuHeaderY[7]);
+        lcd_setMenuSignState(CYAN);
+        for (uint8_t i = 0; i < 6; i++) lcd.drawText("  %", kMenuSignTextSize, kMenuSignBoxX[slots[i]], kMenuSignBoxY[slots[i]]);
+    }
+
+    // 4. VALUES + DISPLAY
+    if (osc) {
+        lcd_drawSynthData(0);
+        lcd_drawLayerInst_LevelData(layerNum_);
+        lcd_drawLayerInst_PitchData(layerNum_);
+    } else {
+        for (uint8_t i = 0; i < 6; i++) lcd_drawSynthData(slots[i]);
+    }
+    lcd_drawSynthGraph();
+
+    // 5. The slot clear above also erased the tab-selection marker: put it back.
+    if (menuTab < 8) {
+        lcd.drawRGB16Image((const RGB16Color*)(RAM_ICON_SELECT_PALETTE_ADDRESS), (const uint8_t*)(RAM_ICON_SELECT_ON_DATA_ADDRESS), 64,
+                           kMenuSelectX[menuTab], kMenuSelectY[menuTab], kIconSelectWidth, kIconSelectHeight);
+    }
+}
+
+void Controller::lcd_drawSynthData(uint8_t slot_) {
+    /// @brief Draws one SYNTH value of the visible page (slot = knob position 0..7).
+
+    if (!synthInstPageActive() || (menu == LAYER_INST_2_MENU)) return;
+    const synth::Params p = synth::sanitize(layerLibrary[selectedLayerNum].synth);
+    char text[kMenuDataTextSize + 1];
+    if (menu == LAYER_INST_0_MENU) {
+        if (slot_ != 0) return;
+        snprintf(text, sizeof(text), "%10.10s", synth::kWaveNames[p.wave]);
+    } else {
+        uint8_t value;
+        switch (slot_) {
+            case 0: value = p.cutoff; break;
+            case 1: value = p.resonance; break;
+            case 4: value = p.envAmount; break;
+            case 5: value = p.decay; break;
+            case 6: value = p.gate; break;
+            case 7: value = p.drive; break;
+            default: return;
+        }
+        snprintf(text, sizeof(text), "%10.10s", kNumberDataLibrary[value].nameLongR);
+    }
+    lcd_setMenuDataState(WHITE);
+    lcd.drawText(text, kMenuDataTextSize, kMenuDataX[slot_], kMenuDataY[slot_]);
+}
+
+void Controller::lcd_drawSynthGraph() {
+    /// @brief OSC page: one cycle of the waveform. FILTER page: how far the filter envelope
+    /// opens and how fast it closes (1 s shown), with the GATE as a bar underneath.
+
+    if (!synthInstPageActive() || (menu == LAYER_INST_2_MENU)) return;
+    const synth::Params p = synth::sanitize(layerLibrary[selectedLayerNum].synth);
+    const bool osc = (menu == LAYER_INST_0_MENU);
+
+    lcd.setBackColor(BLACK);
+    lcd.clearRect(kBeatGraphStartX, kBeatGraphStartY, kBeatGraphWidth + 1, kBeatGraphHeight + 1);
+    lcd.setFont(FONT_05x07);
+    lcd.setAlignment(LEFT);
+    lcd.setForeColor(GRAY_75);
+    lcd.drawText(osc ? "SYNTH  OSC" : "SYNTH  FILTER", osc ? 10 : 13, kBeatGraphStartX, kBeatGraphStartY + 2);
+
+    const uint16_t top = kBeatGraphStartY + 13;
+    const uint16_t bottom = kBeatGraphEndY - 4;
+    const uint16_t height = bottom - top;
+
+    if (osc) {
+        // Waveform, 2 cycles across the strip.
+        const uint16_t mid = top + (height / 2);
+        lcd.setForeColor(GRAY_25);
+        lcd.drawHLine(kBeatGraphStartX, mid, kBeatGraphWidth);
+        lcd.setForeColor(CYAN);
+        int previous = -1;
+        for (uint16_t x = 0; x < kBeatGraphWidth; x++) {
+            float t = (2.0f * x) / kBeatGraphWidth;
+            t -= static_cast<float>(static_cast<int>(t));
+            const int y = mid - static_cast<int>(synth::oscillator(p.wave, t, 0.0f) * (height / 2 - 1));
+            if (previous < 0) previous = y;
+            const int y0 = (y < previous) ? y : previous;
+            const int y1 = (y < previous) ? previous : y;
+            lcd.drawVLine(kBeatGraphStartX + x, static_cast<uint16_t>(y0), static_cast<uint16_t>(y1 - y0 + 1));
+            previous = y;
+        }
+    } else {
+        // Filter envelope over 1 s: starts at ENV AMT and decays with DECAY.
+        const float seconds = 0.02f * exp2f((p.decay / 100.0f) * 6.64f);
+        const float amount = p.envAmount / 100.0f;
+        lcd.setForeColor(CYAN);
+        const uint16_t envBottom = bottom - 5;
+        const uint16_t envHeight = envBottom - top;
+        for (uint16_t x = 0; x < kBeatGraphWidth; x += 2) {
+            const float t = static_cast<float>(x) / kBeatGraphWidth;
+            const float e = amount * expf(-t / seconds);
+            const uint16_t h = static_cast<uint16_t>(e * envHeight);
+            if (h > 0) lcd.drawVLine(kBeatGraphStartX + x, envBottom - h, h);
+        }
+        // GATE: the share of the time until the next beat that the note is held.
+        const uint16_t gateWidth = static_cast<uint16_t>((p.gate / 100.0f) * kBeatGraphWidth);
+        lcd.setForeColor(GRAY_50);
+        lcd.drawHLine(kBeatGraphStartX, bottom - 1, kBeatGraphWidth);
+        lcd.setForeColor(WHITE);
+        if (gateWidth > 0) lcd.fillRect(kBeatGraphStartX, bottom - 2, gateWidth, 3);
+    }
 }
 
 void Controller::lcd_redrawNotePage() {

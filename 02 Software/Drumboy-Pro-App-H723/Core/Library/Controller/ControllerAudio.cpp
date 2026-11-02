@@ -573,6 +573,26 @@ void Controller::processAudioLayer() {
         // Reset the audio buffer for the current layer
         memset(audioLayer[i], 0, I2S_BLOCK_SIZE * sizeof(float));
 
+        // --- SYNTH layer: the voice replaces the sample path (SynthVoice.h) ---
+        if (layerLibrary[i].toneMode == tone::kModeSynth) {
+            synth::Voice& voice = synthVoice[i];
+            if (synthPendingFlag[i]) {
+                synthPendingFlag[i] = false;
+                synth::start(voice, synthPending[i]);
+                io.midi.txTriggerNoteOn[i] = true;
+            }
+            aBD.mixerInMode = layerLibrary[i].mixerInMode;  // routing (EQ / filter / effect / reverb) as for samples
+            if (voice.active) {
+                const uint8_t events = synth::render(voice, layerLibrary[i].synth, audioLayer[i], I2S_BLOCK_SIZE, kAudioSampleRate);
+                if (events & synth::kGateEnded) io.midi.txTriggerNoteOff[i] = true;
+                if (events & synth::kVoiceEnded) {
+                    lD.beatStartFlag = false;
+                    lD.beatEndFlag = true;
+                }
+            }
+            continue;
+        }
+
         // --- Handle Sample Retriggering ---
         if (aBD.newBeatFlag) {
             if (aBD.counterFade >= 49 || !aBD.active) {
