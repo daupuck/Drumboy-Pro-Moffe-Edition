@@ -9,7 +9,13 @@ SD-card package is named after it). Rolling back = installing an older package.
 LEFT/RIGHT = style, UP/DOWN = colour theme, HOME = off, any menu-panel key leaves and opens its
 menu. Pads, transport, MUTE/FILL/STYLE and the home-screen knobs keep working.
 
-- Seven styles: SHOWTIME (layer lights + VU + spectrum + triggered scope + beat-synced neon
+- Thirteen styles. Added later in v1.14: RAIN (digital rain, one column per band, hit
+  bursts), FIREWORKS (a rocket per hit, bursting in the layer's colour), MANDALA (waveform and
+  spectrum mirrored into eight turning wedges), DISCO (light-up floor: eighth-note patterns,
+  bar checkerboard, tiles per hit), RIDGES (stacked spectrum ridge lines, painter's algorithm
+  for hidden lines), LIFE (Game of Life per eighth note, gliders / R-pentominoes per hit).
+  DTCM use 57 KB of 128 KB.
+- The first seven: SHOWTIME (layer lights + VU + spectrum + triggered scope + beat-synced neon
   floor), ORBIT (layers as planets, hit ripples and lightning, bass core, one planet per bar),
   PHASE (phase portrait of the output with a three-generation trail), SPECTRUM (32 mirrored
   bars with caps), SPECTRO (scrolling spectrogram with beat ticks), TUNNEL (frames per eighth

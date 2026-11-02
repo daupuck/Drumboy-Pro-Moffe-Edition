@@ -331,7 +331,7 @@ PLAY/STOP/REC, MUTE/FILL/STYLE + pad and the home-screen knobs all work while it
 | Key | What it does |
 |---|---|
 | **HOME** (centre key) on the home screen | VISUALS on. (HOME in any other menu still goes to the home screen, as before.) |
-| **LEFT / RIGHT** | The previous / next style. |
+| **LEFT / RIGHT** | The previous / next style (13). |
 | **UP / DOWN** | The colour theme: SYNTHWAVE, ACID, OCEAN, FIRE, ICE, RAINBOW. |
 | **HOME** | VISUALS off, back to the home screen. |
 | **Any menu key** (right-hand panel) | Leaves VISUALS and opens that menu. |
@@ -347,6 +347,12 @@ A line at the top shows the style, the theme and the keys for a few seconds afte
 | **5 SPECTRO** | A spectrogram painting itself across the screen: time left to right, pitch bottom to top, loudness as heat. Ticks underneath mark the beats (white = a new bar). |
 | **6 TUNNEL** | Flying through a tunnel of frames, one per eighth note (a bold white one on each bar), through stars that speed up with the music. |
 | **7 METERS** | Two big analogue needle meters (left, right) over ten LED ladders, one per layer. |
+| **8 RAIN** | Digital rain: 64 columns of falling characters, one per frequency band. Loud bands fall fast with long trails; a hit sends a burst down its layer's columns. |
+| **9 FIREWORKS** | Every hit launches a rocket from its layer's place on the ground that bursts into sparks in the layer's colour; accents fly higher and burst bigger. |
+| **10 MANDALA** | A kaleidoscope: the waveform and the spectrum mirrored into eight wedges, slowly turning, with a heart that beats with the bass. |
+| **11 DISCO** | A light-up dance floor: patterns on every eighth note, a checkerboard on each bar, and every hit lights a tile in its layer's part of the floor. |
+| **12 RIDGES** | The spectrum's recent past as stacked mountain ridges, like the famous album cover: the newest line in front. |
+| **13 LIFE** | Conway's Game of Life, one generation per eighth note. Every hit drops a glider into its layer's part of the world (an accent: a wild R-pentomino); newborn cells flash white. |
 
 - The visuals follow the sequencer while it plays (floor, orbit, tunnel and beat ticks lock to the
   tempo) and the TEMPO setting when it is stopped.
@@ -404,7 +410,7 @@ A line at the top shows the style, the theme and the keys for a few seconds afte
 | v1.11 | SYNTH layers: a built-in synth voice with filter, envelope, gate and accent |
 | v1.12 | SYNTH: DETUNE, SUB, NOISE, WAVE = SAMPLE (single-cycle WAVs); SLIDE per beat; stronger DRIVE |
 | v1.13 | SYNTH: 32 presets + 16 USER slots, random sounds and variations, AMP envelope (ADSR), filter types, own LFO page; pads play the synth on its pages; synth sounds in drumkits and the instrument copy. NOTE page: pads only play while stopped (ADD + pad = step entry), wider octave range |
-| v1.14 | VISUALS: seven full-screen music visuals (HOME on the home screen) with six colour themes; SYNTH: 66 presets in alphabetical order, the synth sound's name in the track list; recording with PAD HOLD keeps the held note lengths |
+| v1.14 | VISUALS: 13 full-screen music visuals (HOME on the home screen) with six colour themes; SYNTH: 66 presets in alphabetical order, the synth sound's name in the track list; recording with PAD HOLD keeps the held note lengths |
 
 ## Coming next
 

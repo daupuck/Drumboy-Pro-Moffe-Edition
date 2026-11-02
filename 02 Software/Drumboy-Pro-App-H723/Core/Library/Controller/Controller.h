@@ -1202,6 +1202,12 @@ class Controller {
     void visual_sceneSpectro(bool init_);
     void visual_sceneTunnel(bool init_);
     void visual_sceneMeters(bool init_);
+    void visual_sceneRain(bool init_);
+    void visual_sceneFireworks(bool init_);
+    void visual_sceneMandala(bool init_);
+    void visual_sceneDisco(bool init_);
+    void visual_sceneRidges(bool init_);
+    void visual_sceneLife(bool init_);
     void synth_captureUndo();
     void synth_undo();
     void synth_loadPreset(int16_t index_);

@@ -30,8 +30,9 @@ constexpr int16_t kHintH = 12;          // top band reserved for the hint line
 constexpr uint32_t kFrameMs = 33;       // ~30 frames per second
 constexpr uint32_t kHintMs = 3500;
 
-constexpr uint8_t kSceneCount = 7;
-const char* const kSceneNames[kSceneCount] = {"SHOWTIME", "ORBIT", "PHASE", "SPECTRUM", "SPECTRO", "TUNNEL", "METERS"};
+constexpr uint8_t kSceneCount = 13;
+const char* const kSceneNames[kSceneCount] = {"SHOWTIME", "ORBIT", "PHASE", "SPECTRUM", "SPECTRO", "TUNNEL", "METERS",
+                                              "RAIN", "FIREWORKS", "MANDALA", "DISCO", "RIDGES", "LIFE"};
 constexpr uint8_t kThemeCount = 6;
 const char* const kThemeNames[kThemeCount] = {"SYNTHWAVE", "ACID", "OCEAN", "FIRE", "ICE", "RAINBOW"};
 const uint8_t kThemeBase[kThemeCount] = {213, 60, 110, 0, 140, 0};
@@ -45,6 +46,19 @@ constexpr uint8_t kStars = 90;
 constexpr uint8_t kFloorLines = 6;
 constexpr uint8_t kFloorVerticals = 17;
 constexpr int16_t kNone = 0x7FFF;
+
+constexpr uint8_t kRainCols = 64;       // 15 px each
+constexpr uint8_t kRainRows = 34;       // 15 px each, from y 16
+constexpr uint16_t kSparks = 320;
+constexpr uint8_t kRockets = 16;
+constexpr uint8_t kMandalaWave = 48;
+constexpr uint8_t kMandalaBands = 32;
+constexpr uint16_t kMandalaPoints = 8 * (kMandalaWave + kMandalaBands);
+constexpr uint8_t kDiscoCols = 16;
+constexpr uint8_t kDiscoRows = 8;
+constexpr uint8_t kRidges = 20;
+constexpr uint8_t kLifeW = 96;
+constexpr uint8_t kLifeH = 52;
 
 struct Ripple {
     int16_t x, y, r, rMax;
@@ -66,6 +80,20 @@ struct Star {
     int16_t sx, sy;
     uint8_t size;
     bool drawn;
+};
+
+struct Spark {
+    float x, y, vx, vy;
+    int16_t sx, sy;
+    uint16_t c;
+    uint8_t life, maxLife;
+    bool on, drawn;
+};
+struct Rocket {
+    float x, y, vy, power;
+    int16_t sx, sy;
+    uint16_t c;
+    bool on, drawn;
 };
 
 struct State {
@@ -111,6 +139,27 @@ struct State {
     // METERS
     float needle[2];
     int16_t needle0X[2], needle0Y[2], needle1X[2], needle1Y[2];
+    // RAIN
+    char rainChar[kRainCols][kRainRows];
+    float rainHead[kRainCols], rainBoost[kRainCols];
+    int16_t rainDrawn[kRainCols];
+    uint8_t rainLen[kRainCols];
+    // FIREWORKS
+    Spark sparks[kSparks];
+    Rocket rockets[kRockets];
+    uint32_t lastRocketMs;
+    // MANDALA
+    int16_t mx[kMandalaPoints], my[kMandalaPoints];
+    bool mDrawn;
+    float mRot, mGain;
+    // DISCO
+    float tileLvl[kDiscoCols * kDiscoRows];
+    uint8_t tileDrawn[kDiscoCols * kDiscoRows], tileHue[kDiscoCols * kDiscoRows];
+    // RIDGES
+    uint8_t ridge[kRidges][64];
+    uint8_t ridgeHead, ridgeCount;
+    // LIFE
+    uint8_t life[kLifeW * kLifeH], lifeNext[kLifeW * kLifeH];
     vis::Rng rng;
 };
 
@@ -448,7 +497,13 @@ void Controller::visual_initScene() {
         case 3: visual_sceneSpectrum(true); break;
         case 4: visual_sceneSpectro(true); break;
         case 5: visual_sceneTunnel(true); break;
-        default: visual_sceneMeters(true); break;
+        case 6: visual_sceneMeters(true); break;
+        case 7: visual_sceneRain(true); break;
+        case 8: visual_sceneFireworks(true); break;
+        case 9: visual_sceneMandala(true); break;
+        case 10: visual_sceneDisco(true); break;
+        case 11: visual_sceneRidges(true); break;
+        default: visual_sceneLife(true); break;
     }
 }
 
@@ -460,7 +515,13 @@ void Controller::visual_drawScene() {
         case 3: visual_sceneSpectrum(false); break;
         case 4: visual_sceneSpectro(false); break;
         case 5: visual_sceneTunnel(false); break;
-        default: visual_sceneMeters(false); break;
+        case 6: visual_sceneMeters(false); break;
+        case 7: visual_sceneRain(false); break;
+        case 8: visual_sceneFireworks(false); break;
+        case 9: visual_sceneMandala(false); break;
+        case 10: visual_sceneDisco(false); break;
+        case 11: visual_sceneRidges(false); break;
+        default: visual_sceneLife(false); break;
     }
 }
 
@@ -1008,5 +1069,411 @@ void Controller::visual_sceneMeters(bool init_) {
         const float lvl = (s.layer[i] > (s.flash[i] * 0.9f)) ? s.layer[i] : (s.flash[i] * 0.9f);
         segBar(d, 52 + (i * 88), 518, -1, 44, 9, 2, s.ladder[i], static_cast<uint8_t>(lvl * 10.0f),
                [&](int k) { return (k >= 8) ? WHITE : themeColor(t, i * 25u, static_cast<uint8_t>(120 + (k * 13))); });
+    }
+}
+
+void Controller::visual_sceneRain(bool init_) {
+    /// @brief Digital rain: 64 columns of falling characters, one per frequency band. Loud bands
+    /// fall fast with long trails; a hit sends a burst down its layer's columns.
+
+    State& s = vs;
+    Lcd& d = lcd;
+    const uint8_t t = visualTheme;
+    static const char kGlyphs[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ<>+:-/?!#%";
+    constexpr uint8_t kGlyphCount = sizeof(kGlyphs) - 1;
+    auto cell = [&](uint8_t c, int r, uint16_t color) {
+        if ((r < 0) || (r >= kRainRows)) return;
+        d.setForeColor(color);
+        d.drawText(&s.rainChar[c][r], 1, static_cast<uint16_t>((c * 15) + 2), static_cast<uint16_t>(16 + (r * 15)));
+    };
+
+    lcd.setFont(FONT_10x14);
+    lcd.setAlignment(LEFT);
+    lcd.setBackColor(BLACK);
+    if (init_) {
+        for (uint8_t c = 0; c < kRainCols; c++) {
+            for (uint8_t r = 0; r < kRainRows; r++) s.rainChar[c][r] = kGlyphs[s.rng.next() % kGlyphCount];
+            s.rainHead[c] = -static_cast<float>(s.rng.range(0, 30));
+            s.rainDrawn[c] = static_cast<int16_t>(s.rainHead[c]);
+            s.rainLen[c] = static_cast<uint8_t>(s.rng.range(6, 14));
+            s.rainBoost[c] = 0.0f;
+        }
+        return;
+    }
+
+    for (uint8_t i = 0; i < vis::kLayers; i++) {  // a hit: a burst in the layer's columns
+        if (s.hitNow[i] <= 0.0f) continue;
+        const int c = clampi((i * 6) + s.rng.range(0, 5), 0, kRainCols - 1);
+        s.rainBoost[c] = 1.2f + s.hitNow[i];
+    }
+    for (uint8_t c = 0; c < kRainCols; c++) {
+        s.rainHead[c] += 0.15f + (s.band64[c] * 1.1f) + s.rainBoost[c];
+        s.rainBoost[c] *= 0.9f;
+        const int target = static_cast<int>(s.rainHead[c]);
+        while (s.rainDrawn[c] < target) {
+            const int h = ++s.rainDrawn[c];
+            cell(c, h - 1, themeColor(t, c * 4u, 230));  // the old head joins the trail...
+            cell(c, h - 5, themeColor(t, c * 4u, 100));  // ...which dims further up
+            if ((h >= 0) && (h < kRainRows)) {
+                s.rainChar[c][h] = kGlyphs[s.rng.next() % kGlyphCount];
+                cell(c, h, WHITE);                        // the new head shines
+            }
+            const int tail = h - s.rainLen[c];
+            if ((tail >= 0) && (tail < kRainRows)) box(d, c * 15, 16 + (tail * 15), 15, 15, BLACK);
+            if (tail >= kRainRows) {  // this drop is gone: a new one, longer when the band is loud
+                s.rainHead[c] = -static_cast<float>(s.rng.range(0, 12));
+                s.rainDrawn[c] = static_cast<int16_t>(s.rainHead[c]);
+                s.rainLen[c] = static_cast<uint8_t>(6 + s.rng.range(0, 6) + static_cast<int>(s.band64[c] * 14.0f));
+                break;
+            }
+        }
+    }
+}
+
+void Controller::visual_sceneFireworks(bool init_) {
+    /// @brief Every hit launches a rocket from its layer's place on the ground; it bursts at the
+    /// top into sparks in the layer's colour. Accents fly higher and burst bigger.
+
+    State& s = vs;
+    Lcd& d = lcd;
+    const uint8_t t = visualTheme;
+
+    if (init_) {
+        for (uint16_t i = 0; i < kSparks; i++) s.sparks[i].on = false;
+        for (uint8_t i = 0; i < kRockets; i++) s.rockets[i].on = false;
+        s.lastRocketMs = HAL_GetTick();
+        return;
+    }
+
+    auto launch = [&](int x, float power, uint16_t c) {
+        for (uint8_t k = 0; k < kRockets; k++) {
+            Rocket& r = s.rockets[k];
+            if (r.on) continue;
+            r = Rocket{static_cast<float>(x), 530.0f, -(8.0f + (power * 4.5f) + (s.bass * 2.5f)), power, 0, 0, c, true, false};
+            return;
+        }
+    };
+    const uint32_t now = HAL_GetTick();
+    for (uint8_t i = 0; i < vis::kLayers; i++) {
+        if (s.hitNow[i] <= 0.0f) continue;
+        launch(48 + (i * 96) + s.rng.range(-24, 24), s.hitNow[i], themeColor(t, i * 25u));
+        s.lastRocketMs = now;
+    }
+    if ((now - s.lastRocketMs) > 1500) {  // quiet: now and then one on its own
+        launch(s.rng.range(80, kW - 80), 0.6f, themeColor(t, s.rng.next()));
+        s.lastRocketMs = now;
+    }
+
+    for (uint8_t k = 0; k < kRockets; k++) {
+        Rocket& r = s.rockets[k];
+        if (!r.on) continue;
+        if (r.drawn) box(d, r.sx - 1, r.sy - 2, 3, 5, BLACK);
+        r.y += r.vy;
+        r.vy += 0.26f;
+        if ((r.vy >= -0.6f) || (r.y < 40.0f)) {  // the burst
+            const int n = 18 + static_cast<int>(r.power * 40.0f);
+            for (int p = 0, made = 0; (p < kSparks) && (made < n); p++) {
+                Spark& sp = s.sparks[p];
+                if (sp.on) continue;
+                const float a = static_cast<float>(s.rng.range(0, 6283)) / 1000.0f;
+                const float v = (static_cast<float>(s.rng.range(15, 65)) / 10.0f) * (0.6f + (r.power * 0.6f));
+                sp = Spark{r.x, r.y, v * cosf(a), v * sinf(a), 0, 0, (s.rng.range(0, 5) == 0) ? WHITE : r.c,
+                           static_cast<uint8_t>(s.rng.range(25, 50)), 0, true, false};
+                sp.maxLife = sp.life;
+                made++;
+            }
+            r.on = false;
+            continue;
+        }
+        r.sx = static_cast<int16_t>(r.x);
+        r.sy = static_cast<int16_t>(r.y);
+        box(d, r.sx - 1, r.sy - 2, 3, 5, WHITE);
+        r.drawn = true;
+    }
+
+    for (uint16_t p = 0; p < kSparks; p++) {
+        Spark& sp = s.sparks[p];
+        if (!sp.on) continue;
+        if (sp.drawn) box(d, sp.sx, sp.sy, 2, 2, BLACK);
+        sp.vy += 0.09f;
+        sp.vx *= 0.985f;
+        sp.vy *= 0.985f;
+        sp.x += sp.vx;
+        sp.y += sp.vy;
+        if ((--sp.life == 0) || (sp.x < 0.0f) || (sp.x >= kW - 2) || (sp.y < kHintH) || (sp.y >= kH - 2)) {
+            sp.on = false;
+            continue;
+        }
+        sp.sx = static_cast<int16_t>(sp.x);
+        sp.sy = static_cast<int16_t>(sp.y);
+        const uint8_t v = static_cast<uint8_t>(40 + ((sp.life * 215) / sp.maxLife));
+        box(d, sp.sx, sp.sy, 2, 2, vis::dim(sp.c, v));
+        sp.drawn = true;
+    }
+}
+
+void Controller::visual_sceneMandala(bool init_) {
+    /// @brief A kaleidoscope: the waveform (outer ring) and the spectrum (inner ring) mirrored
+    /// into eight wedges around the centre, slowly turning; louder = wider and faster.
+
+    State& s = vs;
+    Lcd& d = lcd;
+    const uint8_t t = visualTheme;
+    constexpr int kCx = 480, kCy = 278;
+    constexpr float kWedge = 0.785398f;
+
+    if (init_) {
+        s.mDrawn = false;
+        s.mGain = 1.0f;
+        s.glowR = 0;
+        return;
+    }
+
+    if (s.mDrawn) {
+        for (uint16_t i = 0; i < kMandalaPoints; i++) box(d, s.mx[i] - 1, s.my[i] - 1, 3, 3, BLACK);
+    }
+    s.mRot += 0.008f + (s.energy * 0.04f);
+
+    const uint32_t end = visTap.pos;
+    const uint32_t start = end - (kMandalaWave * 6) - 1;
+    float peak = 0.02f;
+    for (uint16_t k = 0; k < kMandalaWave * 6; k++) {
+        const float a = fabsf(mono(start + k));
+        if (a > peak) peak = a;
+    }
+    float target = 1.0f / peak;
+    if (target > 10.0f) target = 10.0f;
+    s.mGain += (target - s.mGain) * 0.2f;
+
+    uint16_t n = 0;
+    for (uint8_t w = 0; w < 8; w++) {
+        const float base = (w * kWedge) + s.mRot;
+        const bool mirror = (w & 1) != 0;
+        for (uint8_t k = 0; k < kMandalaWave; k++) {
+            float a = ((k + 0.5f) / kMandalaWave) * kWedge;
+            if (mirror) a = kWedge - a;
+            const float r = 120.0f + (fabsf(mono(start + (k * 6))) * s.mGain * 130.0f);
+            s.mx[n] = static_cast<int16_t>(clampi(kCx + static_cast<int>(r * cosf(base + a)), 1, kW - 2));
+            s.my[n] = static_cast<int16_t>(clampi(kCy + static_cast<int>(r * sinf(base + a)), kHintH + 1, kH - 2));
+            box(d, s.mx[n] - 1, s.my[n] - 1, 3, 3, themeColor(t, (k * 5u) + visualFrame));
+            n++;
+        }
+        for (uint8_t k = 0; k < kMandalaBands; k++) {
+            float a = ((k + 0.5f) / kMandalaBands) * kWedge;
+            if (mirror) a = kWedge - a;
+            const float r = 24.0f + (s.band32[k] * 95.0f);
+            s.mx[n] = static_cast<int16_t>(kCx + static_cast<int>(r * cosf(base - a)));
+            s.my[n] = static_cast<int16_t>(kCy + static_cast<int>(r * sinf(base - a)));
+            box(d, s.mx[n] - 1, s.my[n] - 1, 3, 3, themeColor(t, 128u + (k * 4u), static_cast<uint8_t>(120 + (s.band32[k] * 135.0f))));
+            n++;
+        }
+    }
+    s.mDrawn = true;
+
+    const int16_t glow = static_cast<int16_t>(4 + (s.bass * 16.0f));
+    if (glow < s.glowR) disc(d, kCx, kCy, s.glowR, BLACK);
+    disc(d, kCx, kCy, glow, WHITE);
+    s.glowR = glow;
+}
+
+void Controller::visual_sceneDisco(bool init_) {
+    /// @brief A light-up dance floor: patterns flash on every eighth note (a checkerboard on each
+    /// bar), every hit lights a tile in its layer's part of the floor, and tiles fade out.
+
+    State& s = vs;
+    Lcd& d = lcd;
+    const uint8_t t = visualTheme;
+    constexpr uint8_t kTiles = kDiscoCols * kDiscoRows;
+    const uint16_t dark = vis::rgb(18, 18, 26);
+    auto tileBox = [&](uint8_t i, uint16_t c) { box(d, ((i % kDiscoCols) * 60) + 2, 40 + ((i / kDiscoCols) * 60) + 2, 56, 56, c); };
+
+    if (init_) {
+        for (uint8_t i = 0; i < kTiles; i++) {
+            s.tileLvl[i] = 0.0f;
+            s.tileDrawn[i] = 0;
+            s.tileHue[i] = 0;
+            tileBox(i, dark);
+        }
+        s.lastStep = s.step8;
+        s.lastSpawnMs = HAL_GetTick();
+        return;
+    }
+
+    auto light = [&](uint8_t i, float lvl, uint8_t hue) {
+        if (lvl > s.tileLvl[i]) {
+            s.tileLvl[i] = lvl;
+            s.tileHue[i] = hue;
+        }
+    };
+    const uint32_t now = HAL_GetTick();
+    bool step = false;
+    if (s.playing) {
+        step = (s.step8 != s.lastStep);
+    } else {
+        step = ((now - s.lastSpawnMs) > 400) || (((now - s.lastSpawnMs) > 150) && (s.bass > 0.6f));
+    }
+    if (step) {
+        s.lastStep = s.step8;
+        s.lastSpawnMs = now;
+        const uint8_t hue = static_cast<uint8_t>(s.step8 * 19u);
+        if (s.barStart && ((s.step8 & 1u) == 0)) {  // the bar: a checkerboard
+            for (uint8_t i = 0; i < kTiles; i++) {
+                if ((((i % kDiscoCols) + (i / kDiscoCols) + (s.beatIdx / 4u)) & 1u) == 0) light(i, 1.0f, hue);
+            }
+        } else {
+            switch (s.step8 % 4) {
+                case 0:  // a column sweeps across
+                    for (uint8_t r = 0; r < kDiscoRows; r++) light(static_cast<uint8_t>((r * kDiscoCols) + ((s.step8 / 4) % kDiscoCols)), 0.9f, hue);
+                    break;
+                case 2:  // a diagonal
+                    for (uint8_t r = 0; r < kDiscoRows; r++) light(static_cast<uint8_t>((r * kDiscoCols) + ((r + s.step8) % kDiscoCols)), 0.8f, hue);
+                    break;
+                default:  // sparkles
+                    for (uint8_t k = 0; k < 6; k++) light(static_cast<uint8_t>(s.rng.range(0, kTiles - 1)), 0.7f + (s.energy * 0.3f), static_cast<uint8_t>(hue + (k * 30)));
+                    break;
+            }
+        }
+    }
+    for (uint8_t i = 0; i < vis::kLayers; i++) {  // hits: the layer's part of the floor
+        if (s.hitNow[i] <= 0.0f) continue;
+        const uint8_t col = static_cast<uint8_t>(clampi(static_cast<int>((i * 1.6f) + s.rng.range(0, 1)), 0, kDiscoCols - 1));
+        light(static_cast<uint8_t>((s.rng.range(0, kDiscoRows - 1) * kDiscoCols) + col), s.hitNow[i], static_cast<uint8_t>(i * 25));
+    }
+
+    for (uint8_t i = 0; i < kTiles; i++) {
+        s.tileLvl[i] *= 0.86f;
+        const uint8_t q = static_cast<uint8_t>(s.tileLvl[i] * 7.99f);
+        if (q == s.tileDrawn[i]) continue;
+        tileBox(i, (q == 0) ? dark : themeColor(t, s.tileHue[i], static_cast<uint8_t>(40 + (q * 30))));
+        s.tileDrawn[i] = q;
+    }
+}
+
+void Controller::visual_sceneRidges(bool init_) {
+    /// @brief Ridge lines of the spectrum's recent past, stacked like mountains (the famous album
+    /// cover look): the newest line at the front, older ones moving back and up.
+
+    State& s = vs;
+    Lcd& d = lcd;
+    const uint8_t t = visualTheme;
+    constexpr int kX0 = 192, kStep = 9, kAmp = 110;
+
+    if (init_) {
+        memset(s.ridge, 0, sizeof(s.ridge));
+        s.ridgeHead = 0;
+        s.ridgeCount = 0;
+        return;
+    }
+    if ((visualFrame & 1u) != 0) return;  // a new line every other frame
+
+    s.ridgeHead = static_cast<uint8_t>((s.ridgeHead + 1) % kRidges);
+    for (uint8_t b = 0; b < 64; b++) s.ridge[s.ridgeHead][b] = to8(s.band64[b]);
+    if (s.ridgeCount < kRidges) s.ridgeCount++;
+
+    int16_t y[64];
+    for (int j = kRidges - 1; j >= 0; j--) {  // back to front: each line hides what is behind it
+        const uint8_t idx = static_cast<uint8_t>((s.ridgeHead + kRidges - j) % kRidges);
+        const int baseline = 512 - (j * 22);
+        for (uint8_t b = 0; b < 64; b++) {
+            const float win = sinf(3.14159f * (b + 0.5f) / 64.0f);
+            const float h = (j < s.ridgeCount) ? ((s.ridge[idx][b] / 255.0f) * kAmp * win * win) : 0.0f;
+            y[b] = static_cast<int16_t>(baseline - static_cast<int>(h) - static_cast<int>(s.rng.range(0, 2) * win));
+        }
+        const uint16_t c = (j == 0) ? WHITE : vis::dim(themeColor(t, j * 12u), static_cast<uint8_t>(255 - (j * 9)));
+        for (uint8_t b = 0; b < 63; b++) {
+            const int x = kX0 + (b * kStep);
+            const int top = (j == kRidges - 1) ? kHintH : ((y[b] < y[b + 1]) ? y[b] : y[b + 1]);
+            const int bottom = (j == 0) ? (kH - 1) : (baseline + 21);
+            box(d, x, top, kStep, bottom - top + 1, BLACK);
+            line(d, x, y[b], x + kStep, y[b + 1], c);
+        }
+    }
+}
+
+void Controller::visual_sceneLife(bool init_) {
+    /// @brief Conway's Game of Life, one generation per eighth note. Every hit drops a glider
+    /// (an accent: a wild R-pentomino) into its layer's part of the world; newborn cells flash.
+
+    State& s = vs;
+    Lcd& d = lcd;
+    const uint8_t t = visualTheme;
+    constexpr int kTotal = kLifeW * kLifeH;
+    auto bucket = [](uint8_t age) -> uint8_t { return (age == 0) ? 0 : ((age == 1) ? 1 : ((age < 5) ? 2 : 3)); };
+    auto colorOf = [&](uint8_t b) -> uint16_t {
+        return (b == 0) ? BLACK : ((b == 1) ? WHITE : ((b == 2) ? themeColor(t, 40) : themeColor(t, 170, 150)));
+    };
+    auto cellBox = [&](int x, int y, uint16_t c) { box(d, x * 10, 16 + (y * 10), 9, 9, c); };
+    auto set = [&](int x, int y) {
+        x = (x + kLifeW) % kLifeW;
+        y = (y + kLifeH) % kLifeH;
+        uint8_t& v = s.life[(y * kLifeW) + x];
+        if (v == 0) {
+            v = 1;
+            cellBox(x, y, WHITE);
+        }
+    };
+
+    if (init_) {
+        memset(s.life, 0, sizeof(s.life));
+        for (int i = 0; i < kTotal; i++) {
+            if (s.rng.range(0, 99) < 14) {
+                s.life[i] = 1;
+                cellBox(i % kLifeW, i / kLifeW, WHITE);
+            }
+        }
+        s.lastStep = s.step8;
+        s.lastSpawnMs = HAL_GetTick();
+        return;
+    }
+
+    for (uint8_t i = 0; i < vis::kLayers; i++) {  // hits drop shapes into the layer's part
+        if (s.hitNow[i] <= 0.0f) continue;
+        const int x = static_cast<int>(i * 9.6f) + s.rng.range(0, 8);
+        const int y = s.rng.range(0, kLifeH - 1);
+        if (s.hitNow[i] > 0.9f) {  // R-pentomino
+            set(x + 1, y); set(x + 2, y); set(x, y + 1); set(x + 1, y + 1); set(x + 1, y + 2);
+        } else {                    // a glider, heading a random way
+            const int dx = s.rng.range(0, 1) ? 1 : -1;
+            const int dy = s.rng.range(0, 1) ? 1 : -1;
+            set(x + dx, y); set(x + (2 * dx), y + dy); set(x, y + (2 * dy)); set(x + dx, y + (2 * dy)); set(x + (2 * dx), y + (2 * dy));
+        }
+    }
+
+    const uint32_t now = HAL_GetTick();
+    bool step;
+    if (s.playing) {
+        step = (s.step8 != s.lastStep);
+    } else {
+        step = (now - s.lastSpawnMs) > 180;
+    }
+    if (!step) return;
+    s.lastStep = s.step8;
+    s.lastSpawnMs = now;
+
+    int population = 0;
+    for (int y = 0; y < kLifeH; y++) {
+        const int yu = ((y + kLifeH - 1) % kLifeH) * kLifeW;
+        const int yc = y * kLifeW;
+        const int yd = ((y + 1) % kLifeH) * kLifeW;
+        for (int x = 0; x < kLifeW; x++) {
+            const int xl = (x + kLifeW - 1) % kLifeW;
+            const int xr = (x + 1) % kLifeW;
+            const int n = (s.life[yu + xl] != 0) + (s.life[yu + x] != 0) + (s.life[yu + xr] != 0) + (s.life[yc + xl] != 0) +
+                          (s.life[yc + xr] != 0) + (s.life[yd + xl] != 0) + (s.life[yd + x] != 0) + (s.life[yd + xr] != 0);
+            const uint8_t old = s.life[yc + x];
+            uint8_t next = 0;
+            if (old != 0) {
+                if ((n == 2) || (n == 3)) next = (old < 255) ? static_cast<uint8_t>(old + 1) : old;
+            } else if (n == 3) {
+                next = 1;
+            }
+            s.lifeNext[yc + x] = next;
+            if (next != 0) population++;
+            if (bucket(next) != bucket(old)) cellBox(x, y, colorOf(bucket(next)));
+        }
+    }
+    memcpy(s.life, s.lifeNext, sizeof(s.life));
+    if (population < 25) {  // nearly extinct: new life rains in
+        for (int k = 0; k < 120; k++) set(s.rng.range(0, kLifeW - 1), s.rng.range(0, kLifeH - 1));
     }
 }
