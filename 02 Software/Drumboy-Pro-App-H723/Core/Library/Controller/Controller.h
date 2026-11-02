@@ -1154,8 +1154,18 @@ class Controller {
     int8_t padHoldKey = -1;
     volatile bool synthReleasePending[kLayerLibrarySize] = {};
     volatile bool toneReleasePending[kLayerLibrarySize] = {};
+    // Recording with PAD HOLD: the beat that was just written while its pad is still down. The
+    // sequencer skips it (the pad note is already sounding) and the release stores its length.
+    volatile int8_t holdRecLayer = -1;
+    volatile uint8_t holdRecBank = 0;
+    volatile uint16_t holdRecStart = 0;                  // quantized start of the beat
+    uint16_t holdRecPress = 0;                           // playInterval when the pad went down
+    // TONE layers playing a recorded held note: sequencer ticks left until it fades out.
+    volatile uint16_t toneHoldLeft[kLayerLibrarySize] = {};
     void note_padReleased(uint8_t pad_);
     void note_releaseHeld();
+    void note_finishHoldRec();
+    uint16_t layerSong_quantizeStart(uint16_t interval_) const;
     void synth_captureUndo();
     void synth_undo();
     void synth_loadPreset(int16_t index_);

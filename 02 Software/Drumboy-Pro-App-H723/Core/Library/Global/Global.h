@@ -7153,6 +7153,7 @@ struct Beat {
     uint8_t note                                    = 0;  // TONE/SYNTH: scale degree + SLIDE flag (tone::packNote); uses the former padding byte
     uint16_t startInterval                          = 0;
     uint16_t endInterval                            = 0;
+    uint16_t hold                                   = 0;  // TONE/SYNTH: recorded PAD HOLD length in intervals (0 = GATE)
 
     // Bit masks for precise field extraction
 
@@ -7175,7 +7176,12 @@ struct Beat {
         endInterval = 0;
         fillTarget = NULL_FILL_TARGET;
         note = 0;
+        hold = 0;
     }
+
+    void setHold(uint16_t hold_) noexcept { hold = hold_; }
+
+    uint16_t getHold() const noexcept { return hold; }
 
     // The degree and the SLIDE flag are set independently; reset()/clearNote() clear both.
     void setNote(int8_t note_) noexcept { note = tone::packNote(note_, tone::unpackSlide(note)); }
@@ -7239,8 +7245,9 @@ struct Beat {
     uint16_t getData() const noexcept { return data; }
 };
 
-// The note lives in what used to be padding, so 3200 beats cost no extra RAM_D1.
-static_assert(sizeof(Beat) == 8, "Beat must stay 8 bytes (RAM_D1 is nearly full)");
+// The note lives in what used to be padding; the recorded hold length (v1.13) costs 2 bytes per
+// beat (~7.7 KB of RAM_D1 for 3200 beats + the copy buffers).
+static_assert(sizeof(Beat) == 10, "Beat must stay 10 bytes (RAM_D1 is nearly full)");
 
 /*----------------------------------------------------------------------------*/
 
@@ -7288,6 +7295,7 @@ struct Bank {
         beat.setFillTime(0);
         beat.setFillLevel(0);
         beat.clearNote();
+        beat.setHold(0);
     }
 
     void resetBeat(uint8_t beatNum_) {
@@ -7299,6 +7307,7 @@ struct Bank {
         beat.setEndInterval(0);
         beat.setFillType(0);
         beat.clearNote();
+        beat.setHold(0);
 
         if (oldTarget != NULL_FILL_TARGET) {
             if (ownerOfFillTarget(oldTarget) == beatNum_) {
@@ -7436,11 +7445,13 @@ const char kDrumkitSynthRef[]                       = "SYK4";  // drumkit tail: 
 const char kSynthUserFile[]                         = "System/Preset/SynthUser.rws";  // USER 01..16 synth sounds
 const char kSynthUserRef[]                          = "RWSYNUS2";  // 21 values per slot ("RWSYNUSR" = 20, still read)
 const char kSlideFileRef[]                          = "SLD1";  // beats with SLIDE, after the SYNTH sounds
+const char kHoldFileRef[]                           = "HLD1";  // recorded hold lengths, after the slides (v1.13)
 
 // layer_playBeat() flags from the sequencer (SLIDE, 303 style):
 const uint8_t kPlaySlideIn                          = 0x01;  // this beat slides in from the previous note
 const uint8_t kPlayTieOut                           = 0x02;  // the next beat slides in: hold this note until it
 const uint8_t kPlayHold                             = 0x04;  // PAD HOLD: a pad note, held until the pad is released
+const uint8_t kPlayHeld                             = 0x08;  // a recorded held note: sounds its whole length (no GATE)
 const uint8_t kSlideGlideMin                        = 25;    // SLIDE with GLIDE 0 still slides (~36 ms)
 
 // Where the chain lives in the project file's 1500-byte drumkit-style block. Both ranges are

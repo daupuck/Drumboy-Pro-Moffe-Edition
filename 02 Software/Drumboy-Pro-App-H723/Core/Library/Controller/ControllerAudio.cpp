@@ -175,6 +175,9 @@ void Controller::stop() {
         lcd_drawSongBankTab(activeSongBank, false);
     }
 
+    // Recorded held notes: no countdown survives into the next start.
+    for (uint8_t i = 0; i < kLayerLibrarySize; i++) toneHoldLeft[i] = 0;
+
     // 4. TRANSPORT FLAG RESET
     // Put transport into fully stopped state.
     stopFlag = false;

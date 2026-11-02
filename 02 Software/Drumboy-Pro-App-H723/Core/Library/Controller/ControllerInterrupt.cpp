@@ -88,6 +88,12 @@ void Controller::interruptPlay() {
                 }
             }
 
+            // Recorded held notes on TONE layers: fade out once their length has passed (a beat
+            // starting on this tick sets a new count below).
+            for (uint8_t i = 0; i < kLayerLibrarySize; i++) {
+                if ((toneHoldLeft[i] > 0) && (--toneHoldLeft[i] == 0)) toneReleasePending[i] = true;
+            }
+
             // 3. LAYER BEAT PROCESSING
             // Iterate through all layers and trigger simple/complex beat events.
             for (uint8_t i = 0; i < kLayerLibrarySize; i++) {
@@ -119,12 +125,21 @@ void Controller::interruptPlay() {
                                 }
                             }
                             // Length until the next beat (the end interval of the last beat is the song end).
-                            const uint16_t length = (beat.getEndInterval() > beat.getStartInterval()) ? (beat.getEndInterval() - beat.getStartInterval()) : 0;
+                            uint16_t length = (beat.getEndInterval() > beat.getStartInterval()) ? (beat.getEndInterval() - beat.getStartInterval()) : 0;
                             // SLIDE: this beat slides in, and/or the next beat (wrapping) slides in from this one.
                             const Beat& following = bank.beatLibrary[(playBeatNum < bank.lastActiveBeatNum) ? (playBeatNum + 1) : 0];
                             uint8_t beatFlags = beat.getSlide() ? kPlaySlideIn : 0;
                             if ((bank.lastActiveBeatNum > 0) && following.getSlide()) beatFlags |= kPlayTieOut;
-                            if (fillVolMultiplier > 0.0f) layer_playBeat(layer.number, fillVolMultiplier, beat.getNote(), length, beatFlags);
+                            // Recorded with PAD HOLD: sounds as long as the pad was held (a tie wins).
+                            if ((beat.getHold() > 0) && !(beatFlags & kPlayTieOut)) {
+                                length = beat.getHold();
+                                beatFlags |= kPlayHeld;
+                            }
+                            // The beat being recorded right now with its pad still held is already
+                            // sounding from the pad: triggering it again would cut it short.
+                            const bool beingHeld = (holdRecLayer == static_cast<int8_t>(i)) && (holdRecBank == activeSongBank) &&
+                                                   (holdRecStart == beat.getStartInterval());
+                            if ((fillVolMultiplier > 0.0f) && !beingHeld) layer_playBeat(layer.number, fillVolMultiplier, beat.getNote(), length, beatFlags);
 
                             // Advance to the next beat index
                             (playBeatNum < bank.lastActiveBeatNum) ? bank.playBeatNum += 1 : bank.playBeatNum = 0;

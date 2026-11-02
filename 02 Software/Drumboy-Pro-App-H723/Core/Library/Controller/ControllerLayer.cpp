@@ -140,6 +140,8 @@ void Controller::layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int
     // 1. CONTEXT LOAD
     // Resolve layer, play-state buffers, and temporary beat structures.
     toneReleasePending[layerNum_] = false;  // PAD HOLD: an old release must not cut this new note
+    // A note recorded with PAD HOLD fades out after its length (counted down by the sequencer).
+    toneHoldLeft[layerNum_] = (beatFlags_ & kPlayHeld) ? lengthIntervals_ : 0;
     Layer& layer = layerLibrary[layerNum_];
     LayerPlayData& lD = layerPlayData[layerNum_];
     BeatPlayData& tBD = lD.tempBeatPlayData;
@@ -2386,8 +2388,10 @@ void Controller::synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int
     // next beat slides in, the note is held until it (plus 3 ms) so the two notes join.
     const uint32_t length = (lengthIntervals_ > 0) ? lengthIntervals_ : (kMeasureInterval / 2);
     const float samplesPerInterval = static_cast<float>(playTimerPeriod) * (kAudioSampleRate / 1000000.0f);
+    // A note recorded with PAD HOLD (kPlayHeld) sounds exactly as long as the pad was held.
     const bool tieOut = (beatFlags_ & kPlayTieOut) != 0;
-    const float gateShare = tieOut ? 1.0f : (static_cast<float>(layer.synth.gate) / 100.0f);
+    const bool held = (beatFlags_ & kPlayHeld) != 0;
+    const float gateShare = (tieOut || held) ? 1.0f : (static_cast<float>(layer.synth.gate) / 100.0f);
     uint32_t gateSamples = static_cast<uint32_t>(gateShare * static_cast<float>(length) * samplesPerInterval);
     if (tieOut) gateSamples += static_cast<uint32_t>(0.003f * kAudioSampleRate);
     if (gateSamples < 64) gateSamples = 64;  // even GATE 0 is a short blip, not silence
@@ -2680,6 +2684,8 @@ void Controller::note_padPressed(uint8_t pad_) {
     Bank& bank = layer.bankLibrary[activeSongBank];
     const int8_t note = tone::keyDegree(pad_, noteKeysOctave, layer.toneScale);
 
+    note_finishHoldRec();  // monophonic: a held note being recorded ends where the next one starts
+
     if ((!layer.mute) && layerSounds(layerNum)) {
         if (layer.synth.padHold) {
             // PAD HOLD: the note lasts until this pad is released (note_padReleased).
@@ -2693,7 +2699,25 @@ void Controller::note_padPressed(uint8_t pad_) {
 
     if (recordActive) {
         if (!metronome.precountState) {
-            layerSong_setBeat(layerNum, activeSongBank, playInterval, 0, 0, 0, 0, true, true, note);
+            const uint16_t press = playInterval;
+            const uint16_t start = layerSong_quantizeStart(press);
+            // With PAD HOLD the release records how long the pad was held (note_finishHoldRec),
+            // so playback sounds the same. Set up before the beat exists, so the sequencer never
+            // retriggers it while the pad is still down.
+            if (layer.synth.padHold && (padHoldLayer == static_cast<int8_t>(layerNum))) {
+                holdRecPress = press;
+                holdRecStart = start;
+                holdRecBank = activeSongBank;
+                holdRecLayer = static_cast<int8_t>(layerNum);  // last: the sequencer ISR reads it
+            }
+            layerSong_setBeat(layerNum, activeSongBank, press, 0, 0, 0, 0, true, true, note);
+            // Until then the beat has the GATE length (also when it replaced an old held note).
+            for (int16_t k = 0; k <= bank.lastActiveBeatNum; k++) {
+                if (bank.beatLibrary[k].getActive() && (bank.beatLibrary[k].getStartInterval() == start)) {
+                    bank.beatLibrary[k].setHold(0);
+                    break;
+                }
+            }
         } else {
             // Hit during precount: committed to position 0 (with its note) once playback starts.
             precountPendingBeat[layerNum] = true;
@@ -2733,6 +2757,7 @@ void Controller::note_padReleased(uint8_t pad_) {
 void Controller::note_releaseHeld() {
     /// @brief Ends the held pad note, if any (pad released, HOLD switched off).
 
+    note_finishHoldRec();
     if (padHoldLayer < 0) return;
     const uint8_t layerNum = static_cast<uint8_t>(padHoldLayer);
     padHoldLayer = -1;
@@ -2741,6 +2766,31 @@ void Controller::note_releaseHeld() {
         synthReleasePending[layerNum] = true;
     } else {
         toneReleasePending[layerNum] = true;
+    }
+}
+
+void Controller::note_finishHoldRec() {
+    /// @brief Recording with PAD HOLD: stores how long the pad of the recorded note was held
+    /// (in sequencer intervals, across the loop end), so playback sounds it just as long.
+    /// Stopped in the meantime: the length is unknown and the note keeps its GATE length.
+
+    if (holdRecLayer < 0) return;
+    const uint8_t layerNum = static_cast<uint8_t>(holdRecLayer);
+    holdRecLayer = -1;
+    if (!playActive || (songInterval == 0)) return;
+
+    const uint16_t now = playInterval;
+    uint32_t length = (now >= holdRecPress) ? (now - holdRecPress) : (static_cast<uint32_t>(now) + songInterval - holdRecPress);
+    if (length == 0) length = 1;
+    if (length > songInterval) length = songInterval;
+
+    Bank& bank = layerLibrary[layerNum].bankLibrary[holdRecBank];
+    for (int16_t k = 0; k <= bank.lastActiveBeatNum; k++) {
+        Beat& beat = bank.beatLibrary[k];
+        if (beat.getActive() && (beat.getStartInterval() == holdRecStart)) {
+            beat.setHold(static_cast<uint16_t>(length));
+            break;
+        }
     }
 }
 
@@ -3168,7 +3218,17 @@ void Controller::layerSong_beatLeft() {
     }
 }
 
-void Controller::layerSong_setBeat(uint8_t layerNum_, uint8_t bankTab_, uint16_t interval_, uint8_t fillType_, uint8_t fillPattern_, uint8_t fillTime_, uint8_t fillLevel_, bool selected_, bool hasNote_, int8_t note_) {
+uint16_t Controller::layerSong_quantizeStart(uint16_t interval_) const {
+    /// @brief Where a beat recorded at interval_ lands: the nearest grid line (Rhythm QUANTIZE);
+    /// the end of the song wraps to its start.
+
+    const uint16_t quantizeInterval = kQuantizeInterval[rhythm.quantize];
+    uint16_t startInterval = ((interval_ / quantizeInterval) + ((interval_ % quantizeInterval) / (quantizeInterval / 2))) * quantizeInterval;
+    if (startInterval == songInterval) startInterval = 0;
+    return startInterval;
+}
+
+void Controller::layerSong_setBeat(uint8_t layerNum_, uint8_t bankTab_, uint16_t interval_,uint8_t fillType_, uint8_t fillPattern_, uint8_t fillTime_, uint8_t fillLevel_, bool selected_, bool hasNote_, int8_t note_) {
     /// @brief Inserts a beat into target bank with quantization, ordering, and UI sync.
 
     Layer& layer = layerLibrary[layerNum_];
@@ -3177,15 +3237,9 @@ void Controller::layerSong_setBeat(uint8_t layerNum_, uint8_t bankTab_, uint16_t
     // 1. CAPACITY & QUANTIZE PREPARATION
     // Validate beat capacity and quantize incoming interval.
     if (bank.lastActiveBeatNum < kBeatLibrarySize) {
-        uint16_t quantizeInterval = kQuantizeInterval[rhythm.quantize];
-
-        // Quantize incoming interval using nearest-grid rounding.
-        uint16_t startInterval = ((interval_ / quantizeInterval) + ((interval_ % quantizeInterval) / (quantizeInterval / 2))) * quantizeInterval;
+        // Quantize incoming interval using nearest-grid rounding; the song end wraps to 0.
+        const uint16_t startInterval = layerSong_quantizeStart(interval_);
         uint16_t endInterval;
-
-        // 2. LOOP BOUNDARY NORMALIZATION
-        // Remap end-of-song interval to loop start.
-        if (startInterval == songInterval) startInterval = 0;
 
         // 3. INSERTION INDEX RESOLUTION
         // Detect duplicates and compute sorted insertion index.
@@ -3481,6 +3535,7 @@ uint8_t Controller::layerSong_snapshotBank(uint8_t layerNum_, uint8_t bankTab_, 
         beats_[count].fillLevel = beat.getFillLevel();
         beats_[count].note = beat.getNote();
         beats_[count].slide = beat.getSlide();
+        beats_[count].hold = beat.getHold();
         count++;
     }
     return count;
@@ -3512,6 +3567,7 @@ int8_t Controller::layerSong_rebuildBank(uint8_t layerNum_, uint8_t bankTab_, Be
             bank.setBeat(i, beats_[i].startInterval, endInterval);
             bank.beatLibrary[i].setNote(beats_[i].note);
             bank.beatLibrary[i].setSlide(beats_[i].slide);
+            bank.beatLibrary[i].setHold(beats_[i].hold);
         }
         for (uint8_t i = 0; i < count_; i++) {
             bank.setBeatFill(i, beats_[i].fillType, beats_[i].fillPattern, beats_[i].fillTime, beats_[i].fillLevel);
@@ -3612,6 +3668,7 @@ void Controller::layerSong_insertBeat() {
     // The new beat continues the line: it takes the note of the beat it was inserted after.
     beats[sorted].note = ((sel >= 0) && (sel < static_cast<int8_t>(sorted))) ? beats[sel].note : 0;
     beats[sorted].slide = false;
+    beats[sorted].hold = 0;
 
     selectedBeatNum = layerSong_rebuildBank(selectedLayerNum, activeSongBank, beats, sorted + 1, sorted);
     layerSong_redrawEdited();

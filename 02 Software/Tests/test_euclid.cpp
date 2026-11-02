@@ -120,7 +120,7 @@ static void testPositions() {
 }
 
 static void testCompose() {
-    const BeatSnapshot base[] = {{0, 2, 1, 0, 0, 0, false}, {800, 0, 0, 0, 0, 0, false}};
+    const BeatSnapshot base[] = {{0, 2, 1, 0, 0, 0, false, 0}, {800, 0, 0, 0, 0, 0, false, 0}};
     const uint16_t hits[] = {0, 400, 1200};
     BeatSnapshot out[64];
     bool trunc = false;

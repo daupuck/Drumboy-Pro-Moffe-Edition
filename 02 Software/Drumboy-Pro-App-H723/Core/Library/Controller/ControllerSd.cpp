@@ -1586,6 +1586,8 @@ SdResult Controller::sd_clearFile(uint8_t fileNum_) {
 //          "SYN2" from v1.12 has the first 10 values, "SYN1" from v1.11 the first 7; both still
 //          read, as are the v1.13 test builds' "SYN3"/"SYN4")
 //   "SLD1" + 10 layers x 5 banks x { count, count x [start interval hi, lo] } + "EOF"   (v1.12)
+//   "HLD1" + 10 layers x 5 banks x { count, count x [start hi, lo, hold length hi, lo] } + "EOF"
+//          (v1.13: notes recorded with PAD HOLD; older readers stop before it)
 // Mode 2 (SYNTH) is read as DRUM by v1.09/v1.10, which stop at the first "EOF".
 // Notes are matched to beats by start interval on load (positions are unique within a bank),
 // so the file never depends on slot order. Older firmware never opens it.
@@ -1612,7 +1614,7 @@ SdResult Controller::sd_saveNotes(uint8_t fileNum_) {
         for (uint8_t b = 0; (b < kBankLibrarySize) && !needed; b++) {
             const Bank& bank = layer.bankLibrary[b];
             for (int16_t k = 0; k <= bank.lastActiveBeatNum; k++) {
-                if (bank.beatLibrary[k].getActive() && ((bank.beatLibrary[k].getNote() != 0) || bank.beatLibrary[k].getSlide())) {
+                if (bank.beatLibrary[k].getActive() && ((bank.beatLibrary[k].getNote() != 0) || bank.beatLibrary[k].getSlide() || (bank.beatLibrary[k].getHold() != 0))) {
                     needed = true;
                     break;
                 }
@@ -1687,6 +1689,28 @@ SdResult Controller::sd_saveNotes(uint8_t fileNum_) {
             }
             slides[0] = count;
             if (sd_write(slides, 1 + (count * 2)) != FR_OK) errorCount += 1;
+        }
+    }
+    if (sd_write("EOF", 3) != FR_OK) errorCount += 1;
+
+    // v1.13+: notes recorded with PAD HOLD, as start interval + length per layer and bank.
+    if (sd_write(kHoldFileRef, strlen(kHoldFileRef)) != FR_OK) errorCount += 1;
+    uint8_t holds[1 + (kBeatLibrarySize * 4)];
+    for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+        for (uint8_t b = 0; b < kBankLibrarySize; b++) {
+            const Bank& bank = layerLibrary[l].bankLibrary[b];
+            uint8_t count = 0;
+            for (int16_t k = 0; (k <= bank.lastActiveBeatNum) && (count < kBeatLibrarySize); k++) {
+                const Beat& beat = bank.beatLibrary[k];
+                if (!beat.getActive() || (beat.getHold() == 0)) continue;
+                holds[1 + (count * 4) + 0] = static_cast<uint8_t>(beat.getStartInterval() >> 8);
+                holds[1 + (count * 4) + 1] = static_cast<uint8_t>(beat.getStartInterval() & 0xFF);
+                holds[1 + (count * 4) + 2] = static_cast<uint8_t>(beat.getHold() >> 8);
+                holds[1 + (count * 4) + 3] = static_cast<uint8_t>(beat.getHold() & 0xFF);
+                count++;
+            }
+            holds[0] = count;
+            if (sd_write(holds, 1 + (count * 4)) != FR_OK) errorCount += 1;
         }
     }
     if (sd_write("EOF", 3) != FR_OK) errorCount += 1;
@@ -1793,6 +1817,38 @@ void Controller::sd_loadNotes(uint8_t fileNum_) {
                                 if (bank.beatLibrary[k].getActive() && (bank.beatLibrary[k].getStartInterval() == start)) {
                                     bank.beatLibrary[k].setSlide(true);
                                     break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Notes recorded with PAD HOLD (v1.13+), after the slides' "EOF".
+                char holdTag[sizeof(kHoldFileRef)] = {};
+                if (slidesOk && (sd_read(eof, 3) == FR_OK) && (sd_read(holdTag, strlen(kHoldFileRef)) == FR_OK) &&
+                    (strncmp(holdTag, kHoldFileRef, strlen(kHoldFileRef)) == 0)) {
+                    bool holdsOk = true;
+                    for (uint8_t l = 0; (l < kLayerLibrarySize) && holdsOk; l++) {
+                        for (uint8_t b = 0; (b < kBankLibrarySize) && holdsOk; b++) {
+                            Bank& bank = layerLibrary[l].bankLibrary[b];
+                            uint8_t count = 0;
+                            if ((sd_read(&count, 1) != FR_OK) || (count > kBeatLibrarySize)) {
+                                holdsOk = false;
+                                break;
+                            }
+                            for (uint8_t e = 0; e < count; e++) {
+                                uint8_t entry[4];
+                                if (sd_read(entry, 4) != FR_OK) {
+                                    holdsOk = false;
+                                    break;
+                                }
+                                const uint16_t start = static_cast<uint16_t>((entry[0] << 8) | entry[1]);
+                                const uint16_t hold = static_cast<uint16_t>((entry[2] << 8) | entry[3]);
+                                for (int16_t k = 0; k <= bank.lastActiveBeatNum; k++) {
+                                    if (bank.beatLibrary[k].getActive() && (bank.beatLibrary[k].getStartInterval() == start)) {
+                                        bank.beatLibrary[k].setHold(hold);
+                                        break;
+                                    }
                                 }
                             }
                         }

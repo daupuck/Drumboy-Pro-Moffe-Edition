@@ -30,6 +30,12 @@ drumkits and the instrument copy (step 4d)**
   (SYNTH: gate held up to 60 s, then RELEASE; TONE: the sample fades out in ~1 ms). The newest
   pad owns the note. Stored with the sound (21st value) but kept when presets, random sounds or
   undo change the sound. Files: "SYN6", "SYK4", "RWSYNUS2" (older v1.13 test-build files load).
+  **Recording with PAD HOLD keeps the note length**: the release stores how long the pad was
+  held (per beat, in sequencer intervals), and playback sounds the note exactly that long
+  instead of GATE % (SYNTH: gate = held length; TONE: fades out after it). A SLIDE into the next
+  note still wins. While the pad is still down the sequencer does not retrigger the new beat.
+  Saved in the `.rwn` file as "HLD1" after the slides. `Beat` grew from 8 to 10 bytes
+  (RAM_D1 92.1% → 94.2%).
 - **FILT TYPE** (FILTER page, knob 7): LP 24 (as before), LP 12, BAND, HIGH, tapped from the same
   ladder (classic mode mixing), so it costs a few multiplies per sample.
 
