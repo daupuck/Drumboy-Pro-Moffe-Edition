@@ -200,6 +200,9 @@ void Controller::keyboard_action() {
 
     // 1. INPUT GATE CHECK
     if (keyboardActive) {
+        // VISUALS mode takes its steering keys first (and leaves before a menu key).
+        visual_filterKeys();
+
         // 2. LAYER KEYPAD DISPATCH
         if (keyboard.keyLayer.read) {
             for (uint8_t layerNum = 0; layerNum < kLayerLibrarySize; layerNum++) {
@@ -625,7 +628,8 @@ void Controller::keyboard_action() {
                                 break;
 
                             case KEY_CENTER:
-                                if (!alertFlag) global_select();
+                                // HOME on the home screen: VISUALS mode (v1.14).
+                                if (!alertFlag) (menu == GLOBAL_MENU) ? visual_enter() : global_select();
                                 break;
 
                             case KEY_ADD:

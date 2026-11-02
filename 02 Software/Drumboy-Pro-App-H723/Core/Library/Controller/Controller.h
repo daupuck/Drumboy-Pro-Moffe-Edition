@@ -7,6 +7,7 @@
 #include "Global.h"
 #include "Lcd.h"
 #include "SampleFormat.h"
+#include "Visuals.h"
 #include "fatfs.h"
 #include "main.h"
 #include "sdmmc.h"
@@ -26,6 +27,11 @@ extern __attribute__((section(".RAM_D3"))) uint8_t i2c3_rxData[2];
 extern __attribute__((section(".RAM_D3"))) uint8_t i2c3_txData[2];
 extern __attribute__((section(".RAM_D3"))) uint8_t i2c4_rxData[2];
 extern __attribute__((section(".RAM_D3"))) uint8_t i2c4_txData[2];
+
+/* Memory Allocation In DTCM ------------------------------------- */
+
+// VISUALS mode: what the audio ISR captures for the visuals (ControllerVisual.cpp).
+extern vis::Tap visTap;
 
 /* Sync And Midi Buffers ----------------------------------------- */
 
@@ -1166,6 +1172,34 @@ class Controller {
     void note_releaseHeld();
     void note_finishHoldRec();
     uint16_t layerSong_quantizeStart(uint16_t interval_) const;
+
+    // VISUALS mode (v1.14): full-screen music visuals. HOME (CENTER) on the home screen turns it
+    // on; LEFT/RIGHT = style, UP/DOWN = colours, HOME = off; a menu key leaves and opens its menu.
+    // Pads, transport and the home-screen knobs keep working underneath.
+    volatile bool visualActive = false;
+    uint8_t visualScene = 0;
+    uint8_t visualTheme = 0;
+    bool visualSceneReady = false;
+    uint32_t visualTick = 0;
+    uint32_t visualFrame = 0;
+    uint32_t visualHintUntil = 0;
+    bool visualHintShown = false;
+    void visual_enter();
+    void visual_exit();
+    void visual_service();
+    void visual_filterKeys();
+    void visual_restoreScreen();
+    void visual_analyze();
+    void visual_initScene();
+    void visual_drawScene();
+    void visual_drawHint(bool show_);
+    void visual_sceneShowtime(bool init_);
+    void visual_sceneOrbit(bool init_);
+    void visual_scenePhase(bool init_);
+    void visual_sceneSpectrum(bool init_);
+    void visual_sceneSpectro(bool init_);
+    void visual_sceneTunnel(bool init_);
+    void visual_sceneMeters(bool init_);
     void synth_captureUndo();
     void synth_undo();
     void synth_loadPreset(int16_t index_);

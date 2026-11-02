@@ -1209,6 +1209,22 @@ void Controller::processAudioSend(uint32_t* outputBuffer) {
         return;
     }
 
+    // VISUALS mode: per-layer levels for the meters (only while the visuals are on).
+    const bool visCapture = visualActive;
+    if (visCapture) {
+        for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+            float m = 0.0f;
+            for (uint16_t j = 0; j < I2S_BLOCK_SIZE; j++) {
+                const float a = fabsf(audioLayer[l][j]);
+                if (a > m) m = a;
+            }
+            if (m > visTap.layerPeak[l]) visTap.layerPeak[l] = m;
+        }
+    }
+    uint32_t visPos = visTap.pos;
+    float visPeakL = 0.0f;
+    float visPeakR = 0.0f;
+
     // 3. FINAL OUTPUT FORMATTING
     // Apply gain/LPF/peak/clipping and write interleaved I2S samples.
     for (uint16_t i = 0; i < I2S_BLOCK_SIZE; i++) {
@@ -1229,6 +1245,16 @@ void Controller::processAudioSend(uint32_t* outputBuffer) {
         if (absAudioMax_L > audioPeak_L) audioPeak_L = absAudioMax_L;
         if (absAudioMax_R > audioPeak_R) audioPeak_R = absAudioMax_R;
 
+        // VISUALS mode: the output for the scope / spectrum (one branch per sample otherwise).
+        if (visCapture) {
+            const uint32_t w = visPos & (vis::kScopeSize - 1);
+            visTap.scopeL[w] = outL;
+            visTap.scopeR[w] = outR;
+            visPos++;
+            if (absAudioMax_L > visPeakL) visPeakL = absAudioMax_L;
+            if (absAudioMax_R > visPeakR) visPeakR = absAudioMax_R;
+        }
+
         // Apply soft knee clipping to prevent digital distortion
         outL = softKneeClip(outL);
         outR = softKneeClip(outR);
@@ -1240,6 +1266,12 @@ void Controller::processAudioSend(uint32_t* outputBuffer) {
         // Write final samples to the interleaved I2S output buffer
         outputBuffer[i * 2] = static_cast<uint32_t>(sampleL);
         outputBuffer[i * 2 + 1] = static_cast<uint32_t>(sampleR);
+    }
+
+    if (visCapture) {
+        visTap.pos = visPos;
+        if (visPeakL > visTap.peakL) visTap.peakL = visPeakL;
+        if (visPeakR > visTap.peakR) visTap.peakR = visPeakR;
     }
 }
 

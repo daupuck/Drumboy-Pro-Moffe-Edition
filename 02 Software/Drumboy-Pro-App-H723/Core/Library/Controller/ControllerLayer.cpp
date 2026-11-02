@@ -131,6 +131,9 @@ void Controller::updatePlayTimerPeriod() {
 void Controller::layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_, uint8_t beatFlags_) {
     /// @brief Prepares and triggers layer beat playback with LFO/style-dependent modulation.
 
+    // VISUALS mode: every trigger flashes its layer (velocity; the main loop takes it).
+    if (visualActive && (layerNum_ < kLayerLibrarySize) && (fillVolMultiplier_ > visTap.hit[layerNum_])) visTap.hit[layerNum_] = fillVolMultiplier_;
+
     // 0. SYNTH LAYERS have their own voice and need no sample.
     if (layerLibrary[layerNum_].toneMode == tone::kModeSynth) {
         synth_playBeat(layerNum_, fillVolMultiplier_, note_, lengthIntervals_, beatFlags_);

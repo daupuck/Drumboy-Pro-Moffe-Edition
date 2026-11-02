@@ -3,6 +3,32 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v1.14
+
+**VISUALS mode: full-screen music visuals.** HOME (CENTER) on the home screen turns it on;
+LEFT/RIGHT = style, UP/DOWN = colour theme, HOME = off, any menu-panel key leaves and opens its
+menu. Pads, transport, MUTE/FILL/STYLE and the home-screen knobs keep working.
+
+- Seven styles: SHOWTIME (layer lights + VU + spectrum + triggered scope + beat-synced neon
+  floor), ORBIT (layers as planets, hit ripples and lightning, bass core, one planet per bar),
+  PHASE (phase portrait of the output with a three-generation trail), SPECTRUM (32 mirrored
+  bars with caps), SPECTRO (scrolling spectrogram with beat ticks), TUNNEL (frames per eighth
+  note, bold on the bar, starfield), METERS (two VU needle meters + ten layer ladders). Six
+  themes: SYNTHWAVE, ACID, OCEAN, FIRE, ICE, RAINBOW.
+- Drawing: the panel has no frame buffer, so each style erases exactly what it drew the frame
+  before; ~30 fps from the main loop. While VISUALS is on the LCD driver is **muted**
+  (`Lcd::setMuted`, every public draw call returns at once), so the normal UI keeps its state
+  but draws nothing; leaving redraws the home screen in full (page, layer rows, songs, tabs,
+  icons, play bar, home menu, a pending alert). An alert ends VISUALS.
+- Data: while VISUALS is on, the audio ISR copies the output (1024-sample stereo ring) and peak
+  levels (master and per layer) into `visTap`; `layer_playBeat` records hits. The main loop runs
+  a 1024-point FFT (32/64 log bands, 40 Hz–16 kHz). Maths in `Global/Visuals.h`, host-tested by
+  `test_visuals.cpp`.
+- Memory: the visuals live in **DTCM** (new `.DTCM` NOLOAD section in the linker script, 30 KB of
+  128 KB; it was unused). RAM_D1 is unchanged. Flash +25 KB.
+- Also in this version: recording with PAD HOLD keeps the held note lengths (see v1.13 below;
+  it was added after the v1.13 test build).
+
 ## v1.13
 
 **SYNTH: presets, random sounds, AMP envelope, filter types, its own LFO page, synth sounds in

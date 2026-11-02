@@ -397,6 +397,9 @@ void Controller::update() {
         // Push buffered graphical changes to the LCD.
         lcd_update();
 
+        // VISUALS mode: one frame every ~33 ms (the normal UI is muted meanwhile).
+        visual_service();
+
         // 4. FILESYSTEM MAINTENANCE
         // Recover SD subsystem if media access is lost.
         if (!sd.ready) {

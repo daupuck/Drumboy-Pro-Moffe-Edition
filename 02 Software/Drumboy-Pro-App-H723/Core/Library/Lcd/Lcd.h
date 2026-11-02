@@ -34,6 +34,7 @@ class Lcd {
     uint16_t fontSpacing;                                               // Extra pixel spacing between characters
     uint16_t fontWidth;                                                 // Glyph width for selected font
     uint16_t fontHeight;                                                // Glyph height for selected font
+    bool muted = false;                                                 // Visuals mode: drawing disabled
 
     /* Low-Level Bus Primitives ---------------------------------- */
 
@@ -83,6 +84,10 @@ class Lcd {
     uint16_t getSpacing() const { return fontSpacing; }
     void setAlignment(LcdAlign align_) { fontAlignment = align_; }
     LcdAlign getAlignment() const { return fontAlignment; }
+    // Visuals mode: while muted every draw call returns at once, so the normal UI keeps its
+    // state but cannot draw over the visuals (the screen is redrawn in full on exit).
+    void setMuted(bool muted_) { muted = muted_; }
+    bool isMuted() const { return muted; }
 
     /* Core Display Functions ------------------------------------ */
 

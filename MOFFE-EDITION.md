@@ -5,7 +5,7 @@ Moffe Edition is **unofficial community firmware** for the Drumboy Pro, based on
 is not affiliated with or endorsed by Randomwaves. This page collects everything that is new
 compared with the factory firmware: what each feature does and how to use it on the device.
 
-- **Current version:** v1.13 — download from the
+- **Current version:** v1.14 — download from the
   [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest);
   how to install: [README → Install](README.md#install)
 - **User manual:** published by Randomwaves at [randomwaves.io](https://www.randomwaves.io) (it
@@ -322,6 +322,40 @@ ADD used together with a knob (LFO on LEVEL/PITCH) or UP/DOWN never changes the 
 
 ---
 
+## 8. VISUALS – full-screen music visuals (v1.14)
+
+The whole screen becomes a light show that follows the music. You can keep playing: pads,
+PLAY/STOP/REC, MUTE/FILL/STYLE + pad and the home-screen knobs all work while it runs.
+
+| Key | What it does |
+|---|---|
+| **HOME** (centre key) on the home screen | VISUALS on. (HOME in any other menu still goes to the home screen, as before.) |
+| **LEFT / RIGHT** | The previous / next style. |
+| **UP / DOWN** | The colour theme: SYNTHWAVE, ACID, OCEAN, FIRE, ICE, RAINBOW. |
+| **HOME** | VISUALS off, back to the home screen. |
+| **Any menu key** (right-hand panel) | Leaves VISUALS and opens that menu. |
+
+A line at the top shows the style, the theme and the keys for a few seconds after each change.
+
+| Style | What you see |
+|---|---|
+| **1 SHOWTIME** | Everything at once: ten layer lights that flash on every hit, VU columns at both edges, a spectrum skyline with falling caps, an oscilloscope across the horizon and a neon floor rolling towards you on the beat. |
+| **2 ORBIT** | The ten layers as planets circling a core that breathes with the bass. Every hit sends a ripple out of its planet and a flash of lightning to the core; the orbit turns one planet per bar. |
+| **3 PHASE** | The sound drawn against itself a moment later: a pure tone is a clean loop, chords become knots, noise becomes a cloud, with a glowing trail, slowly turning. Silence shows a gentle figure. |
+| **4 SPECTRUM** | 32 rainbow towers mirrored in a reflecting floor, with falling white caps. |
+| **5 SPECTRO** | A spectrogram painting itself across the screen: time left to right, pitch bottom to top, loudness as heat. Ticks underneath mark the beats (white = a new bar). |
+| **6 TUNNEL** | Flying through a tunnel of frames, one per eighth note (a bold white one on each bar), through stars that speed up with the music. |
+| **7 METERS** | Two big analogue needle meters (left, right) over ten LED ladders, one per layer. |
+
+- The visuals follow the sequencer while it plays (floor, orbit, tunnel and beat ticks lock to the
+  tempo) and the TEMPO setting when it is stopped.
+- An alert (e.g. a save question) switches VISUALS off so you can answer it.
+- The style and theme are kept until power-off.
+- **CPU:** the audio engine only copies its output for the visuals (well under 1 %); the drawing
+  runs between the other work, about 30 frames per second.
+
+---
+
 ## Improvements and fixes
 
 ### Audio CPU meter (v1.09)
@@ -369,6 +403,7 @@ ADD used together with a knob (LFO on LEVEL/PITCH) or UP/DOWN never changes the 
 | v1.11 | SYNTH layers: a built-in synth voice with filter, envelope, gate and accent |
 | v1.12 | SYNTH: DETUNE, SUB, NOISE, WAVE = SAMPLE (single-cycle WAVs); SLIDE per beat; stronger DRIVE |
 | v1.13 | SYNTH: 32 presets + 16 USER slots, random sounds and variations, AMP envelope (ADSR), filter types, own LFO page; pads play the synth on its pages; synth sounds in drumkits and the instrument copy. NOTE page: pads only play while stopped (ADD + pad = step entry), wider octave range |
+| v1.14 | VISUALS: seven full-screen music visuals (HOME on the home screen) with six colour themes; recording with PAD HOLD keeps the held note lengths |
 
 ## Coming next
 
@@ -383,10 +418,10 @@ The step-by-step guide (which file to download, where to put it, what the screen
 to do if something goes wrong) is in the **[README → Install](README.md#install)**. In short:
 
 1. Back up the whole SD card.
-2. Download `Drumboy_Pro_Fw_Moffe_01_13.bin` from the
+2. Download `Drumboy_Pro_Fw_Moffe_01_14.bin` from the
    [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest).
 3. Copy it, with its exact name, to the root of the card as the only `Drumboy_Pro_Fw…bin` there.
-4. Power on: *UPDATING FIRMWARE V1.13* → *FIRMWARE UPDATED* → sunglasses.
+4. Power on: *UPDATING FIRMWARE V1.14* → *FIRMWARE UPDATED* → sunglasses.
 
 **Roll back:** install `Drumboy_Pro_Fw_01_01.bin` (factory, in the release Assets and in
 `02 Software/Firmware/`) the same way. The bootloader accepts any version, older or newer.
