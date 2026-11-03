@@ -413,6 +413,7 @@ void Controller::keyboard_action() {
 
                                         case LAYER_SONG_MENU:
                                             if (layerSongPage == 0) layerSong_menuUp(0);  // fill type; not on the EUCLID page
+                                            if (layerSongPage == 3) note_shiftKeys(true);  // ARP page: keyboard octave
                                             if (layerSongPage == 2) {
                                                 // NOTE page: UP = keyboard octave up; ADD + UP = SLIDE on for the selected beat.
                                                 keyboard.shiftKeyPress ? note_setSlide(true) : note_shiftKeys(true);
@@ -489,6 +490,7 @@ void Controller::keyboard_action() {
 
                                         case LAYER_SONG_MENU:
                                             if (layerSongPage == 0) layerSong_menuDown(0);  // fill type; not on the EUCLID page
+                                            if (layerSongPage == 3) note_shiftKeys(false);  // ARP page: keyboard octave
                                             if (layerSongPage == 2) {
                                                 // NOTE page: DOWN = keyboard octave down; ADD + DOWN = SLIDE off for the selected beat.
                                                 keyboard.shiftKeyPress ? note_setSlide(false) : note_shiftKeys(false);
@@ -939,6 +941,8 @@ void Controller::keyboard_action() {
                                                 euclid_restore();  // empty layer: nothing to erase, undo at once
                                             } else if (layerSongPage == 2) {
                                                 note_restore();
+                                            } else if (layerSongPage == 3) {
+                                                arp_off();
                                             }
                                             break;
 
@@ -1100,6 +1104,8 @@ void Controller::keyboard_action() {
                                         euclid_restore();  // EUCLID page: back to the beats from when the page opened
                                     } else if (layerSongPage == 2) {
                                         note_restore();    // NOTE page: back to the notes from when the page opened
+                                    } else if (layerSongPage == 3) {
+                                        arp_off();         // ARP page: arpeggiator off
                                     } else {
                                         layerSong_resetSelectedBeat();
                                     }
@@ -1927,6 +1933,8 @@ void Controller::encoder_update() {
                 enc.function = kEncoderEuclidFunction[i];
             } else if ((menuSafe == LAYER_SONG_MENU) && (layerSongPage == 2)) {
                 enc.function = kEncoderNoteFunction[i];
+            } else if ((menuSafe == LAYER_SONG_MENU) && (layerSongPage == 3)) {
+                enc.function = kEncoderArpFunction[i];  // v2.08
             } else if (synthInstPageActive()) {
                 enc.function = kEncoderSynthFunction[layerInstPage()][i];  // SYNTH layer: OSC / FILTER / routing
             } else {
@@ -2681,6 +2689,14 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
             euclid_change(encoder[encoderNum_].function, true);
             break;
 
+        case ENC_ARP_MODE:
+        case ENC_ARP_RATE:
+        case ENC_ARP_OCTAVES:
+        case ENC_ARP_CHORD:
+        case ENC_ARP_GATE:
+            arp_change(encoder[encoderNum_].function, true);
+            break;
+
         case ENC_RHYTHM_SONG:
         case ENC_RHYTHM_SONG_STEP:
         case ENC_RHYTHM_SONG_PART:
@@ -3325,6 +3341,14 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
         case ENC_EUCLID_LENGTH:
         case ENC_EUCLID_MODE:
             euclid_change(encoder[encoderNum_].function, false);
+            break;
+
+        case ENC_ARP_MODE:
+        case ENC_ARP_RATE:
+        case ENC_ARP_OCTAVES:
+        case ENC_ARP_CHORD:
+        case ENC_ARP_GATE:
+            arp_change(encoder[encoderNum_].function, false);
             break;
 
         case ENC_RHYTHM_SONG:

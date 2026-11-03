@@ -131,6 +131,13 @@ void Controller::updatePlayTimerPeriod() {
 void Controller::layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_, uint8_t beatFlags_) {
     /// @brief Plays a beat (sequencer, pads, auditions) and, v2.04, the same note on every layer
     /// that FOLLOWs this one, at its interval in this layer's key.
+    /// v2.08: with ARP on, the note becomes an arpeggio instead; arp_tick() plays its notes
+    /// through here again (kPlayArp), so harmony layers follow every arp note.
+
+    if (!(beatFlags_ & (kPlayHarmony | kPlayArp)) && arp_wants(layerNum_)) {
+        arp_start(layerNum_, fillVolMultiplier_, note_, lengthIntervals_, beatFlags_);
+        return;
+    }
 
     layer_playVoice(layerNum_, fillVolMultiplier_, note_, lengthIntervals_, beatFlags_);
     if (beatFlags_ & kPlayHarmony) return;  // a harmony note never starts another one
@@ -2126,7 +2133,7 @@ void Controller::layerSong_togglePage() {
     /// opening NOTE captures the notes (for CLEAR = undo).
 
     if (selectedLayerNum == -1) return;
-    layerSongPage = (layerSongPage + 1) % 3;
+    layerSongPage = (layerSongPage + 1) % 4;  // v2.08: ... -> NOTE -> ARP -> edit
     euclidPlayStep = -1;
 
     // 1. CLEAR THE SLOTS AND THE GRAPH AREA (as a menu transition does).
@@ -2155,6 +2162,8 @@ void Controller::layerSong_togglePage() {
         note_captureBase();
         noteTransposeTotal = 0;
         lcd_drawLayerSongNoteMenu(selectedLayerNum);
+    } else if (layerSongPage == 3) {
+        lcd_drawLayerSongArpMenu(selectedLayerNum);
     } else {
         Bank& bank = layerLibrary[selectedLayerNum].bankLibrary[activeSongBank];
         selectedBeatNum = (bank.lastActiveBeatNum != -1) ? 0 : -1;
@@ -2341,8 +2350,9 @@ void Controller::note_audition() {
 bool Controller::noteKeysActive() const {
     // NOTE page of a TONE/SYNTH layer, and (v1.13) the Layer Instrument pages of a SYNTH layer,
     // so the sound can be played across the keyboard while it is being shaped.
+    // v2.08: also the ARP page, to play arpeggios from the pads.
     if (synthInstPageActive()) return true;
-    return notePageActive() && (selectedLayerNum != -1) && tone::playsNotes(layerLibrary[selectedLayerNum].toneMode);
+    return (notePageActive() || arpPageActive()) && (selectedLayerNum != -1) && tone::playsNotes(layerLibrary[selectedLayerNum].toneMode);
 }
 
 /* SYNTH Layers ----------------------------------------------------------------*/
@@ -2441,6 +2451,8 @@ void Controller::synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int
     n.increment = speed * (kSynthC4Hz / kAudioSampleRate);
     n.gain = kLayerVolumeCoef * kNumberDataLibrary[nLevel].powMultiplier * fillVolMultiplier_ * mixer.masterVolumeFloat;
     n.velocity = (fillVolMultiplier_ >= 0.99f) ? 1.0f : 0.5f;  // FLAT = accent, GHOST = softer and darker
+    // v2.08 MIDI keys (gain = velocity^2): brightness from 0.5 (softest) to 1.0 (hardest).
+    if (beatFlags_ & kPlayVelocity) n.velocity = 0.5f + (0.5f * sqrtf((fillVolMultiplier_ > 0.0f) ? ((fillVolMultiplier_ < 1.0f) ? fillVolMultiplier_ : 1.0f) : 0.0f));
     n.gateSamples = gateSamples;
     n.glideCoef = (layer.toneGlide > 0) ? layer.toneGlideCoef : 0.0f;
     n.lfoRetrig = (layer.synth.lfoRetrig != 0);  // a slide keeps the LFO going (start() ignores it then)
@@ -2553,6 +2565,7 @@ void Controller::synth_change(EncoderFunc function_, bool up_) {
         if (function_ == ENC_SYNTH_PAD_HOLD) {
             note_releaseHeld();  // switching HOLD off must not leave a note hanging
             if (notePageActive()) lcd_drawNoteStrip();  // NOTE page knob 3: shown in the strip
+            if (arpPageActive()) lcd_drawArpData(7);    // v2.08: ARP page knob 8
         }
         const uint8_t slot = synthSlotOf(function_);
         if ((slot != 0xFF) && synthInstPageActive()) lcd_drawSynthData(slot);
@@ -2764,21 +2777,75 @@ void Controller::note_padPressed(uint8_t pad_) {
 
     if ((selectedLayerNum == -1) || (pad_ >= tone::kKeyCount)) return;
     const uint8_t layerNum = static_cast<uint8_t>(selectedLayerNum);
-    Layer& layer = layerLibrary[layerNum];
-    Bank& bank = layer.bankLibrary[activeSongBank];
     // v2.04: a harmony layer's pads play in the key of the layer it follows.
     const int8_t note = tone::keyDegree(pad_, noteKeysOctave, layerLibrary[layer_keyLayer(layerNum)].toneScale);
+    note_keyDown(note, 1.0f, layerLibrary[layerNum].synth.padHold != 0, static_cast<int16_t>(pad_));
+}
+
+void Controller::note_midiIn(const midiin::Event& event_) {
+    /// @brief v2.08 MIDI IN: while the pads are a keyboard (NOTE / ARP page of a TONE or SYNTH
+    /// layer, or a SYNTH layer's sound pages), a MIDI keyboard plays that layer: snapped to its
+    /// scale, with velocity, held until the key is let go, recorded like a pad. Otherwise a note
+    /// triggers a drum layer (key % 12), as before.
+
+    const int16_t keyId = static_cast<int16_t>(1000 + event_.key);
+    // A key let go always ends its held note, even if the page changed while it was down.
+    if (!event_.on && (padHoldLayer >= 0) && (padHoldKey == keyId)) {
+        note_releaseHeld();  // monophonic: only the newest key's release ends the note
+        return;
+    }
+    if (noteKeysActive() && !alertFlag) {
+        if (event_.on) {
+            const uint8_t layerNum = static_cast<uint8_t>(selectedLayerNum);
+            const Layer& key = layerLibrary[layer_keyLayer(layerNum)];
+            const int8_t degree = tone::degreeForSemitone(static_cast<int>(event_.key) - 60, key.toneScale, key.toneRoot);  // 60 = C4 = PITCH 1.00
+            // Velocity: square law (64 = -12 dB), the usual feel of a keyboard.
+            const float x = static_cast<float>((event_.velocity > 127) ? 127 : event_.velocity) / 127.0f;
+            note_keyDown(degree, x * x, true, keyId);
+        }
+        return;
+    }
+    if (!event_.on) return;
+
+    const uint8_t layerNum = event_.key % 12;  // Map MIDI key to layer (0-11)
+    if (layerNum >= kLayerLibrarySize) return;
+    Layer& layer = layerLibrary[layerNum];
+    // Trigger audio if layer is active and unmuted
+    if ((!layer.mute) && layerSounds(layerNum)) layer_playBeat(layerNum, 1.0f);
+    // Write note to the current sequencer step if Recording is enabled
+    if (recordActive) {
+        if (!metronome.precountState) {
+            layerSong_setBeat(layerNum, activeSongBank, playInterval, 0, 0, 0, 0, true);
+        } else {
+            // Note landed during precount; commit it to position 0 once playback starts.
+            precountPendingBeat[layerNum] = true;
+        }
+    }
+}
+
+void Controller::note_keyDown(int8_t note, float velocity_, bool hold_, int16_t keyId_) {
+    /// @brief A key of the pad keyboard (note_padPressed) or of a MIDI keyboard (note_midiIn)
+    /// plays `note` on the selected layer: held until the key is let go when `hold_` (PAD HOLD,
+    /// always for MIDI), recorded while REC is on, step entry with ADD while stopped.
+
+    if (selectedLayerNum == -1) return;
+    const uint8_t layerNum = static_cast<uint8_t>(selectedLayerNum);
+    Layer& layer = layerLibrary[layerNum];
+    Bank& bank = layer.bankLibrary[activeSongBank];
 
     note_finishHoldRec();  // monophonic: a held note being recorded ends where the next one starts
 
     if ((!layer.mute) && layerSounds(layerNum)) {
-        if (layer.synth.padHold) {
-            // PAD HOLD: the note lasts until this pad is released (note_padReleased).
-            layer_playBeat(layerNum, 1.0f, note, 0, kPlayHold);
+        // MIDI keys: the synth's brightness follows the velocity smoothly (kPlayVelocity).
+        const uint8_t velocityFlag = (keyId_ >= 1000) ? kPlayVelocity : 0;
+        if (hold_) {
+            // Held: the note lasts until this key is released (note_padReleased / note_midiIn).
+            if ((padHoldLayer >= 0) && (padHoldLayer != static_cast<int8_t>(layerNum))) note_releaseHeld();
+            layer_playBeat(layerNum, velocity_, note, 0, static_cast<uint8_t>(kPlayHold | velocityFlag));
             padHoldLayer = static_cast<int8_t>(layerNum);
-            padHoldKey = static_cast<int8_t>(pad_);
+            padHoldKey = keyId_;
         } else {
-            layer_playBeat(layerNum, 1.0f, note);
+            layer_playBeat(layerNum, velocity_, note, 0, velocityFlag);
         }
     }
 
@@ -2789,7 +2856,7 @@ void Controller::note_padPressed(uint8_t pad_) {
             // With PAD HOLD the release records how long the pad was held (note_finishHoldRec),
             // so playback sounds the same. Set up before the beat exists, so the sequencer never
             // retriggers it while the pad is still down.
-            if (layer.synth.padHold && (padHoldLayer == static_cast<int8_t>(layerNum))) {
+            if (hold_ && (padHoldLayer == static_cast<int8_t>(layerNum))) {
                 holdRecPress = press;
                 holdRecStart = start;
                 holdRecBank = activeSongBank;
@@ -2835,7 +2902,7 @@ void Controller::note_padReleased(uint8_t pad_) {
     /// @brief A pad was let go: with PAD HOLD, the note it started ends now (release / fade).
     /// Another pad pressed since then owns the note, so its release is the one that counts.
 
-    if ((padHoldLayer < 0) || (padHoldKey != static_cast<int8_t>(pad_))) return;
+    if ((padHoldLayer < 0) || (padHoldKey != static_cast<int16_t>(pad_))) return;
     note_releaseHeld();
 }
 
@@ -2847,6 +2914,7 @@ void Controller::note_releaseHeld() {
     const uint8_t layerNum = static_cast<uint8_t>(padHoldLayer);
     padHoldLayer = -1;
     padHoldKey = -1;
+    if (arpRun[layerNum].held) arp_stop(layerNum);  // v2.08: a held arpeggio ends with its key
     for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
         // The held layer, and (v2.04) every harmony layer holding its note along with it.
         if ((l != layerNum) && (layerLibrary[l].followLayer != static_cast<int8_t>(layerNum))) continue;
@@ -2881,6 +2949,163 @@ void Controller::note_finishHoldRec() {
             break;
         }
     }
+}
+
+/* Arpeggiator (v2.08) ---------------------------------------------------------*/
+
+bool Controller::arp_wants(uint8_t layerNum_) const {
+    /// @brief This layer's notes become arpeggios: ARP is on and it plays notes (TONE / SYNTH).
+    /// A FOLLOW layer plays its leader's notes (and so its leader's arpeggio) instead.
+    const Layer& layer = layerLibrary[layerNum_];
+    return (layer.arp.mode != arp::OFF) && (layer.arp.mode < arp::kModeCount) && tone::playsNotes(layer.toneMode) && !layer_follows(layerNum_);
+}
+
+void Controller::arp_start(uint8_t layerNum_, float velocity_, int8_t note_, uint16_t lengthIntervals_, uint8_t beatFlags_) {
+    /// @brief Starts an arpeggio on `note_` (from layer_playBeat). It lasts as long as the note
+    /// would: until the key is released (kPlayHold), the beat's length (sequencer), or a quarter
+    /// note (a plain pad tap or an audition). The first arp note plays on the next sequencer
+    /// tick (at most ~2 ms later), so every arp note comes from one place: arp_tick().
+
+    ArpRun r;
+    r.active = true;
+    r.held = (beatFlags_ & kPlayHold) != 0;
+    r.fromSequencer = !r.held && (lengthIntervals_ > 0);
+    r.base = note_;
+    r.velocity = velocity_;
+    r.flags = static_cast<uint8_t>(beatFlags_ & kPlayVelocity);
+    r.step = 0;
+    r.countdown = 0;
+    // Held: until the key is let go, but 60 s at most (like a held synth note), so a lost
+    // release can never leave an arpeggio running forever.
+    const uint32_t heldCap = (playTimerPeriod > 0) ? (60000000u / playTimerPeriod) : 60000u;
+    r.remaining = r.held ? heldCap : ((lengthIntervals_ > 0) ? lengthIntervals_ : static_cast<uint32_t>(kMeasureInterval));
+    r.gateLeft = 0;
+
+    const uint32_t primask = __get_PRIMASK();  // pads call this from the main loop, the sequencer from its ISR
+    __disable_irq();
+    arpRun[layerNum_] = r;
+    __set_PRIMASK(primask);
+}
+
+void Controller::arp_releaseVoices(uint8_t layerNum_) {
+    /// @brief Ends the sounding note of a layer and of every layer that FOLLOWs it.
+    for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+        if ((l != layerNum_) && (layerLibrary[l].followLayer != static_cast<int8_t>(layerNum_))) continue;
+        if (layerLibrary[l].toneMode == tone::kModeSynth) {
+            synthReleasePending[l] = true;
+        } else if (layerLibrary[l].toneMode == tone::kModeTone) {
+            toneReleasePending[l] = true;
+        }
+    }
+}
+
+void Controller::arp_stop(uint8_t layerNum_) {
+    /// @brief Ends a running arpeggio; its last note fades out.
+
+    if (layerNum_ >= kLayerLibrarySize) return;
+    const uint32_t primask = __get_PRIMASK();
+    __disable_irq();
+    const bool wasActive = arpRun[layerNum_].active;
+    arpRun[layerNum_].active = false;
+    arpRun[layerNum_].held = false;
+    __set_PRIMASK(primask);
+    if (wasActive) arp_releaseVoices(layerNum_);
+}
+
+void Controller::arp_tick() {
+    /// @brief Sequencer timer ISR, every interval (800 per quarter note), also while stopped:
+    /// plays the next note of every running arpeggio, through layer_playBeat so harmony layers
+    /// follow it. A note lasts GATE % of a step (TONE layers are faded out here).
+
+    for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+        ArpRun& r = arpRun[l];
+        if (!r.active) continue;
+        const Layer& layer = layerLibrary[l];
+
+        // ARP switched off, the layer changed mode, or the transport stopped a sequencer note.
+        if (!arp_wants(l) || (r.fromSequencer && !playActive)) {
+            r.active = false;
+            r.held = false;
+            arp_releaseVoices(l);
+            continue;
+        }
+
+        if ((r.gateLeft > 0) && (--r.gateLeft == 0)) arp_releaseVoices(l);
+
+        if (r.remaining == 0) {
+            r.active = false;
+            r.held = false;
+            if (r.gateLeft > 0) arp_releaseVoices(l);
+            continue;
+        }
+        r.remaining--;
+
+        if (r.countdown > 0) {
+            r.countdown--;
+            continue;
+        }
+
+        const arp::Settings s = arp::sanitize(layer.arp);
+        const uint8_t scale = tone::safeScale(layerLibrary[layer_keyLayer(l)].toneScale);
+        const uint8_t size = tone::kScales[scale].size;
+        arpRandom = (arpRandom * 1664525u) + 1013904223u;
+        int note = r.base + arp::noteAt(s, r.step, size, arpRandom >> 8);
+        r.step++;
+        while ((size > 0) && (note > tone::maxDegree(scale))) note -= size;  // fold back into range
+        const uint16_t length = arp::noteLength(s);
+        if (!layer.mute) layer_playBeat(l, r.velocity, static_cast<int8_t>(note), length, static_cast<uint8_t>(kPlayArp | kPlayHeld | r.flags));
+        r.countdown = static_cast<uint16_t>(arp::kRateIntervals[s.rate] - 1);
+        r.gateLeft = (layer.toneMode == tone::kModeTone) ? length : 0;
+    }
+}
+
+void Controller::arp_change(EncoderFunc function_, bool up_) {
+    /// @brief Handles an ARP page knob.
+
+    if (selectedLayerNum == -1) return;
+    arp::Settings& s = layerLibrary[selectedLayerNum].arp;
+    uint8_t* value = nullptr;
+    uint8_t lo = 0, hi = 0, step = 1;
+    uint8_t slot = 0;
+    switch (function_) {
+        case ENC_ARP_MODE:
+            value = &s.mode, lo = 0, hi = arp::kModeCount - 1, slot = 0;
+            break;
+        case ENC_ARP_RATE:
+            value = &s.rate, lo = 0, hi = arp::kRateCount - 1, slot = 1;
+            break;
+        case ENC_ARP_OCTAVES:
+            value = &s.octaves, lo = 1, hi = arp::kMaxOctaves, slot = 4;
+            break;
+        case ENC_ARP_CHORD:
+            value = &s.chord, lo = 0, hi = arp::kChordCount - 1, slot = 5;
+            break;
+        case ENC_ARP_GATE:
+            value = &s.gate, lo = arp::kMinGate, hi = arp::kMaxGate, step = 5, slot = 6;
+            break;
+        default:
+            return;
+    }
+    s = arp::sanitize(s);  // one byte each: read atomically by the sequencer ISR
+    if (up_) {
+        if (*value >= hi) return;
+        *value = static_cast<uint8_t>(((*value + step) > hi) ? hi : (*value + step));
+    } else {
+        if (*value <= lo) return;
+        *value = static_cast<uint8_t>(((*value - step) < lo) ? lo : (*value - step));
+    }
+    lcd_drawArpData(slot);
+    lcd_drawArpStrip();
+}
+
+void Controller::arp_off() {
+    /// @brief CLEAR tap on the ARP page: the arpeggiator off (the other settings are kept).
+
+    if (selectedLayerNum == -1) return;
+    layerLibrary[selectedLayerNum].arp.mode = arp::OFF;
+    arp_stop(static_cast<uint8_t>(selectedLayerNum));
+    lcd_drawArpData(0);
+    lcd_drawArpStrip();
 }
 
 void Controller::note_setSlide(bool slide_) {
@@ -2968,6 +3193,8 @@ void Controller::tone_resetLayer(uint8_t layerNum_) {
     layer.synth = synth::Params{};
     layer.followLayer = harmony::kNone;  // v2.04
     layer.harmonyInterval = harmony::THIRD_UP;
+    arp_stop(layerNum_);  // v2.08
+    layer.arp = arp::Settings{};
     tone_setGlide(layerNum_, 0);
     layerPlayData[layerNum_].toneLastIncrement = 0.0f;
     if (toneMidiSounding[layerNum_] != 0xFF) {
@@ -2998,7 +3225,9 @@ void Controller::tone_setMode(uint8_t layerNum_, uint8_t mode_) {
         const synth::Params sound = layer.synth;
         const int8_t follow = layer.followLayer;
         const uint8_t interval = layer.harmonyInterval;
+        const arp::Settings arpSettings = layer.arp;  // v2.08: kept for TONE / SYNTH, like FOLLOW
         tone_resetLayer(layerNum_);  // releases a held MIDI note
+        layer.arp = arpSettings;
         layer.toneRoot = root;       // ...but keeps the settings for next time
         layer.toneScale = scale;
         layer.synth = sound;

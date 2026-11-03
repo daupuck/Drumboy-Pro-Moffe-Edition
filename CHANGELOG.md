@@ -3,6 +3,50 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v2.08
+
+MIDI keyboard for melody layers and an arpeggiator. `kVersionMinor` 8; the package is
+`Drumboy_Pro_Fw_Moffe_02_08.bin`.
+
+- **MIDI IN parser rewritten** (`Global/MidiNoteIn.h`, host-tested by `test_midi_in.cpp`, 2,042
+  checks): one Note On / Note Off state machine with running status and Note On velocity 0 = Note
+  Off, fed every non-real-time byte before the SysEx handler (a status byte ends running status,
+  so SysEx data is never taken for notes). Complete notes go into a 32-entry single-producer /
+  single-consumer ring (UART ISR → main loop) instead of one flag per message, so chords and fast
+  releases are not lost. The old two parallel parsers could take a Note Off status byte for a key
+  and played velocity-0 note ons as hits.
+- **MIDI keyboard plays the selected layer** (`note_midiIn`) whenever `noteKeysActive()` (NOTE or
+  ARP page of a TONE / SYNTH layer, or a SYNTH layer's Layer Instrument pages): key → nearest scale
+  degree (`tone::degreeForSemitone`, MIDI 60 = C4 = degree 0 at ROOT C; ties go down) in the key of
+  `layer_keyLayer`; gain = (velocity / 127)²; always held until its Note Off (`kPlayHold`), so it
+  records with its held length like PAD HOLD. Otherwise the old drum mapping (key % 12 → layer).
+  A Note Off ends its note even after the page changed.
+- **`note_keyDown`**: `note_padPressed` split into the pad-to-degree part and a shared key-down
+  (play / hold / record / ADD step entry) for pads and MIDI keys. `padHoldKey` is now `int16_t`
+  (pads 0..9, MIDI keys 1000 + key). A held note on another layer is released first.
+- **`kPlayVelocity`** (0x40): MIDI notes set the synth's brightness (`NoteOn::velocity`) to
+  0.5 + 0.5 × velocity instead of the FLAT / GHOST switch (sequencer beats unchanged).
+- **Arpeggiator** (`Global/Arpeggio.h`, host-tested by `test_arpeggio.cpp`, 16,415 checks incl.
+  the MIDI mapping in every scale and key): modes OFF / UP / DOWN / UP/DOWN (no repeated ends) /
+  RANDOM; rates 400 / 267 / 200 / 133 / 100 intervals (1/8 … 1/32 with triplets); 1–3 octaves of
+  the scale's size; chords TRIAD, 7TH, POWER, SUS4, OCTAVE in scale steps; GATE 10–100 %.
+  `layer_playBeat` hands a note of an arpeggiating layer (ARP on, TONE / SYNTH, not FOLLOWing) to
+  `arp_start` unless it is a harmony or arp note (`kPlayArp` 0x20). The run lasts the beat's length
+  (sequencer; ends when the transport stops), until release (`kPlayHold`; 60 s cap) or 800
+  intervals (a pad tap / audition). `arp_tick()` at the top of `interruptPlay()` (runs while stopped
+  too) plays each note through `layer_playBeat(..., kPlayArp | kPlayHeld)`, so harmony layers follow
+  every arp note and synth notes get exactly the GATE length; TONE notes are faded by the tick.
+  Notes above the range fold down an octave. Main-loop writes to the run are made with interrupts
+  off; the first note plays on the next tick.
+- **ARP page** = Layer Song page 3 (edit → EUCLID → NOTE → ARP): knobs 1 ARP, 2 RATE, 5 OCTAVES,
+  6 CHORD, 7 GATE, 8 PAD HOLD (`kEncoderArpFunction`, `ENC_ARP_*` 0x99–0x9D, `ENC_FNC_NONE` 0x9E);
+  a pattern preview in the graph area; the pads are a keyboard, UP/DOWN the octave, CLEAR tap = ARP
+  OFF, CLEAR hold erases the bank's beats.
+- **Saved** per layer in the `.rwn` file as `ARP1` (5 bytes × 10 + `EOF`) after `SYX1`, sanitized
+  on load; kept when a layer switches to DRUM and back; reset by `tone_resetLayer`. Older firmware
+  stops reading before it and plays plain notes.
+- Not yet tested on hardware.
+
 ## v2.07
 
 VISUALS batch 2 (20 styles). `kVersionMinor` 7; the package is `Drumboy_Pro_Fw_Moffe_02_07.bin`.

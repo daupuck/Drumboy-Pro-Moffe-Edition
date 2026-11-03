@@ -620,31 +620,12 @@ void Controller::update() {
 
         // 13. INBOUND MIDI PROCESSING
         // Translate incoming MIDI events to playback and recording actions.
-        if (io.midi.rxNoteOnWriteFlag == 1) {
-            uint8_t layerNum = io.midi.rxNoteOnKey % 12;  // Map MIDI key to layer (0-11)
-            if (layerNum < kLayerLibrarySize) {
-                Layer& layer = layerLibrary[layerNum];
-
-                // Trigger audio if layer is active and unmuted
-                if ((!layer.mute) && layerSounds(layerNum))
-                    layer_playBeat(layerNum, 1.0f);
-
-                // Write note to the current sequencer step if Recording is enabled
-                if (recordActive) {
-                    if (!metronome.precountState) {
-                        layerSong_setBeat(layerNum, activeSongBank, playInterval, 0, 0, 0, 0, true);
-                    } else {
-                        // Note landed during precount; commit it to position 0 once playback starts.
-                        precountPendingBeat[layerNum] = true;
-                    }
-                }
-            }
-            io.midi.rxNoteOnWriteFlag = 0;  // Clear software interrupt flag
-        }
-
-        // Clean up inbound Note Off logic
-        if (io.midi.rxNoteOffWriteFlag == 1) {
-            io.midi.rxNoteOffWriteFlag = 0;
+        // v2.08: notes come through a queue (MidiNoteIn.h): a keyboard plays the selected TONE /
+        // SYNTH layer while the pads are a keyboard, otherwise a note triggers a drum layer.
+        {
+            midiin::Event event;
+            uint8_t budget = 16;  // the rest waits for the next pass
+            while ((budget-- > 0) && midiNoteQueue.pop(event)) note_midiIn(event);
         }
 
         // 14. INBOUND MIDI TRANSPORT AND CLOCK

@@ -23,6 +23,18 @@ rolled back to the factory firmware the same way.
 > SD card first** and keep the factory firmware for rolling back. Modifying the firmware may affect
 > your warranty with Randomwaves.
 
+## 🎹 New in v2.08: MIDI keyboard and arpeggiator
+
+- **Play the synth from a MIDI keyboard:** on the NOTE page (or a SYNTH layer's sound pages) a
+  connected keyboard plays the layer – snapped to its scale, with velocity, held as long as you
+  hold the key, recorded with REC.
+- **ARP page** (Layer Song, after NOTE): every note becomes an arpeggio – UP, DOWN, UP/DOWN or
+  RANDOM, 1/8 to 1/32 with triplets, 1–3 octaves, triad / 7th / power / sus4 / octave, GATE.
+  Works from the song, the pads and the keyboard; harmony layers follow every arp note.
+- MIDI in now understands running status and velocity-0 note offs, as most keyboards send them.
+
+→ **[How to use it](MOFFE-EDITION.md#12-midi-keyboard-and-arpeggiator-v208)**
+
 ## 📼 New in v2.06 + v2.07: a new light show
 
 - **20 VISUALS**, many brand new: **CLASSIC** (the late-90s media-player look with spectrum bars, peak dots,
@@ -116,6 +128,7 @@ The biggest Moffe Edition update yet, big enough for a new major version. Highli
 | 🎛️ | [**SYNTH layers**](MOFFE-EDITION.md#7-synth-layers--a-built-in-synth-voice-v200) | A built-in synth on any layer – subtractive or **FM** – with 79 presets, random sounds, envelopes, pitch envelope, LFO, filter types and PAD HOLD. Acid basslines without a single sample. |
 | 🌈 | [**VISUALS**](MOFFE-EDITION.md#8-visuals--full-screen-music-visuals-v200-all-new-line-up-in-v206) | 20 full-screen music visuals (retro media-player, feedback plasma, demo scene, cartoon mouth and eyes, robot DJ …) in 9 colour themes, with AUTO; keep playing while they run. |
 | 🎶 | [**Harmony layers**](MOFFE-EDITION.md#harmony-layers-v204) | One layer follows another a 3rd or 5th above – instant chords, always in key. |
+| 🔁 | [**Arpeggiator and MIDI keyboard**](MOFFE-EDITION.md#12-midi-keyboard-and-arpeggiator-v208) | Turn every note into a running arpeggio in key, and play the synth from a MIDI keyboard with velocity. |
 | 🎹 | [**Melody layers**](MOFFE-EDITION.md#6-melody-layers--note-page-in-layer-song-v109) | Turn any layer into an instrument: give each beat a note in a key and scale, add glide and slides, play the pads as a keyboard, or hold ADD and let it write a melody. Your kick just became an 808 bassline. |
 | 🥁 | [**Euclidean rhythms**](MOFFE-EDITION.md#4-euclidean-rhythms--euclid-page-in-layer-song-v106) | Pick steps and hits, turn a knob, hear the pattern change live. |
 | 🎼 | [**Song mode**](MOFFE-EDITION.md#5-song-mode--arrange-parts-into-a-song-v107) | Chain the 5 song banks into intro → verse → chorus, with repeats, looped or played once – and transpose each step along the scale. |
@@ -135,7 +148,8 @@ the **[CHANGELOG](CHANGELOG.md)**, and each published version has its firmware f
 
 | Version | Highlights |
 |---|---|
-| **v2.07** (latest) | VISUALS batch 2: GEISS, MILK TUNNEL, ROBOT DJ, DISCO CROWD, PIANO ROLL, KEY WHEEL (20 styles) |
+| **v2.08** (latest) | MIDI keyboard plays the melody layers (in key, velocity, held, recorded) · ARP page: arpeggiator · better MIDI in |
+| v2.07 | VISUALS batch 2: GEISS, MILK TUNNEL, ROBOT DJ, DISCO CROWD, PIANO ROLL, KEY WHEEL (20 styles) |
 | v2.06 | 16 VISUALS incl. CLASSIC, MOUTH, EYEBALLS, SPEAKER, DEMO SCENE, SUNSET DRIVE, SUPERSCOPE, STEP GRID · AUTO + INFO · WINAMP and C64 themes |
 | v2.05 | FM voice and MOD page (FM ratio / amount / decay, pitch envelope, filter attack) · 13 new presets (79) |
 | v2.04 | Harmony layers: FOLLOW another layer at a 3rd, 4th, 5th, 6th or octave, always in key |
@@ -172,8 +186,8 @@ a minute, and future you will be very grateful in the unlikely event it's needed
 ### Step 2 — Download the right file
 
 1. Open **[Releases → latest](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest)**.
-2. Scroll down to **Assets** and click **`Drumboy_Pro_Fw_Moffe_02_07.bin`** (the numbers are the
-   version: `02_07` = v2.07).
+2. Scroll down to **Assets** and click **`Drumboy_Pro_Fw_Moffe_02_08.bin`** (the numbers are the
+   version: `02_08` = v2.08).
 
 What the files in Assets are:
 
@@ -190,9 +204,9 @@ What the files in Assets are:
 
 Open the matching `.sha256` file in a text editor and compare its long number with the output of:
 
-- **Windows:** `certutil -hashfile Drumboy_Pro_Fw_Moffe_02_07.bin SHA256`
-- **macOS:** `shasum -a 256 Drumboy_Pro_Fw_Moffe_02_07.bin`
-- **Linux:** `sha256sum -c Drumboy_Pro_Fw_Moffe_02_07.bin.sha256`
+- **Windows:** `certutil -hashfile Drumboy_Pro_Fw_Moffe_02_08.bin SHA256`
+- **macOS:** `shasum -a 256 Drumboy_Pro_Fw_Moffe_02_08.bin`
+- **Linux:** `sha256sum -c Drumboy_Pro_Fw_Moffe_02_08.bin.sha256`
 
 If they differ, download it again. The bootloader also checks a CRC before it writes anything, so
 a damaged file is refused rather than installed.
@@ -205,14 +219,14 @@ folders, **not** inside them.
 
 ```
 SD card
-├── Drumboy_Pro_Fw_Moffe_02_07.bin   ← here
+├── Drumboy_Pro_Fw_Moffe_02_08.bin   ← here
 ├── Sample/
 └── System/
 ```
 
 - **Keep the exact file name.** The bootloader only looks for names that start with
   `Drumboy_Pro_Fw` and are at most 32 characters long. It is very literal-minded. If your
-  browser saved it as `Drumboy_Pro_Fw_Moffe_02_07 (1).bin`, rename it back.
+  browser saved it as `Drumboy_Pro_Fw_Moffe_02_08 (1).bin`, rename it back.
 - **Make it the only `Drumboy_Pro_Fw…bin` file in the root.** The bootloader installs the first
   one it finds.
 - Don't change anything else on the card. Eject the card safely before you pull it out.
@@ -221,7 +235,7 @@ SD card
 
 Put the card back in the Drumboy Pro and switch it on. You should see:
 
-1. **UPDATING FIRMWARE** with the version (e.g. **V2.07**) and a line that fills up.
+1. **UPDATING FIRMWARE** with the version (e.g. **V2.08**) and a line that fills up.
 2. **FIRMWARE UPDATED** for a few seconds.
 3. The normal start-up, now with **sunglasses and a golden MOFFE EDITION** on the logo. If you see
    the sunglasses, it worked. The sunglasses don't lie.

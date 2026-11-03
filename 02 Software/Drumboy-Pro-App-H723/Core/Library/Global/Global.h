@@ -21,8 +21,8 @@
 /* Application Version -------------------------------------------------------*/
 ////////////////////////////////////////////////////////////////////////////////
 
-const uint8_t kVersionMajor                         = 0x02;  // v2.07: VISUALS batch 2 (GEISS, MILK TUNNEL, ROBOT DJ, ...)
-const uint8_t kVersionMinor                         = 0x07;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMajor                         = 0x02;  // v2.08: MIDI IN plays the synth, ARPEGGIATOR
+const uint8_t kVersionMinor                         = 0x08;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/
@@ -1383,10 +1383,17 @@ typedef enum {
     ENC_SYNTH_PITCH_DECAY                           = 0x97,
     ENC_SYNTH_FILT_ATTACK                           = 0x98,
 
+    // Layer Song ARP page (v2.08)
+    ENC_ARP_MODE                                    = 0x99,
+    ENC_ARP_RATE                                    = 0x9A,
+    ENC_ARP_OCTAVES                                 = 0x9B,
+    ENC_ARP_CHORD                                   = 0x9C,
+    ENC_ARP_GATE                                    = 0x9D,
+
     // Must equal the number of rows before the trailing NONE row in kEncoderFuncDataLibrary,
     // which is indexed by EncoderFunc value. Never stored on SD (only the global map is
     // persisted, and it is range-checked against kMaxEncoderGlobalFunction).
-    ENC_FNC_NONE                                    = 0x99
+    ENC_FNC_NONE                                    = 0x9E
 } EncoderFunc;
 
 const EncoderFunc encoderLocalFunction[][8] = {
@@ -1611,6 +1618,11 @@ constexpr EncoderFuncData kEncoderFuncDataLibrary[] = {
     {ENC_SYNTH_PITCH_ENV,     ENC_RES_F, "PITCH ENV ", "SYNTH ", "  %", false},
     {ENC_SYNTH_PITCH_DECAY,   ENC_RES_F, "PITCH DEC ", "SYNTH ", "  %", false},
     {ENC_SYNTH_FILT_ATTACK,   ENC_RES_F, "FILT ATK  ", "SYNTH ", "  %", false},
+    {ENC_ARP_MODE,            ENC_RES_S, "ARP       ", "ARP   ", "   ", false},
+    {ENC_ARP_RATE,            ENC_RES_S, "RATE      ", "ARP   ", "   ", false},
+    {ENC_ARP_OCTAVES,         ENC_RES_S, "OCTAVES   ", "ARP   ", "   ", false},
+    {ENC_ARP_CHORD,           ENC_RES_S, "CHORD     ", "ARP   ", "   ", false},
+    {ENC_ARP_GATE,            ENC_RES_F, "GATE      ", "ARP   ", "  %", false},
 
     // Row for ENC_FNC_NONE itself, so lookups with function == ENC_FNC_NONE stay in bounds.
     {ENC_FNC_NONE,            ENC_RES_F, "----------", "      ", "   ", true}
@@ -1655,6 +1667,11 @@ const EncoderFunc kEncoderEuclidFunction[8]         = {ENC_EUCLID_STEPS, ENC_EUC
 // Knob 3 (no tab: the strip is there) toggles PAD HOLD, shown in the strip.
 const EncoderFunc kEncoderNoteFunction[8]           = {ENC_NOTE_MODE, ENC_NOTE_NOTE, ENC_SYNTH_PAD_HOLD, ENC_NOTE_FOLLOW,
                                                        ENC_NOTE_ROOT, ENC_NOTE_SCALE, ENC_NOTE_GLIDE, ENC_NOTE_TRANSPOSE};
+
+// Knob map of the Layer Song ARP page (v2.08, Controller::layerSongPage == 3). Slots 2/3 hold
+// the arp preview strip; knob 8 is PAD HOLD (a held pad or MIDI key keeps the arpeggio going).
+const EncoderFunc kEncoderArpFunction[8]            = {ENC_ARP_MODE, ENC_ARP_RATE, ENC_FNC_NONE, ENC_FNC_NONE,
+                                                       ENC_ARP_OCTAVES, ENC_ARP_CHORD, ENC_ARP_GATE, ENC_SYNTH_PAD_HOLD};
 
 // The pages of a SYNTH layer's Layer Instrument menu, in the order the layer key steps through
 // them. Two pages share each LAYER_INST_x_MENU (kSynthPageMenu), so icons and routing behave as
@@ -7507,6 +7524,10 @@ const char kSongModeText[3][5]                      = {"OFF", "LOOP", "ONCE"};
 // Harmony layers (v2.04, host-testable).
 #include "Harmony.h"
 
+// Arpeggiator and MIDI IN notes (v2.08, host-testable).
+#include "Arpeggio.h"
+#include "MidiNoteIn.h"
+
 const char kToneModeText[tone::kModeCount][11]      = {"      DRUM", "      TONE", "     SYNTH"};
 
 // The synth voice's C4 (MIDI 60) at PITCH 1.00, matching TONE layers' "the sample is a C4".
@@ -7529,6 +7550,7 @@ const char kSlideFileRef[]                          = "SLD1";  // beats with SLI
 const char kHoldFileRef[]                           = "HLD1";  // recorded hold lengths, after the slides (v1.13)
 const char kHarmonyFileRef[]                        = "HRM1";  // FOLLOW + interval per layer, after the holds (v2.04)
 const char kSynthExtRef[]                           = "SYX1";  // v2.05: MOD page values (synth::packExt) after the other synth data
+const char kArpRef[]                                = "ARP1";  // v2.08: ARP page values per layer (Arpeggio.h), after SYX1
 
 // layer_playBeat() flags from the sequencer (SLIDE, 303 style):
 const uint8_t kPlaySlideIn                          = 0x01;  // this beat slides in from the previous note
@@ -7536,6 +7558,8 @@ const uint8_t kPlayTieOut                           = 0x02;  // the next beat sl
 const uint8_t kPlayHold                             = 0x04;  // PAD HOLD: a pad note, held until the pad is released
 const uint8_t kPlayHeld                             = 0x08;  // a recorded held note: sounds its whole length (no GATE)
 const uint8_t kPlayHarmony                          = 0x10;  // v2.04: played for a followed layer (never triggers further harmony)
+const uint8_t kPlayArp                              = 0x20;  // v2.08: a note of the arpeggiator (never starts another arpeggio)
+const uint8_t kPlayVelocity                         = 0x40;  // v2.08: a MIDI key; synth brightness follows the velocity
 const uint8_t kSlideGlideMin                        = 25;    // SLIDE with GLIDE 0 still slides (~36 ms)
 
 // Where the chain lives in the project file's 1500-byte drumkit-style block. Both ranges are
@@ -7615,6 +7639,7 @@ struct Layer {
     // layer's key, instead of this layer's own beats. Saved in the .rwn file ("HRM1").
     int8_t followLayer                              = -1;
     uint8_t harmonyInterval                         = 0;     // harmony::Interval
+    arp::Settings arp;                                       // v2.08 ARP page, saved in the .rwn file ("ARP1")
     synth::Params synth;                                     // SYNTH sound (Layer Inst pages 1-2), saved in the .rwn file
 
     Bank bankLibrary[kBankLibrarySize];

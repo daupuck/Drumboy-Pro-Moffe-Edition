@@ -10,6 +10,10 @@
 void Controller::interruptPlay() {
     /// @brief The central heartbeat of the sequencer. Manages metronome pre-counts, real-time beat triggering for all layers (simple and complex fills), hardware sync pulses, and LFO phase synchronization.
 
+    // v2.08: running arpeggios (pads and MIDI keys also while stopped). Before the beats, so a
+    // beat on this tick starts its new arpeggio after the old one has had its last tick.
+    arp_tick();
+
     if (playActive) {
         // 1. METRONOME PRE-COUNT PHASE
         // Handle the "get ready" timeline before normal song playback starts.

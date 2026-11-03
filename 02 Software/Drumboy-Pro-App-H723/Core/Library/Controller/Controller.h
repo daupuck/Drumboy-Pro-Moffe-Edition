@@ -1122,7 +1122,7 @@ class Controller {
     /* Layer Song NOTE Page / TONE Layers --------------------- */
 
     bool notePageActive() const { return (menu == LAYER_SONG_MENU) && (layerSongPage == 2); }
-    bool layerSongAltPageActive() const { return (menu == LAYER_SONG_MENU) && (layerSongPage != 0); }  // EUCLID or NOTE
+    bool layerSongAltPageActive() const { return (menu == LAYER_SONG_MENU) && (layerSongPage != 0); }  // EUCLID, NOTE or ARP
     void note_captureBase();
     void note_restore();
     void note_change(EncoderFunc function_, bool up_);
@@ -1132,6 +1132,39 @@ class Controller {
     void note_padPressed(uint8_t pad_);
     void note_shiftKeys(bool up_);
     void note_melody(bool fresh_);          // fresh: new melody (ADD hold); else variation (ADD tap)
+    // v2.08: a key of the pad keyboard or of a MIDI keyboard went down (keyId_: pad 0..9, MIDI 1000 + key).
+    void note_keyDown(int8_t degree_, float velocity_, bool hold_, int16_t keyId_);
+    void note_midiIn(const midiin::Event& event_);  // main loop: a queued MIDI IN note
+    midiin::Parser midiNoteParser;                   // UART ISR
+    midiin::Queue midiNoteQueue;                     // UART ISR -> main loop
+
+    /* Layer Song ARP Page / Arpeggiator (v2.08) ------------ */
+
+    bool arpPageActive() const { return (menu == LAYER_SONG_MENU) && (layerSongPage == 3); }
+    void arp_change(EncoderFunc function_, bool up_);
+    void arp_off();                                  // CLEAR tap on the ARP page
+    void lcd_drawLayerSongArpMenu(uint8_t layerNum_);
+    void lcd_drawArpData(uint8_t slot_);
+    void lcd_drawArpStrip();
+    bool arp_wants(uint8_t layerNum_) const;        // this layer's notes become arpeggios
+    void arp_start(uint8_t layerNum_, float velocity_, int8_t note_, uint16_t lengthIntervals_, uint8_t beatFlags_);
+    void arp_stop(uint8_t layerNum_);               // ends a running arpeggio (its last note fades)
+    void arp_releaseVoices(uint8_t layerNum_);      // the layer's sounding note, and its followers', fade
+    void arp_tick();                                // sequencer timer ISR, every interval, also while stopped
+    struct ArpRun {
+        bool active = false;
+        bool held = false;           // runs until the pad / MIDI key is let go (note_releaseHeld)
+        bool fromSequencer = false;  // ends when the transport stops
+        int8_t base = 0;             // the played note (scale degree)
+        float velocity = 1.0f;
+        uint8_t flags = 0;           // kPlayVelocity of the key that started it
+        uint32_t step = 0;           // arp notes played so far
+        uint16_t countdown = 0;      // intervals until the next arp note
+        uint32_t remaining = 0;      // intervals the arpeggio still lasts (held: a 60 s safety cap)
+        uint16_t gateLeft = 0;       // TONE layers: intervals until the sounding arp note fades
+    };
+    ArpRun arpRun[kLayerLibrarySize];                // written by the main loop only with interrupts off
+    uint32_t arpRandom = 0x2545F491u;
 
     /* SYNTH Layers ----------------------------------------- */
 
@@ -1164,7 +1197,7 @@ class Controller {
     // PAD HOLD: the pad whose note is held (monophonic: the newest press wins) and the release
     // requests for the audio ISR (it shortens the synth gate / fades the sample out).
     int8_t padHoldLayer = -1;
-    int8_t padHoldKey = -1;
+    int16_t padHoldKey = -1;  // pad 0..9, or (v2.08) 1000 + MIDI key
     volatile bool synthReleasePending[kLayerLibrarySize] = {};
     volatile bool toneReleasePending[kLayerLibrarySize] = {};
     // Recording with PAD HOLD: the beat that was just written while its pad is still down. The
