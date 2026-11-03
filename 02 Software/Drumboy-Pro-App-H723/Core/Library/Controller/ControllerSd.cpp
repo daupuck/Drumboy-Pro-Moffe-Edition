@@ -887,7 +887,10 @@ SdResult Controller::sd_loadFile(uint8_t fileNum_) {
                         uint8_t chainBytes[songchain::kEncodedSize];
                         chainBytes[0] = static_cast<uint8_t>(data[kSongChainHeaderOffset]);
                         for (uint8_t i = 0; i < songchain::kMaxSteps; i++) chainBytes[1 + i] = static_cast<uint8_t>(data[kSongChainStepsOffset + i]);
-                        songchain::decode(chainBytes, songChain);
+                        if (songchain::decode(chainBytes, songChain)) {
+                            // v2.03: TRANSPOSE per step (zeros in older files).
+                            songchain::decodeTranspose(reinterpret_cast<const uint8_t*>(&data[kSongTransposeOffset]), songChain);
+                        }
                         song_onFileLoaded();
                     }
 
@@ -1411,6 +1414,7 @@ SdResult Controller::sd_saveFile(uint8_t fileNum_) {
         songchain::encode(songChain, chainBytes);
         data[kSongChainHeaderOffset] = chainBytes[0];
         for (uint8_t i = 0; i < songchain::kMaxSteps; i++) data[kSongChainStepsOffset + i] = chainBytes[1 + i];
+        songchain::encodeTranspose(songChain, &data[kSongTransposeOffset]);  // v2.03
     }
 
     // v2.02: the project's name.
@@ -1626,6 +1630,7 @@ SdResult Controller::sd_clearFile(uint8_t fileNum_) {
 //   "SLD1" + 10 layers x 5 banks x { count, count x [start interval hi, lo] } + "EOF"   (v1.12)
 //   "HLD1" + 10 layers x 5 banks x { count, count x [start hi, lo, hold length hi, lo] } + "EOF"
 //          (v1.13: notes recorded with PAD HOLD; older readers stop before it)
+//   "HRM1" + 10 x [follow (0 = off, 1..10 = layer), interval] + "EOF"   (v2.04: harmony layers)
 // Mode 2 (SYNTH) is read as DRUM by v1.09/v1.10, which stop at the first "EOF".
 // Notes are matched to beats by start interval on load (positions are unique within a bank),
 // so the file never depends on slot order. Older firmware never opens it.
@@ -1658,6 +1663,7 @@ SdResult Controller::sd_saveNotes(const char* path_, bool& written_) {
         const Layer& layer = layerLibrary[l];
         if ((layer.toneMode != tone::kModeDrum) || (layer.toneRoot != 0) || (layer.toneScale != tone::kDefaultScale) || (layer.toneGlide != 0)) needed = true;
         if (!synth::isDefault(layer.synth)) needed = true;
+        if (layer.followLayer >= 0) needed = true;  // v2.04 harmony
         for (uint8_t b = 0; (b < kBankLibrarySize) && !needed; b++) {
             const Bank& bank = layer.bankLibrary[b];
             for (int16_t k = 0; k <= bank.lastActiveBeatNum; k++) {
@@ -1756,6 +1762,16 @@ SdResult Controller::sd_saveNotes(const char* path_, bool& written_) {
             if (sd_write(holds, 1 + (count * 4)) != FR_OK) errorCount += 1;
         }
     }
+    if (sd_write("EOF", 3) != FR_OK) errorCount += 1;
+
+    // v2.04: harmony layers, FOLLOW + interval per layer (older readers stop before it).
+    if (sd_write(kHarmonyFileRef, strlen(kHarmonyFileRef)) != FR_OK) errorCount += 1;
+    uint8_t follow[kLayerLibrarySize * 2];
+    for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+        follow[(l * 2) + 0] = harmony::encodeFollow(layerLibrary[l].followLayer);
+        follow[(l * 2) + 1] = harmony::safeInterval(layerLibrary[l].harmonyInterval);
+    }
+    if (sd_write(follow, sizeof(follow)) != FR_OK) errorCount += 1;
     if (sd_write("EOF", 3) != FR_OK) errorCount += 1;
 
     if (f_close(&sd.file) != FR_OK) errorCount += 1;
@@ -1894,6 +1910,17 @@ void Controller::sd_loadNotes(uint8_t fileNum_) {
                                     }
                                 }
                             }
+                        }
+                    }
+
+                    // Harmony layers (v2.04+), after the holds' "EOF".
+                    char harmonyTag[sizeof(kHarmonyFileRef)] = {};
+                    uint8_t follow[kLayerLibrarySize * 2];
+                    if (holdsOk && (sd_read(eof, 3) == FR_OK) && (sd_read(harmonyTag, strlen(kHarmonyFileRef)) == FR_OK) &&
+                        (strncmp(harmonyTag, kHarmonyFileRef, strlen(kHarmonyFileRef)) == 0) && (sd_read(follow, sizeof(follow)) == FR_OK)) {
+                        for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+                            layerLibrary[l].followLayer = harmony::decodeFollow(follow[(l * 2) + 0], l, kLayerLibrarySize);
+                            layerLibrary[l].harmonyInterval = harmony::safeInterval(follow[(l * 2) + 1]);
                         }
                     }
                 }

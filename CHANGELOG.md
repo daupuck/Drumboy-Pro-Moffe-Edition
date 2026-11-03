@@ -3,6 +3,54 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v2.04
+
+Harmony layers. `kVersionMinor` 4; the package is `Drumboy_Pro_Fw_Moffe_02_04.bin`. Existing
+projects load unchanged (no layer follows another).
+
+- `Layer` gained `followLayer` (−1 = off, 0..9) and `harmonyInterval`
+  (`harmony::Interval`: 3RD/4TH/5TH/6TH/OCT, UP/DN). Rules in `Global/Harmony.h`: intervals in
+  scale steps (an octave = the scale's size), clamped to the range; `stepFollow` never offers the
+  layer itself; host-tested by `test_harmony.cpp` (3,257 checks, incl. diatonic thirds in C major
+  and exact octaves in every scale).
+- **Playback:** the old `layer_playBeat` body is now `layer_playVoice` (one layer). The new
+  `layer_playBeat` plays it, then, for a TONE/SYNTH source, every unmuted TONE/SYNTH layer that
+  follows it with `harmony::note(note, interval, source scale)` and `kPlayHarmony` (which never
+  triggers further harmony, so chains stop after one level). Sequencer beats, pads, auditions,
+  slides, PAD HOLD and recorded held notes all go through it; `note_releaseHeld` releases the
+  followers' held notes too. `layer_keyLayer()` makes a follower's TONE/SYNTH pitch (and its NOTE
+  page pads) use the followed layer's ROOT/SCALE. The sequencer skips a follower's own beats
+  (`layer_follows`). Song TRANSPOSE applies on top.
+- **UI:** NOTE page knob 4 (`ENC_NOTE_FOLLOW`, no label: the area belongs to the note strip, like
+  knob 3 PAD HOLD) = FOLLOW; ADD + knob 4 = interval (ADD as modifier cancels the melody
+  generator). The strip shows `FOLLOW L3  3RD UP` in gold and draws the notes the layer will play;
+  the NOTE value is greyed while following.
+- **Storage:** `.rwn` section `HRM1` + 10 × [follow + 1, interval] + `EOF` after `HLD1`; a project
+  with a follower always gets a `.rwn`. `tone_resetLayer` clears it; switching a layer to DRUM keeps
+  it for later (inactive on a DRUM layer).
+- Not yet tested on hardware.
+
+## v2.03
+
+Song mode TRANSPOSE. `kVersionMinor` 3; the package is `Drumboy_Pro_Fw_Moffe_02_03.bin`.
+Existing projects load unchanged (no transpose).
+
+- `songchain::Step` gained `transpose` (scale steps, −7…+7). `currentTranspose(chain, pos,
+  running)` gives the playing step's value while the chain runs, 0 otherwise.
+- **Playback:** `layer_playBeat` (TONE) and `synth_playBeat` (SYNTH) add `song_transposeNow()`
+  to the beat's scale degree before `tone::semitones`, so the move stays in the layer's scale and
+  is clamped to its range; the MIDI out note follows. It is read when each note starts, and the
+  ISR changes the chain position at the loop end, so a part's transpose starts with its first
+  loop and ringing notes keep their pitch. Stored notes are never changed. Pads played while the
+  chain runs are transposed too, so recordings stay relative to the pattern.
+- **UI:** Rhythm menu, ADD + knob 7 (PART) sets the edited step's transpose (not for END); PART
+  shows e.g. `  2  KEY+3`. Using ADD as a modifier cancels its long-press LOCK action.
+- **Storage:** 16 signed bytes at `kSongTransposeOffset` = 684 of the project's drumkit block
+  (the unused tail of layer 2's asset entry; names are read up to byte 683), written with the
+  chain and read only when the chain header is valid. Older files hold zeros (no transpose); a
+  cleared slot's filler is out of range and reads as 0.
+- Host tests: `test_song_chain.cpp` 21 → 336 checks. Tested on a device by the maintainer.
+
 ## v2.02
 
 Names for projects and drumkits. `kVersionMinor` 2; the package is

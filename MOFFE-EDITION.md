@@ -5,7 +5,7 @@ Moffe Edition is **unofficial community firmware** for the Drumboy Pro, based on
 is not affiliated with or endorsed by Randomwaves. This page collects everything that is new
 compared with the factory firmware: what each feature does and how to use it on the device.
 
-- **Current version:** v2.02 — download from the
+- **Current version:** v2.04 — download from the
   [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest);
   how to install: [README → Install](README.md#install)
 - **User manual:** published by Randomwaves at [randomwaves.io](https://www.randomwaves.io) (it
@@ -26,9 +26,21 @@ compared with the factory firmware: what each feature does and how to use it on 
 > TONE, and chorus, delay, reverb and both filters on); the pad keyboard and the melody generator
 > (v1.10); from v2.00, in its test builds: SYNTH layers, erasing on the EUCLID/NOTE pages, DETUNE,
 > SUB, NOISE, DRIVE, GLIDE, WAVE = SAMPLE and SLIDE; AUTOSAVE and resume (v2.01); names for
-> projects and drumkits (v2.02). **Not yet tested on a device:** the rest of v2.00 (presets,
-> random sounds, AMP and LFO pages, PAD HOLD, VISUALS, the new look). Each release says what has been tested on hardware;
+> projects and drumkits (v2.02); song transpose (v2.03). **Not yet tested on a device:** the rest of v2.00 (presets,
+> random sounds, AMP and LFO pages, PAD HOLD, VISUALS, the new look) and v2.04 (harmony layers). Each release says what has been tested on hardware;
 > please report anything odd in [Issues](../../issues).
+
+## What's new in v2.04 – harmony layers
+
+| | New | What it means for you |
+|---|---|---|
+| 🎶 | **[Harmony layers](#harmony-layers-v204)** | A melody layer can FOLLOW another and play every note it plays a 3rd, 4th, 5th, 6th or octave higher or lower, always in key: pads over basslines, chords from two layers. NOTE page, knob 4. |
+
+## What's new in v2.03 – song transpose
+
+| | New | What it means for you |
+|---|---|---|
+| 🎼 | **[TRANSPOSE per song step](#5-song-mode--arrange-parts-into-a-song-v107)** | Each step of the song chain can move all melody layers up or down the scale (ADD + knob 7 in the Rhythm menu): verse, chorus and bridge from one pattern, always in key. |
 
 ## What's new in v2.02 – give it a name
 
@@ -190,7 +202,7 @@ loop.
 |---|---|
 | **5 SONG** | **OFF**: banks switch manually, as before. **LOOP**: the chain starts again after the last step. **ONCE**: the song stops at the end of the last step. |
 | **6 STEP** | Which step of the chain you are editing (1–16), shown as `step/length` |
-| **7 PART** | The part (song bank 1–5) that step plays, or **END** to end the chain there |
+| **7 PART** | The part (song bank 1–5) that step plays, or **END** to end the chain there. **ADD + knob 7** = that step's **TRANSPOSE** (v2.03), shown as e.g. `2  KEY+3` |
 | **8 REPEAT** | How many loops that step plays (1–16) |
 
 **Example:** step 1 = part 1 × 2 (intro), step 2 = part 2 × 4 (verse), step 3 = part 3 × 1
@@ -206,6 +218,22 @@ loop.
 - **Saved with the project.** Files from older firmware open with song mode OFF; drumkits are
   not affected. NEW FILE resets the chain.
 - All parts share the song length (BAR × MEASURE). Use REPEAT for longer sections.
+
+**TRANSPOSE – a chord progression from one pattern (v2.03).** Hold **ADD** and turn **knob 7**:
+the step's melody layers (TONE and SYNTH) move up or down by that many **notes of their scale**
+(−7…+7) while the step plays. Drum layers are not touched, and your notes are not changed – the
+move is applied as they play.
+
+- **Example:** one bassline in C major, chain *part 1 ×2 (KEY+0) → part 1 ×2 (KEY+3) → part 1 ×2
+  (KEY+4) → part 1 ×2 (KEY+0)*: the classic I–IV–V–I, all in key.
+- Steps in scale notes keep everything in the scale, so it can't sound off-key; a 3rd up in a
+  minor scale stays minor.
+- It changes exactly at the loop end, with the part. A note still ringing keeps its pitch.
+- Pads played along while the chain runs follow the step's transpose too, and what you record
+  then moves along with the song.
+- Only while song mode plays the chain: stopped, or with SONG OFF, everything is at its written
+  pitch. MIDI out sends the transposed notes.
+- Saved with the project; older projects have no transpose.
 
 ## 6. Melody layers – NOTE page in Layer Song (v1.09)
 
@@ -224,6 +252,7 @@ NOTE). Once more goes back to the edit page.
 |---|---|
 | **1 MODE** | **DRUM**: the layer plays as before and ignores the notes. **TONE**: every beat plays its sample at its note. **SYNTH**: every beat plays the built-in synth at its note ([section 7](#7-synth-layers--a-built-in-synth-voice-v200), v2.00). |
 | **2 NOTE** | The note of the selected beat, e.g. `D#4`. Only notes of the scale are offered, five octaves either side of the root (two before v2.00). |
+| **4 FOLLOW** (no label) | **Harmony** (v2.04): turn to make this layer follow another one (OFF, L1…L10) – see *Harmony layers* below. **ADD + knob 4** picks the interval. The strip shows e.g. `FOLLOW L3  3RD UP`. |
 | **5 ROOT** | The key: C to B. |
 | **6 SCALE** | Chromatic, major, minor, dorian, phrygian, lydian, mixolydian, harmonic minor, pentatonic major, pentatonic minor, blues. |
 | **7 GLIDE** | 0 = off. Higher values slide from the previous note into the next one, from a quick 303-style slide up to half a second. |
@@ -264,7 +293,32 @@ A quick bassline: EUCLID page E(5,16), then the NOTE page, MODE TONE, hold ADD u
 - **Saved with the project** in a small extra file (`File_NNN.rwn`) next to the project file.
   Projects from older firmware open with all layers as DRUM; older firmware ignores the new file.
   NEW FILE resets everything; drumkits don't store notes.
-- **Good to know:** one note at a time per layer (use several layers for chords). As on any
+### Harmony layers (v2.04)
+
+A TONE or SYNTH layer can **follow** another melody layer and play every note it plays, a
+chosen interval higher or lower – a pad a 3rd above your bassline, or two layers on a 3rd and a
+5th for full chords.
+
+1. Open the NOTE page of the layer that should harmonise (it needs MODE TONE or SYNTH and its
+   own sound).
+2. Turn **knob 4**: OFF → L1 … L10 (any other layer). The strip shows `FOLLOW L3  3RD UP` in
+   gold and draws the notes this layer will play.
+3. **ADD + knob 4** chooses the interval: **3RD, 4TH, 5TH, 6TH or OCT, UP or DN**.
+
+- **Always in key:** intervals are counted in the followed layer's scale and played in its ROOT
+  and SCALE, so a 3rd is major or minor wherever the key says. (In pentatonic and blues scales
+  the intervals are the scale's own next notes; in CHROMATIC they are semitones.)
+- **Same rhythm:** the harmony layer plays exactly the followed layer's beats, slides and held
+  notes; its own beats are ignored while FOLLOW is on (and come back when you turn it OFF).
+- **Live:** edit, record or regenerate the followed melody and the harmony follows at once.
+  Playing the followed layer's pads plays the harmony too – chords from one finger.
+- **Its own sound:** level, sample or synth sound, effects and MUTE are the harmony layer's own.
+  Muting the followed layer silences its harmony too.
+- Song **TRANSPOSE** moves harmonies along with everything else.
+- One level only: a harmony layer can't itself be followed (a layer following it stays silent).
+- Saved with the project (in the `.rwn` file); older firmware plays the layer's own beats.
+
+- **Good to know:** one note at a time per layer (use several layers – or harmony layers – for chords). As on any
   sampler, higher notes play the sample faster, so they are also shorter. Outside the NOTE page
   the pads, and MIDI in, play the root; on the NOTE page of a TONE layer the pads only play that
   layer (go back to the edit page to play the drums).
@@ -556,6 +610,8 @@ Your projects and drumkits have names now – yours, or a random one like `TURBO
 | **v2.00** | **SYNTH layers**: a built-in synth voice (saw, square, triangle, sine or single-cycle WAVs; DETUNE, SUB, NOISE, DRIVE, four filter types, AMP envelope, LFO page, SLIDE and GLIDE), 66 presets in alphabetical order + 16 USER slots, random sounds and variations, PAD HOLD (also when recording), the synth sound's name in the track list, synth sounds in drumkits and the instrument copy. **VISUALS**: 13 full-screen music visuals in seven colour themes. **The Moffe Edition look**: gold and orange, new boot screen. **NOTE page**: pads only play while stopped (ADD + pad = step entry), wider octave range. (Test builds v1.11–v1.14 led up to it; they were not released.) |
 | **v2.01** | **AUTOSAVE** (File menu, knob 5) and **RESUME LAST SESSION?** at power-on; **crash-safe saving** for projects and drumkits; the File menu starts at the current project's slot. |
 | **v2.02** | **Names** for projects and drumkits: shown in LOAD / SAVE / CLEAR, edited with knobs 6–7, or rolled at random with knob 8. |
+| **v2.03** | Song mode **TRANSPOSE** per chain step (ADD + knob 7 in the Rhythm menu): melody layers move along their scale, drums stay. |
+| **v2.04** | **Harmony layers**: a TONE/SYNTH layer FOLLOWs another and plays its notes at an interval, in its key (NOTE page knob 4, ADD + knob 4 = interval). |
 
 ## Coming next
 
@@ -570,10 +626,10 @@ The step-by-step guide (which file to download, where to put it, what the screen
 to do if something goes wrong) is in the **[README → Install](README.md#install)**. In short:
 
 1. Back up the whole SD card.
-2. Download `Drumboy_Pro_Fw_Moffe_02_02.bin` from the
+2. Download `Drumboy_Pro_Fw_Moffe_02_04.bin` from the
    [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest).
 3. Copy it, with its exact name, to the root of the card as the only `Drumboy_Pro_Fw…bin` there.
-4. Power on: *UPDATING FIRMWARE V2.02* → *FIRMWARE UPDATED* → sunglasses.
+4. Power on: *UPDATING FIRMWARE V2.04* → *FIRMWARE UPDATED* → sunglasses.
 
 **Roll back:** install `Drumboy_Pro_Fw_01_01.bin` (factory, in the release Assets and in
 `02 Software/Firmware/`) the same way. The bootloader accepts any version, older or newer.

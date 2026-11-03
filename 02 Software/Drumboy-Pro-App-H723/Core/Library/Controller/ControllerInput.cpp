@@ -2701,6 +2701,7 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
         case ENC_NOTE_SCALE:
         case ENC_NOTE_GLIDE:
         case ENC_NOTE_TRANSPOSE:
+        case ENC_NOTE_FOLLOW:
             note_change(encoder[encoderNum_].function, true);
             break;
 
@@ -3340,6 +3341,7 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
         case ENC_NOTE_SCALE:
         case ENC_NOTE_GLIDE:
         case ENC_NOTE_TRANSPOSE:
+        case ENC_NOTE_FOLLOW:
             note_change(encoder[encoderNum_].function, false);
             break;
 

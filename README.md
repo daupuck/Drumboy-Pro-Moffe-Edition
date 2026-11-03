@@ -23,6 +23,22 @@ rolled back to the factory firmware the same way.
 > SD card first** and keep the factory firmware for rolling back. Modifying the firmware may affect
 > your warranty with Randomwaves.
 
+## 🎶 New in v2.04: harmony layers
+
+- A melody layer can **FOLLOW** another and play every note it plays a 3rd, 4th, 5th, 6th or
+  octave higher or lower – **always in key**. A pad a 3rd over your bassline, or two layers on a
+  3rd and a 5th for full chords. Edit the melody and the harmony follows. NOTE page, knob 4.
+
+→ **[How it works](MOFFE-EDITION.md#harmony-layers-v204)**
+
+## 🎼 New in v2.03: song transpose
+
+- Each step of the **song chain** can move all melody layers up or down **their scale**: hold ADD
+  and turn knob 7 in the Rhythm menu. One bassline becomes verse, chorus and bridge – I–IV–V
+  from a single pattern, always in key. Drums stay where they are.
+
+→ **[How it works](MOFFE-EDITION.md#5-song-mode--arrange-parts-into-a-song-v107)**
+
 ## 🏷️ New in v2.02: names for your projects and drumkits
 
 - LOAD, SAVE and CLEAR show your projects and drumkits **by name** (`NEON YAK`, `DJ BLOOP`)
@@ -78,9 +94,10 @@ The biggest Moffe Edition update yet, big enough for a new major version. Highli
 |---|---|---|
 | 🎛️ | [**SYNTH layers**](MOFFE-EDITION.md#7-synth-layers--a-built-in-synth-voice-v200) | A built-in synth on any layer with 66 presets, random sounds, envelope, LFO, filter types and PAD HOLD. Acid basslines without a single sample. |
 | 🌈 | [**VISUALS**](MOFFE-EDITION.md#8-visuals--full-screen-music-visuals-v200) | 13 full-screen music visuals in 7 colour themes; keep playing while they run. |
+| 🎶 | [**Harmony layers**](MOFFE-EDITION.md#harmony-layers-v204) | One layer follows another a 3rd or 5th above – instant chords, always in key. |
 | 🎹 | [**Melody layers**](MOFFE-EDITION.md#6-melody-layers--note-page-in-layer-song-v109) | Turn any layer into an instrument: give each beat a note in a key and scale, add glide and slides, play the pads as a keyboard, or hold ADD and let it write a melody. Your kick just became an 808 bassline. |
 | 🥁 | [**Euclidean rhythms**](MOFFE-EDITION.md#4-euclidean-rhythms--euclid-page-in-layer-song-v106) | Pick steps and hits, turn a knob, hear the pattern change live. |
-| 🎼 | [**Song mode**](MOFFE-EDITION.md#5-song-mode--arrange-parts-into-a-song-v107) | Chain the 5 song banks into intro → verse → chorus, with repeats, looped or played once. |
+| 🎼 | [**Song mode**](MOFFE-EDITION.md#5-song-mode--arrange-parts-into-a-song-v107) | Chain the 5 song banks into intro → verse → chorus, with repeats, looped or played once – and transpose each step along the scale. |
 | 🎯 | [**Precise beat placement**](MOFFE-EDITION.md#1-place-beats-precisely--layer-song-menu-v103) | Move a single beat, shift a whole layer, or add one beat exactly where you want it. |
 | 🎧 | [**Sample preview**](MOFFE-EDITION.md#3-sample-preview--layer-instrument-menu-v105) | Hear a sample *before* you load it. Your ears will thank you. |
 | 📊 | [**CPU meter**](MOFFE-EDITION.md#audio-cpu-meter-v109) | See how busy the audio engine is (IO menu), so you know how much room is left. |
@@ -97,7 +114,9 @@ the **[CHANGELOG](CHANGELOG.md)**, and each published version has its firmware f
 
 | Version | Highlights |
 |---|---|
-| **v2.02** (latest) | Names for projects and drumkits: shown in LOAD / SAVE / CLEAR, your own or random |
+| **v2.04** (latest) | Harmony layers: FOLLOW another layer at a 3rd, 4th, 5th, 6th or octave, always in key |
+| v2.03 | Song mode TRANSPOSE per chain step: melody layers move along their scale |
+| v2.02 | Names for projects and drumkits: shown in LOAD / SAVE / CLEAR, your own or random |
 | v2.01 | AUTOSAVE and RESUME LAST SESSION? at power-on · crash-safe saving for projects and drumkits · File menu starts at your project's slot |
 | v2.00 | SYNTH layers with 66 presets, random sounds, envelope, LFO, filter types and PAD HOLD · 13 VISUALS · the gold-and-orange Moffe Edition look and boot screen · NOTE page and file improvements (developed as test builds v1.11–v1.14) |
 | v1.10 | The pads as a scale keyboard: step entry and live recording; melody generator and variations |
@@ -129,8 +148,8 @@ a minute, and future you will be very grateful in the unlikely event it's needed
 ### Step 2 — Download the right file
 
 1. Open **[Releases → latest](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest)**.
-2. Scroll down to **Assets** and click **`Drumboy_Pro_Fw_Moffe_02_02.bin`** (the numbers are the
-   version: `02_02` = v2.02).
+2. Scroll down to **Assets** and click **`Drumboy_Pro_Fw_Moffe_02_04.bin`** (the numbers are the
+   version: `02_04` = v2.04).
 
 What the files in Assets are:
 
@@ -147,9 +166,9 @@ What the files in Assets are:
 
 Open the matching `.sha256` file in a text editor and compare its long number with the output of:
 
-- **Windows:** `certutil -hashfile Drumboy_Pro_Fw_Moffe_02_02.bin SHA256`
-- **macOS:** `shasum -a 256 Drumboy_Pro_Fw_Moffe_02_02.bin`
-- **Linux:** `sha256sum -c Drumboy_Pro_Fw_Moffe_02_02.bin.sha256`
+- **Windows:** `certutil -hashfile Drumboy_Pro_Fw_Moffe_02_04.bin SHA256`
+- **macOS:** `shasum -a 256 Drumboy_Pro_Fw_Moffe_02_04.bin`
+- **Linux:** `sha256sum -c Drumboy_Pro_Fw_Moffe_02_04.bin.sha256`
 
 If they differ, download it again. The bootloader also checks a CRC before it writes anything, so
 a damaged file is refused rather than installed.
@@ -162,14 +181,14 @@ folders, **not** inside them.
 
 ```
 SD card
-├── Drumboy_Pro_Fw_Moffe_02_02.bin   ← here
+├── Drumboy_Pro_Fw_Moffe_02_04.bin   ← here
 ├── Sample/
 └── System/
 ```
 
 - **Keep the exact file name.** The bootloader only looks for names that start with
   `Drumboy_Pro_Fw` and are at most 32 characters long. It is very literal-minded. If your
-  browser saved it as `Drumboy_Pro_Fw_Moffe_02_02 (1).bin`, rename it back.
+  browser saved it as `Drumboy_Pro_Fw_Moffe_02_04 (1).bin`, rename it back.
 - **Make it the only `Drumboy_Pro_Fw…bin` file in the root.** The bootloader installs the first
   one it finds.
 - Don't change anything else on the card. Eject the card safely before you pull it out.
@@ -178,7 +197,7 @@ SD card
 
 Put the card back in the Drumboy Pro and switch it on. You should see:
 
-1. **UPDATING FIRMWARE** with the version (e.g. **V2.02**) and a line that fills up.
+1. **UPDATING FIRMWARE** with the version (e.g. **V2.04**) and a line that fills up.
 2. **FIRMWARE UPDATED** for a few seconds.
 3. The normal start-up, now with **sunglasses and a golden MOFFE EDITION** on the logo. If you see
    the sunglasses, it worked. The sunglasses don't lie.

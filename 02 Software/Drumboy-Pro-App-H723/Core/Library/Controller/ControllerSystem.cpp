@@ -1200,6 +1200,20 @@ void Controller::song_change(EncoderFunc function_, bool up_) {
             break;
 
         case ENC_RHYTHM_SONG_PART:
+            // v2.03: ADD + PART = the step's TRANSPOSE (scale steps). ADD is a modifier here,
+            // so its long-press LOCK action is cancelled.
+            if (keyboard.shiftKeyPress) {
+                if (rhythmLockKeyFlag) {
+                    rhythmLockKeyFlag = false;
+                    stopLongKeyTimer();
+                    keyboard.longKeyCounter = 0;
+                }
+                if (step.part >= songchain::kParts) return;  // END has no transpose
+                if (up_ && (step.transpose < songchain::kMaxTranspose)) step.transpose++;
+                if (!up_ && (step.transpose > -songchain::kMaxTranspose)) step.transpose--;
+                if (menu == RHYTHM_MENU) lcd_drawRhythm_SongPartData();
+                return;
+            }
             // 1..5, then END
             if (up_) {
                 if (step.part < songchain::kParts - 1) {

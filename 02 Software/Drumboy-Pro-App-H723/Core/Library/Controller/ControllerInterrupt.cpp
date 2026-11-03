@@ -139,7 +139,7 @@ void Controller::interruptPlay() {
                             // sounding from the pad: triggering it again would cut it short.
                             const bool beingHeld = (holdRecLayer == static_cast<int8_t>(i)) && (holdRecBank == activeSongBank) &&
                                                    (holdRecStart == beat.getStartInterval());
-                            if ((fillVolMultiplier > 0.0f) && !beingHeld) layer_playBeat(layer.number, fillVolMultiplier, beat.getNote(), length, beatFlags);
+                            if ((fillVolMultiplier > 0.0f) && !beingHeld && !layer_follows(i)) layer_playBeat(layer.number, fillVolMultiplier, beat.getNote(), length, beatFlags);  // v2.04: a harmony layer plays its leader's notes instead
 
                             // Advance to the next beat index
                             (playBeatNum < bank.lastActiveBeatNum) ? bank.playBeatNum += 1 : bank.playBeatNum = 0;
@@ -160,7 +160,7 @@ void Controller::interruptPlay() {
                                 const uint16_t beatLength = (beat.getEndInterval() > beat.getStartInterval()) ? (beat.getEndInterval() - beat.getStartInterval()) : 0;
                                 const uint16_t length = (steps > 0) ? static_cast<uint16_t>(beatLength / steps) : beatLength;
                                 const uint8_t beatFlags = ((playBeatMicroNum == 0) && beat.getSlide()) ? kPlaySlideIn : 0;  // the fill's first hit slides in
-                                if (fillVolMultiplier > 0.0f) layer_playBeat(layer.number, fillVolMultiplier, beat.getNote(), length, beatFlags);
+                                if ((fillVolMultiplier > 0.0f) && !layer_follows(i)) layer_playBeat(layer.number, fillVolMultiplier, beat.getNote(), length, beatFlags);
                             }
 
                             // Advance micro-step index within the fill

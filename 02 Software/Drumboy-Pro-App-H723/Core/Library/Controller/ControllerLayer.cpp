@@ -129,6 +129,33 @@ void Controller::updatePlayTimerPeriod() {
 ////////////////////////////////////////////////////////////////////////////////
 
 void Controller::layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_, uint8_t beatFlags_) {
+    /// @brief Plays a beat (sequencer, pads, auditions) and, v2.04, the same note on every layer
+    /// that FOLLOWs this one, at its interval in this layer's key.
+
+    layer_playVoice(layerNum_, fillVolMultiplier_, note_, lengthIntervals_, beatFlags_);
+    if (beatFlags_ & kPlayHarmony) return;  // a harmony note never starts another one
+
+    const Layer& source = layerLibrary[layerNum_];
+    if (!tone::playsNotes(source.toneMode)) return;
+    for (uint8_t h = 0; h < kLayerLibrarySize; h++) {
+        if (h == layerNum_) continue;
+        const Layer& follower = layerLibrary[h];
+        if ((follower.followLayer != static_cast<int8_t>(layerNum_)) || !tone::playsNotes(follower.toneMode)) continue;
+        if (follower.mute || !layerSounds(h)) continue;
+        const int8_t note = harmony::note(note_, follower.harmonyInterval, source.toneScale);
+        layer_playVoice(h, fillVolMultiplier_, note, lengthIntervals_, static_cast<uint8_t>(beatFlags_ | kPlayHarmony));
+    }
+}
+
+uint8_t Controller::layer_keyLayer(uint8_t layerNum_) const {
+    /// @brief The layer whose ROOT / SCALE a layer's notes are played in: the followed layer for
+    /// a harmony layer (v2.04), otherwise the layer itself.
+
+    const int8_t f = layerLibrary[layerNum_].followLayer;
+    return ((f >= 0) && (f < static_cast<int8_t>(kLayerLibrarySize)) && (f != static_cast<int8_t>(layerNum_))) ? static_cast<uint8_t>(f) : layerNum_;
+}
+
+void Controller::layer_playVoice(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_, uint8_t beatFlags_) {
     /// @brief Prepares and triggers layer beat playback with LFO/style-dependent modulation.
 
     // VISUALS mode: every trigger flashes its layer (velocity; the main loop takes it).
@@ -303,7 +330,10 @@ void Controller::layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int
                 tBD.glideTarget = 0.0f;
                 tBD.glideCoef = 0.0f;
                 if (layer.toneMode == tone::kModeTone) {
-                    const int semis = tone::semitones(note_, layer.toneScale, layer.toneRoot);
+                    // v2.03: song mode TRANSPOSE moves the note along the scale. v2.04: a
+                    // harmony layer plays in the key of the layer it follows.
+                    const Layer& key = layerLibrary[layer_keyLayer(layerNum_)];
+                    const int semis = tone::semitones(note_ + song_transposeNow(), key.toneScale, key.toneRoot);
                     const float target = tone::clampIncrement(tBD.increment * tone::ratio(semis));
                     // SLIDE on this beat glides even with GLIDE 0 (sample is retriggered, as always on TONE).
                     const bool slideIn = (beatFlags_ & kPlaySlideIn) != 0;
@@ -2385,8 +2415,10 @@ void Controller::synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int
         }
     }
 
-    // Pitch: C4 at PITCH 1.00, moved by the note in ROOT/SCALE.
-    const int semis = tone::semitones(note_, layer.toneScale, layer.toneRoot);
+    // Pitch: C4 at PITCH 1.00, moved by the note in ROOT/SCALE (and by the song step's
+    // TRANSPOSE, v2.03). A harmony layer plays in the key of the layer it follows (v2.04).
+    const Layer& key = layerLibrary[layer_keyLayer(layerNum_)];
+    const int semis = tone::semitones(note_ + song_transposeNow(), key.toneScale, key.toneRoot);
     const float speed = tone::clampIncrement(kLayerPitchDataLibrary[nPitch].data * tone::ratio(semis));
 
     // Gate: GATE % of the time until the next beat (an eighth note for pads and auditions). If the
@@ -2725,7 +2757,8 @@ void Controller::note_padPressed(uint8_t pad_) {
     const uint8_t layerNum = static_cast<uint8_t>(selectedLayerNum);
     Layer& layer = layerLibrary[layerNum];
     Bank& bank = layer.bankLibrary[activeSongBank];
-    const int8_t note = tone::keyDegree(pad_, noteKeysOctave, layer.toneScale);
+    // v2.04: a harmony layer's pads play in the key of the layer it follows.
+    const int8_t note = tone::keyDegree(pad_, noteKeysOctave, layerLibrary[layer_keyLayer(layerNum)].toneScale);
 
     note_finishHoldRec();  // monophonic: a held note being recorded ends where the next one starts
 
@@ -2805,10 +2838,14 @@ void Controller::note_releaseHeld() {
     const uint8_t layerNum = static_cast<uint8_t>(padHoldLayer);
     padHoldLayer = -1;
     padHoldKey = -1;
-    if (layerLibrary[layerNum].toneMode == tone::kModeSynth) {
-        synthReleasePending[layerNum] = true;
-    } else {
-        toneReleasePending[layerNum] = true;
+    for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+        // The held layer, and (v2.04) every harmony layer holding its note along with it.
+        if ((l != layerNum) && (layerLibrary[l].followLayer != static_cast<int8_t>(layerNum))) continue;
+        if (layerLibrary[l].toneMode == tone::kModeSynth) {
+            synthReleasePending[l] = true;
+        } else if ((l == layerNum) || (layerLibrary[l].toneMode == tone::kModeTone)) {
+            toneReleasePending[l] = true;
+        }
     }
 }
 
@@ -2920,6 +2957,8 @@ void Controller::tone_resetLayer(uint8_t layerNum_) {
     layer.toneRoot = 0;
     layer.toneScale = tone::kDefaultScale;
     layer.synth = synth::Params{};
+    layer.followLayer = harmony::kNone;  // v2.04
+    layer.harmonyInterval = harmony::THIRD_UP;
     tone_setGlide(layerNum_, 0);
     layerPlayData[layerNum_].toneLastIncrement = 0.0f;
     if (toneMidiSounding[layerNum_] != 0xFF) {
@@ -2948,10 +2987,14 @@ void Controller::tone_setMode(uint8_t layerNum_, uint8_t mode_) {
     if (mode_ == tone::kModeDrum) {
         const uint8_t root = layer.toneRoot, scale = layer.toneScale, glide = layer.toneGlide;
         const synth::Params sound = layer.synth;
+        const int8_t follow = layer.followLayer;
+        const uint8_t interval = layer.harmonyInterval;
         tone_resetLayer(layerNum_);  // releases a held MIDI note
         layer.toneRoot = root;       // ...but keeps the settings for next time
         layer.toneScale = scale;
         layer.synth = sound;
+        layer.followLayer = follow;  // v2.04: inactive on a DRUM layer, back with TONE / SYNTH
+        layer.harmonyInterval = interval;
         tone_setGlide(layerNum_, glide);
     }
     layer.toneMode = mode_;
@@ -3022,6 +3065,32 @@ void Controller::note_change(EncoderFunc function_, bool up_) {
             }
             lcd_drawNoteData(6);
             return;
+
+        case ENC_NOTE_FOLLOW: {
+            // v2.04 harmony: knob 4 = which layer to follow (OFF, L1..L10 but not itself);
+            // ADD + knob 4 = the interval. ADD is a modifier here: no melody on release.
+            if (keyboard.shiftKeyPress) {
+                if (noteMelodyKeyFlag) {
+                    stopLongKeyTimer();
+                    keyboard.longKeyCounter = 0;
+                    noteMelodyKeyFlag = false;
+                }
+                noteMelodyLongFlag = false;
+                layerSongAddPending = false;
+                const uint8_t i = harmony::safeInterval(layer.harmonyInterval);
+                layer.harmonyInterval = up_ ? static_cast<uint8_t>((i + 1) % harmony::kIntervalCount)
+                                            : static_cast<uint8_t>((i + harmony::kIntervalCount - 1) % harmony::kIntervalCount);
+            } else {
+                const int8_t next = harmony::stepFollow(layer.followLayer, up_, static_cast<uint8_t>(selectedLayerNum), kLayerLibrarySize);
+                if (next == layer.followLayer) return;
+                if (layer.followLayer < 0) layer.harmonyInterval = harmony::safeInterval(layer.harmonyInterval);
+                layer.followLayer = next;  // one byte: read atomically by the sequencer ISR
+                if (layer.toneMode == tone::kModeSynth) synth_silence(static_cast<uint8_t>(selectedLayerNum));  // no hanging note from its own beats
+            }
+            lcd_drawNoteData(1);  // the beat's own note is greyed while following
+            lcd_drawNoteStrip();  // shows FOLLOW and the notes it will play
+            return;
+        }
 
         case ENC_NOTE_TRANSPOSE: {
             if (bank.lastActiveBeatNum == -1) return;
