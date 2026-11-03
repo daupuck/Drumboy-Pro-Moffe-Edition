@@ -26,7 +26,7 @@ enum Interval : uint8_t { THIRD_UP = 0, FOURTH_UP, FIFTH_UP, SIXTH_UP, OCTAVE_UP
 constexpr const char* kIntervalNames[kIntervalCount] = {"3RD UP", "4TH UP", "5TH UP", "6TH UP", "OCT UP",
                                                         "3RD DN", "4TH DN", "5TH DN", "6TH DN", "OCT DN"};
 
-inline uint8_t safeInterval(uint8_t interval) { return (interval < kIntervalCount) ? interval : THIRD_UP; }
+inline uint8_t safeInterval(uint8_t interval) { return (interval < kIntervalCount) ? interval : static_cast<uint8_t>(THIRD_UP); }
 
 // Scale steps for an interval in a scale.
 inline int steps(uint8_t interval, uint8_t scale) {
