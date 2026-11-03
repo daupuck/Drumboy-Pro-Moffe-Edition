@@ -3,6 +3,98 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v2.07
+
+VISUALS batch 2 (20 styles). `kVersionMinor` 7; the package is `Drumboy_Pro_Fw_Moffe_02_07.bin`.
+Contains v2.05 and v2.06, which were not released on their own.
+
+- **`Lcd::drawIndexedScaled`:** an 8-bit buffer through a 256-colour palette, each pixel a
+  scale × scale block, in one address window: the colour goes on the bus once per screen row and
+  is strobed `scale` times, so a full frame is one bus write per screen pixel.
+- **GEISS:** 160 × 88 feedback buffer (two frames, DTCM) drawn as 6 × 6 blocks under the hint band:
+  fixed-point zoom (0.955 − bass) + slow rotation, 2 × 2 blur, fade 3/frame; waveform, hit sparks
+  and a ring on every bar painted in; palette black → theme (cycling) → white, flashing on the bar.
+- **MILK TUNNEL** (replaces TUNNEL): distance / angle / shade tables built once, XOR texture
+  scrolled by the bass (zoom) and the top bands (twist), per-depth sine warp; same buffer memory as
+  GEISS (a union).
+- **ROBOT DJ:** turntables spinning with the tempo (jitter while scratching), mixer meters
+  (segment bars), body with a bass light, head nodding on the beat phase, arms on the decks or up on
+  a loud bar, laser eyes on accents; moving parts are erased in black and the static ones redrawn.
+- **DISCO CROWD** (replaces DISCO): mirror ball, sparkles, 8 dancers (layers 1–8) jumping with
+  their flash and waving with the beat and highs, a stage-diver every 4 bars, a 16 × 4 floor.
+- **PIANO ROLL:** up to 200 notes of the bank's leader melody layers (+ their harmony layers,
+  outlined), pitch from `tone::semitones` incl. song transpose, re-collected every 12 frames and
+  redrawn on a change (FNV signature); notes flash when the head passes their start (also across
+  the loop wrap); a TRANSPOSE banner.
+- **KEY WHEEL:** circle of fifths (majors outside, relative minors inside); key from the first
+  leader melody layer (minor if the scale's 3rd is 3 semitones), chord = the scale step of the
+  song transpose with its third deciding major / minor, roman numeral for 7-note scales; needle
+  easing to the chord, bass heart.
+- DTCM: 107 KB of 128 KB (the pixel buffers are 56 KB). Not yet tested on hardware.
+
+## v2.06
+
+A new VISUALS line-up. `kVersionMinor` 6; the package is `Drumboy_Pro_Fw_Moffe_02_06.bin`. Contains
+v2.05 (FM voice), which was not released on its own.
+
+- **Scenes** (`ControllerVisual.cpp`, `enum Scene`, 16): new **CLASSIC** (bevelled media-player
+  window: ribbed title bar, LCD time from the play time, 62-character marquee with the project name,
+  info line, L/R level bars, triggered oscilloscope, position bar from `playInterval/songInterval`,
+  transport buttons lit by the transport state, SHUFFLE = AUTO and REPEAT = song mode lights, volume
+  slider from MASTER, 32-bar analyser with 42 segments and falling peak dots), **SUPERSCOPE**
+  (160-point polyline from the waveform, four shapes switching every bar, Y/X tumble with
+  perspective, erased by redrawing the previous polyline in black), **MOUTH** (jaw quantised from
+  the bass, drawn in 120 six-pixel columns that only repaint what changed; upper teeth = layer meters
+  with hit flashes, lower teeth = spectrum, tongue), **EYEBALLS** (10 eyes looking at the loudest
+  layer, pop on hits, pupils with the bass, blinks in quiet parts, red veins while
+  `limitAlertActive`), **SPEAKER** (cone rings and dust cap quantised from the bass, glitter on
+  accents kept clear of the cabinet, tweeter fizz from the top 10 bands, port rings on kicks),
+  **DEMO SCENE** (5 copper bars composed per row and only changed rows drawn, FONT_14x18 x2 sine
+  scroller, 3-speed starfield kept off the logo, MOFFE logo x4 bouncing on the beat phase),
+  **SUNSET DRIVE** (static sky/mountains/palms, sun rows repainted only when their half-width or
+  stripe state changes, horizon flash, beat-locked road lines passing behind the palm trunks,
+  twinkling stars) and **STEP GRID** (the active bank's beats per 1/16 step, up to 64 columns, beat
+  map re-read every 8 frames, play-head flashes). Kept: SHOWTIME, SPECTRO, TUNNEL, KALEIDO (was
+  MANDALA), ORBIT, DISCO, RIDGES, LIFE. Removed: PHASE, SPECTRUM, METERS, RAIN, FIREWORKS.
+- **Themes:** 9; WINAMP (green → yellow → red, a negative hue spread) and C64 (blue → purple).
+- **Keys:** ADD = AUTO (random other style every 16 bars on the bar, 20 s when stopped), CLEAR =
+  INFO overlay (`visual_drawOverlay`, every 6 frames). With MUTE/FILL/STYLE held they pass through.
+  The hint line is at most 104 characters.
+- DTCM use fell from 57 KB to 50 KB (RAIN/FIREWORKS buffers were bigger than the new state).
+  Not yet tested on hardware.
+
+## v2.05
+
+FM voice, pitch envelope and filter attack. `kVersionMinor` 5; the package is
+`Drumboy_Pro_Fw_Moffe_02_05.bin`. Existing sounds, projects, drumkits and USER presets load and
+sound unchanged.
+
+- **SynthVoice.h:** `Wave::kFm` (after `kSample`): a sine carrier phase-modulated by a sine at
+  `kFmRatios[fmRatio]` × the note (16 ratios incl. inharmonic 1.41, 2.76, 3.5), index
+  `fmIndexFor(fmAmount)` = 10·a² rad × (0.6 + 0.4·velocity) × the FM envelope (1 at the note,
+  decaying with `decaySeconds(fmDecay)`; 100 = hold), ramped per sample. DETUNE's second carrier
+  shares the modulator. `pitchEnv` (0..100 → up to +48 semitones at the note) decays per block with
+  `pitchDecaySeconds(pitchDecay)` (2 ms … 1 s). `filterAttack`: the filter envelope rises linearly
+  (`attackSeconds`) from its level before the note, then decays as before; 0 = unchanged
+  behaviour (the existing tests pass untouched). Cost: FM adds one sine and a phase wrap per sample.
+- **Storage:** the 21-value sound format is unchanged; the 6 new values (`kExtSize`,
+  `packExt`/`unpackExt`) follow as an extra `SYX1` block: in the `.rwn` after `HRM1`, in drumkits
+  after the `SYK4` tail, in `SynthUser.rws` after the slots. Older firmware stops before it.
+  `isDefault` and `sameSound` include them.
+- **UI:** a **MOD** synth page after OSC (`SYNTH_PAGE_MOD`, three pages now share LAYER_INST_0):
+  1 FM RATIO, 2 FM AMOUNT, 5 FM DECAY (`HOLD` at 100), 6 PITCH ENV, 7 PITCH DEC, 8 FILT ATK. Its
+  display shows one FM cycle at full depth and the pitch drop / filter rise over 0.5 s; OSC draws
+  the FM shape for WAVE = FM.
+- **Presets:** 13 new (79): `808 BOOM`, `BELL TOWER`, `DX PIANO`, `FM BRUISER`, `GONG SHOW`,
+  `ICE PALACE`, `KALIMBA`, `LOG DRUM`, `METAL GURU`, `SLOW BLOOM`, `TOM TOM`, `WAH WAH`,
+  `ZAP ATTACK`. `randomSound` makes ~25 % of basses/leads/plucks FM, adds pitch drops to some
+  basses/plucks and half the effects, and blooming filters to some pads; it also no longer makes
+  near-silent HIGH/BAND effects (cutoff far above a noiseless note). `mutateSound` varies FM depth
+  and decay on FM sounds and never changes FM/SAMPLE waveforms.
+- Host tests: `test_synth_voice.cpp` gained `testModPage` (FM = sine at depth 0, brighter with
+  depth, bounded at every ratio/pitch, FM DECAY fades/holds, pitch envelope starts high and settles,
+  filter attack rises from the current level, file block round trip). Not yet tested on hardware.
+
 ## v2.04
 
 Harmony layers. `kVersionMinor` 4; the package is `Drumboy_Pro_Fw_Moffe_02_04.bin`. Existing

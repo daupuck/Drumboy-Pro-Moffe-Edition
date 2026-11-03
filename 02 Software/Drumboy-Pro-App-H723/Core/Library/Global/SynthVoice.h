@@ -26,9 +26,21 @@
 namespace synth {
 
 // kSample: the layer's loaded sample is played as one cycle of the waveform (single-cycle WAVs).
-enum Wave : uint8_t { kSaw = 0, kSquare, kTriangle, kSine, kSample, kWaveCount };
+// kFm (v2.05): two-operator FM, a sine carrier phase-modulated by a sine at FM RATIO times the
+// note, as deep as FM AMOUNT, fading with FM DECAY (DX-style e-pianos, bells, basses, metal).
+enum Wave : uint8_t { kSaw = 0, kSquare, kTriangle, kSine, kSample, kFm, kWaveCount };
 
-inline constexpr const char* kWaveNames[kWaveCount] = {"SAW", "SQUARE", "TRIANGLE", "SINE", "SAMPLE"};
+inline constexpr const char* kWaveNames[kWaveCount] = {"SAW", "SQUARE", "TRIANGLE", "SINE", "SAMPLE", "FM"};
+
+// FM RATIO: the modulator's frequency as a multiple of the note. Whole numbers sound harmonic
+// (organs, pianos, basses); 1.41, 2.76 and 3.5 are inharmonic (bells, gongs, metal).
+inline constexpr float kFmRatios[] = {0.5f, 1.0f, 1.41f, 1.5f, 2.0f, 2.5f, 2.76f, 3.0f, 3.5f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 11.0f};
+inline constexpr const char* kFmRatioNames[] = {"0.5", "1", "1.41", "1.5", "2", "2.5", "2.76", "3", "3.5", "4", "5", "6", "7", "8", "9", "11"};
+constexpr uint8_t kFmRatioCount = sizeof(kFmRatios) / sizeof(kFmRatios[0]);
+static_assert(sizeof(kFmRatioNames) / sizeof(kFmRatioNames[0]) == kFmRatioCount, "one name per FM ratio");
+constexpr uint8_t kDefaultFmRatio = 1;  // 1:1
+constexpr float kMaxFmIndex = 10.0f;    // FM AMOUNT 100 (modulation index in radians)
+constexpr float kMaxPitchEnvSemitones = 48.0f;  // PITCH ENV 100: the note starts 4 octaves up
 
 // FILTER TYPE: which output of the ladder is heard.
 enum FilterType : uint8_t { kLowPass24 = 0, kLowPass12, kBandPass, kHighPass, kFilterTypeCount };
@@ -93,11 +105,20 @@ struct Params {
     // PAD HOLD (v1.13): 1 = a pad note sounds while the pad is pressed (TONE and SYNTH layers);
     // 0 = a short note as before. A playing setting, kept when presets or random sounds load.
     uint8_t padHold = 0;
+    // MOD page (v2.05). Stored after the 21 values above as an extra block (packExt), so older
+    // firmware still reads the sound. The defaults change nothing.
+    uint8_t fmRatio = kDefaultFmRatio;  // index into kFmRatios (WAVE = FM only)
+    uint8_t fmAmount = 40;              // modulation depth (WAVE = FM only)
+    uint8_t fmDecay = 40;               // 5 ms .. 5 s for the depth to fade; 100 = it stays
+    uint8_t pitchEnv = 0;               // 0 = off; the note starts up to 4 octaves higher and drops
+    uint8_t pitchDecay = 25;            // 2 ms .. 1 s for that drop
+    uint8_t filterAttack = 0;           // 0 = the filter envelope jumps open (as before); 1 ms .. 3 s rise
 };
 
 // Envelope times in seconds for AMP 0..100 (exponential: fine control at the short end).
 inline float attackSeconds(uint8_t x) { return 0.001f * exp2f((static_cast<float>(x) / 100.0f) * 11.55f); }   // 1 ms .. 3 s
 inline float decaySeconds(uint8_t x) { return 0.005f * exp2f((static_cast<float>(x) / 100.0f) * 9.97f); }     // 5 ms .. 5 s
+inline float pitchDecaySeconds(uint8_t x) { return 0.002f * exp2f((static_cast<float>(x) / 100.0f) * 9.0f); } // 2 ms .. 1 s
 
 constexpr uint8_t kMaxParam = 100;
 // LFO depth 100: CUTOFF +-3 octaves; PITCH +-12 semitones with a cubic curve (depth 20 is a
@@ -123,6 +144,11 @@ inline Params sanitize(const Params& p) {
     if (s.lfoRate >= kLfoRateCount) s.lfoRate = 5;
     if (s.lfoTarget >= kLfoTargetCount) s.lfoTarget = kLfoCutoff;
     if (s.lfoRetrig > 1) s.lfoRetrig = 0;
+    if (s.fmRatio >= kFmRatioCount) s.fmRatio = kDefaultFmRatio;
+    uint8_t* mod[5] = {&s.fmAmount, &s.fmDecay, &s.pitchEnv, &s.pitchDecay, &s.filterAttack};
+    for (uint8_t* f : mod) {
+        if (*f > kMaxParam) *f = kMaxParam;
+    }
     return s;
 }
 
@@ -188,12 +214,39 @@ inline Params unpack(const uint8_t* d, uint8_t count) {
     return sanitize(p);
 }
 
+// v2.05: the MOD page values, an extra block after the 21 above (project .rwn "SYX1", drumkit
+// and user-preset files). Older firmware never reads it and plays the sound without them.
+constexpr uint8_t kExtSize = 6;
+
+inline void packExt(const Params& p, uint8_t* d) {
+    d[0] = p.fmRatio;
+    d[1] = p.fmAmount;
+    d[2] = p.fmDecay;
+    d[3] = p.pitchEnv;
+    d[4] = p.pitchDecay;
+    d[5] = p.filterAttack;
+}
+
+// Applies the extra block to a sound (sanitized).
+inline Params unpackExt(const Params& base, const uint8_t* d) {
+    Params p = base;
+    p.fmRatio = d[0];
+    p.fmAmount = d[1];
+    p.fmDecay = d[2];
+    p.pitchEnv = d[3];
+    p.pitchDecay = d[4];
+    p.filterAttack = d[5];
+    return sanitize(p);
+}
+
 inline bool isDefault(const Params& p) {
     const Params def;
-    uint8_t a[kPackedSize], b[kPackedSize];
+    uint8_t a[kPackedSize + kExtSize], b[kPackedSize + kExtSize];
     pack(p, a);
     pack(def, b);
-    for (uint8_t i = 0; i < kPackedSize; i++) {
+    packExt(p, a + kPackedSize);
+    packExt(def, b + kPackedSize);
+    for (uint8_t i = 0; i < kPackedSize + kExtSize; i++) {
         if (a[i] != b[i]) return false;
     }
     return true;
@@ -234,6 +287,13 @@ struct Voice {
     bool lfoJump = false;   // retriggered: take the new value at once instead of smoothing to it
     bool ampDecaying = false;  // amp envelope: false = ATTACK rising, true = DECAY/SUSTAIN
     float s1 = 0.0f, s2 = 0.0f, s3 = 0.0f, s4 = 0.0f;  // filter stages
+    // MOD page (v2.05)
+    float phaseMod = 0.0f;     // FM modulator
+    float fmEnv = 0.0f;        // FM depth envelope 1 -> 0 (FM DECAY)
+    float fmIndex = 0.0f;      // FM depth at the end of the last block (ramped per sample)
+    float pitchEnvLevel = 0.0f;  // PITCH ENV 1 -> 0 (PITCH DECAY)
+    bool filterRising = false;   // FILTER ATTACK: the filter envelope is still rising
+    float filterFrom = -1.0f;    // its level before the note (>= 0 until the first block takes it)
     const float* table = nullptr;
     uint32_t tableLength = 0;
 };
@@ -271,7 +331,13 @@ inline void start(Voice& v, const NoteOn& n) {
     v.gain = n.gain;
     v.velocity = n.velocity;
     v.gateLeft = (n.gateSamples > 0) ? n.gateSamples : 1;
+    // Filter envelope: opens at once (as always), or, with FILTER ATTACK, render() takes it back
+    // to where it was and lets it rise from there.
+    v.filterFrom = v.filterEnv;
     v.filterEnv = 1.0f;
+    v.filterRising = true;
+    v.fmEnv = 1.0f;          // FM depth starts full and fades with FM DECAY
+    v.pitchEnvLevel = 1.0f;  // PITCH ENV starts high and drops with PITCH DECAY
     v.ampDecaying = false;  // ATTACK again, from wherever the level is now (no click)
     v.active = true;
 
@@ -351,12 +417,37 @@ inline float tableOscillator(const float* table, uint32_t length, float t) {
     return table[i] + ((table[j] - table[i]) * frac);
 }
 
-// One oscillator sample for the voice's waveform (falls back to saw without a usable table).
+// One oscillator sample for the voice's waveform (falls back to saw without a usable table; FM
+// is rendered with fmCarrier below, here it is its plain sine).
 inline float voiceOscillator(const Voice& v, uint8_t wave, float t, float dt) {
     if (wave == kSample) {
         return ((v.table != nullptr) && (v.tableLength >= 2)) ? tableOscillator(v.table, v.tableLength, t) : oscillator(kSaw, t, dt);
     }
+    if (wave == kFm) return oscillator(kSine, t, dt);
     return oscillator(wave, t, dt);
+}
+
+// FM: the carrier sine at phase t, its phase pushed by `modulation` (the modulator sine times the
+// index in radians). Wraps into [0, 1) for any push.
+inline float fmCarrier(float t, float modulation) {
+    float u = t + (modulation * 0.15915494f);  // 1 / (2 pi): radians -> cycles
+    u -= floorf(u);
+    if (u >= 1.0f) u = 0.0f;  // floorf rounding at the very edge
+    return oscillator(kSine, u, 0.0f);
+}
+
+// The FM waveform at phase t of the note for a ratio and index (for drawing one shape).
+inline float fmShape(float t, uint8_t ratio, float index) {
+    float m = t * kFmRatios[(ratio < kFmRatioCount) ? ratio : kDefaultFmRatio];
+    m -= floorf(m);
+    if (m >= 1.0f) m = 0.0f;
+    return fmCarrier(t, oscillator(kSine, m, 0.0f) * index);
+}
+
+// FM depth (radians) for FM AMOUNT 0..100: quadratic, so low values are fine-grained.
+inline float fmIndexFor(uint8_t amount) {
+    const float a = static_cast<float>((amount > kMaxParam) ? kMaxParam : amount) / 100.0f;
+    return kMaxFmIndex * a * a;
 }
 
 // White noise in [-1, 1).
@@ -428,6 +519,21 @@ inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t co
     const float lfoGainStep = (lfoGainEnd - lfoGainStart) / static_cast<float>(count);
     v.lfoGain = lfoGainEnd;
 
+    // FILTER ATTACK (v2.05): the filter envelope rises linearly from where it is to the top,
+    // then decays as before. 0 = it jumps to the top at the note (the v1.11..v2.04 behaviour).
+    if (v.filterRising) {
+        if (p.filterAttack == 0) {
+            v.filterEnv = 1.0f;
+            v.filterRising = false;
+        } else {
+            if (v.filterFrom >= 0.0f) v.filterEnv = v.filterFrom;  // first block of the note
+            v.filterEnv += 1.0f / (attackSeconds(p.filterAttack) * blocksPerSecond);
+            if (v.filterEnv >= 1.0f) {
+                v.filterEnv = 1.0f;
+                v.filterRising = false;
+            }
+        }
+    }
     const float envOctaves = (static_cast<float>(p.envAmount) / 100.0f) * 6.0f * v.filterEnv * (0.4f + (0.6f * v.velocity));
     float fc = cutoffHz(p.cutoff, envOctaves + cutoffLfo);
     const float maxFc = sampleRate * 0.42f;
@@ -445,7 +551,8 @@ inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t co
     const float postGain = 1.0f + (29.0f * driveAmount * driveAmount);
     const float postNorm = 1.0f / saturate(postGain);
     const float postWet = (driveAmount * 4.0f > 1.0f) ? 1.0f : (driveAmount * 4.0f);  // fades in over 0..25
-    v.filterEnv *= decayBlockCoef(p.decay, blocksPerSecond);
+    v.filterFrom = -1.0f;
+    if (!v.filterRising) v.filterEnv *= decayBlockCoef(p.decay, blocksPerSecond);
 
     // Amp envelope (AMP page): linear ATTACK to full, exponential DECAY towards SUSTAIN while
     // held, exponential RELEASE after the gate.
@@ -476,6 +583,13 @@ inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t co
             break;
     }
     float dt = v.increment * pitchRatio;  // LFO on PITCH = vibrato
+    // PITCH ENV (v2.05): the note starts up to 4 octaves higher and drops to its pitch with
+    // PITCH DECAY (synth kicks, toms, zaps).
+    if (p.pitchEnv > 0) {
+        const float semis = (static_cast<float>(p.pitchEnv) / 100.0f) * kMaxPitchEnvSemitones * v.pitchEnvLevel;
+        dt *= exp2f(semis / 12.0f);
+        v.pitchEnvLevel *= expf(-1.0f / (pitchDecaySeconds(p.pitchDecay) * blocksPerSecond));
+    }
     if (dt > 0.45f) dt = 0.45f;            // stays below Nyquist even at the top of a big swing
 
     // Oscillator mix: DETUNE adds a second oscillator, the two spread symmetrically below and above
@@ -490,13 +604,37 @@ inline uint8_t render(Voice& v, const Params& rawParams, float* out, uint16_t co
     const float noiseLevel = (static_cast<float>(p.noise) / 100.0f) * 0.6f;
     const float dtSub = dt * 0.5f;
 
+    // FM (v2.05): the modulator runs at FM RATIO x the note; its depth (index) follows FM AMOUNT,
+    // velocity and the FM DECAY envelope, ramped per sample so it never zips.
+    const bool fmOn = (p.wave == kFm);
+    float fmStart = 0.0f, fmStep = 0.0f, dtMod = 0.0f;
+    if (fmOn) {
+        const float env = (p.fmDecay >= kMaxParam) ? 1.0f : v.fmEnv;
+        const float target = fmIndexFor(p.fmAmount) * (0.6f + (0.4f * v.velocity)) * env;
+        fmStart = v.fmIndex;
+        fmStep = (target - fmStart) / static_cast<float>(count);
+        v.fmIndex = target;
+        if (p.fmDecay < kMaxParam) v.fmEnv *= expf(-1.0f / (decaySeconds(p.fmDecay) * blocksPerSecond));
+        dtMod = dt1 * kFmRatios[p.fmRatio];
+        if (dtMod > 0.45f) dtMod = 0.45f;
+    }
+
     // 2. SAMPLE LOOP
     for (uint16_t i = 0; i < count; i++) {
-        float osc = voiceOscillator(v, p.wave, v.phase, dt1) * mainLevel;
+        float modulation = 0.0f;
+        float osc;
+        if (fmOn) {
+            modulation = oscillator(kSine, v.phaseMod, 0.0f) * (fmStart + (fmStep * static_cast<float>(i + 1)));
+            v.phaseMod += dtMod;
+            if (v.phaseMod >= 1.0f) v.phaseMod -= 1.0f;
+            osc = fmCarrier(v.phase, modulation) * mainLevel;
+        } else {
+            osc = voiceOscillator(v, p.wave, v.phase, dt1) * mainLevel;
+        }
         v.phase += dt1;
         if (v.phase >= 1.0f) v.phase -= 1.0f;
         if (detuneOn) {
-            osc += voiceOscillator(v, p.wave, v.phase2, dt2) * 0.6f;
+            osc += (fmOn ? fmCarrier(v.phase2, modulation) : voiceOscillator(v, p.wave, v.phase2, dt2)) * 0.6f;
             v.phase2 += dt2;
             if (v.phase2 >= 1.0f) v.phase2 -= 1.0f;
         }

@@ -1774,6 +1774,13 @@ SdResult Controller::sd_saveNotes(const char* path_, bool& written_) {
     if (sd_write(follow, sizeof(follow)) != FR_OK) errorCount += 1;
     if (sd_write("EOF", 3) != FR_OK) errorCount += 1;
 
+    // v2.05: the synth MOD page (FM, pitch envelope, filter attack) of every layer.
+    if (sd_write(kSynthExtRef, strlen(kSynthExtRef)) != FR_OK) errorCount += 1;
+    uint8_t ext[kLayerLibrarySize * synth::kExtSize];
+    for (uint8_t l = 0; l < kLayerLibrarySize; l++) synth::packExt(layerLibrary[l].synth, &ext[l * synth::kExtSize]);
+    if (sd_write(ext, sizeof(ext)) != FR_OK) errorCount += 1;
+    if (sd_write("EOF", 3) != FR_OK) errorCount += 1;
+
     if (f_close(&sd.file) != FR_OK) errorCount += 1;
     return (errorCount == 0) ? SD_OK : SD_ERROR;
 }
@@ -1921,6 +1928,16 @@ void Controller::sd_loadNotes(uint8_t fileNum_) {
                         for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
                             layerLibrary[l].followLayer = harmony::decodeFollow(follow[(l * 2) + 0], l, kLayerLibrarySize);
                             layerLibrary[l].harmonyInterval = harmony::safeInterval(follow[(l * 2) + 1]);
+                        }
+
+                        // Synth MOD page (v2.05+), after the harmony's "EOF".
+                        char extTag[sizeof(kSynthExtRef)] = {};
+                        uint8_t ext[kLayerLibrarySize * synth::kExtSize];
+                        if ((sd_read(eof, 3) == FR_OK) && (sd_read(extTag, strlen(kSynthExtRef)) == FR_OK) &&
+                            (strncmp(extTag, kSynthExtRef, strlen(kSynthExtRef)) == 0) && (sd_read(ext, sizeof(ext)) == FR_OK)) {
+                            for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+                                layerLibrary[l].synth = synth::unpackExt(layerLibrary[l].synth, &ext[l * synth::kExtSize]);
+                            }
                         }
                     }
                 }
@@ -2328,28 +2345,38 @@ void Controller::sd_loadSynthUser() {
         if (strncmp(ref, "RWSYNUSR", 8) == 0) values = 20;
     }
     const bool ok = (values > 0) && (sd_read(data, synth::kUserPresetCount * (1 + values)) == FR_OK);
+    // v2.05: the MOD page of every slot, after the "EOF" (older files end there).
+    char eof[3];
+    char tag[sizeof(kSynthExtRef)] = {};
+    uint8_t ext[synth::kUserPresetCount * synth::kExtSize];
+    const bool extOk = ok && (values == synth::kPackedSize) && (sd_read(eof, 3) == FR_OK) && (sd_read(tag, strlen(kSynthExtRef)) == FR_OK) &&
+                       (strncmp(tag, kSynthExtRef, strlen(kSynthExtRef)) == 0) && (sd_read(ext, sizeof(ext)) == FR_OK);
     f_close(&sd.file);
     if (!ok) return;
     for (uint8_t i = 0; i < synth::kUserPresetCount; i++) {
         const uint8_t* d = &data[i * (1 + values)];
         synthUserUsed[i] = (d[0] == 1);
         if (synthUserUsed[i]) synthUserPresets[i] = synth::unpack(d + 1, values);  // sanitized
+        if (synthUserUsed[i] && extOk) synthUserPresets[i] = synth::unpackExt(synthUserPresets[i], &ext[i * synth::kExtSize]);
     }
 }
 
 SdResult Controller::sd_saveSynthUser() {
     uint8_t data[synth::kUserPresetCount * (1 + synth::kPackedSize)];
+    uint8_t ext[synth::kUserPresetCount * synth::kExtSize];  // v2.05 MOD page, after the "EOF"
     for (uint8_t i = 0; i < synth::kUserPresetCount; i++) {
         uint8_t* d = &data[i * (1 + synth::kPackedSize)];
         d[0] = synthUserUsed[i] ? 1 : 0;
         synth::pack(synthUserPresets[i], d + 1);
+        synth::packExt(synthUserPresets[i], &ext[i * synth::kExtSize]);
     }
     keyboard_disable();  // as for the other SD writes: no I2C keyboard traffic meanwhile
     f_close(&sd.file);
     if (HAL_SD_GetState(&hsd2) != HAL_SD_STATE_READY) HAL_SD_Abort(&hsd2);
     SdResult result = SD_ERROR;
     if (f_open(&sd.file, kSynthUserFile, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK) {
-        if ((sd_write(kSynthUserRef, strlen(kSynthUserRef)) == FR_OK) && (sd_write(data, sizeof(data)) == FR_OK) && (sd_write("EOF", 3) == FR_OK)) {
+        if ((sd_write(kSynthUserRef, strlen(kSynthUserRef)) == FR_OK) && (sd_write(data, sizeof(data)) == FR_OK) && (sd_write("EOF", 3) == FR_OK) &&
+            (sd_write(kSynthExtRef, strlen(kSynthExtRef)) == FR_OK) && (sd_write(ext, sizeof(ext)) == FR_OK) && (sd_write("EOF", 3) == FR_OK)) {
             result = SD_OK;
         }
         if (f_close(&sd.file) != FR_OK) result = SD_ERROR;
@@ -2385,6 +2412,12 @@ void Controller::sd_loadDrumkitSynth(const char* drumkitName_) {
         }
     }
     const bool ok = (perLayer > 0) && (sd_read(tail, kLayerLibrarySize * perLayer) == FR_OK);
+    // v2.05: the MOD page of every layer, after the tail's "EOF" (older kits end there).
+    char eof[3];
+    char extTag[sizeof(kSynthExtRef)] = {};
+    uint8_t ext[kLayerLibrarySize * synth::kExtSize];
+    const bool extOk = ok && (used == synth::kPackedSize) && (sd_read(eof, 3) == FR_OK) && (sd_read(extTag, strlen(kSynthExtRef)) == FR_OK) &&
+                       (strncmp(extTag, kSynthExtRef, strlen(kSynthExtRef)) == 0) && (sd_read(ext, sizeof(ext)) == FR_OK);
     f_close(&sd.file);
     if (!ok) return;
 
@@ -2392,6 +2425,7 @@ void Controller::sd_loadDrumkitSynth(const char* drumkitName_) {
         const uint8_t* d = &tail[i * perLayer];
         if (layerLibrary[i].toneMode == tone::kModeSynth) synth_silence(i);  // the sound changes under it
         layerLibrary[i].synth = synth::unpack(d + 1, used);
+        if (extOk) layerLibrary[i].synth = synth::unpackExt(layerLibrary[i].synth, &ext[i * synth::kExtSize]);
         synthPresetIndex[i] = -1;  // the name comes from the sound itself now
         tone_setMode(i, (d[0] < tone::kModeCount) ? d[0] : tone::kModeDrum);
         lcd_drawLayerTab_InstData(i);
@@ -2630,8 +2664,12 @@ SdResult Controller::sd_saveDrumkit(uint8_t kitNum_) {
                             d[0] = layerLibrary[i].toneMode;
                             synth::pack(layerLibrary[i].synth, d + 1);
                         }
+                        // v2.05: the synth MOD page after it (older firmware stops before).
+                        uint8_t ext[kLayerLibrarySize * synth::kExtSize];
+                        for (uint8_t i = 0; i < kLayerLibrarySize; i++) synth::packExt(layerLibrary[i].synth, &ext[i * synth::kExtSize]);
                         if ((sd_write(kDrumkitSynthRef, strlen(kDrumkitSynthRef)) == FR_OK) && (sd_write(tail, sizeof(tail)) == FR_OK) &&
-                            (sd_write(eof, strlen(eof)) == FR_OK)) {
+                            (sd_write(eof, strlen(eof)) == FR_OK) && (sd_write(kSynthExtRef, strlen(kSynthExtRef)) == FR_OK) &&
+                            (sd_write(ext, sizeof(ext)) == FR_OK) && (sd_write(eof, strlen(eof)) == FR_OK)) {
                             result = SD_OK;
                         }
                     }

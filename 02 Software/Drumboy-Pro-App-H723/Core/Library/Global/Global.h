@@ -21,8 +21,8 @@
 /* Application Version -------------------------------------------------------*/
 ////////////////////////////////////////////////////////////////////////////////
 
-const uint8_t kVersionMajor                         = 0x02;  // v2.04: harmony layers
-const uint8_t kVersionMinor                         = 0x04;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMajor                         = 0x02;  // v2.07: VISUALS batch 2 (GEISS, MILK TUNNEL, ROBOT DJ, ...)
+const uint8_t kVersionMinor                         = 0x07;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/
@@ -1375,10 +1375,18 @@ typedef enum {
     // NOTE page harmony (v2.04)
     ENC_NOTE_FOLLOW                                 = 0x92,  // knob 4: FOLLOW layer; ADD + knob 4: interval
 
+    // SYNTH MOD page (v2.05)
+    ENC_SYNTH_FM_RATIO                              = 0x93,
+    ENC_SYNTH_FM_AMOUNT                             = 0x94,
+    ENC_SYNTH_FM_DECAY                              = 0x95,
+    ENC_SYNTH_PITCH_ENV                             = 0x96,
+    ENC_SYNTH_PITCH_DECAY                           = 0x97,
+    ENC_SYNTH_FILT_ATTACK                           = 0x98,
+
     // Must equal the number of rows before the trailing NONE row in kEncoderFuncDataLibrary,
     // which is indexed by EncoderFunc value. Never stored on SD (only the global map is
     // persisted, and it is range-checked against kMaxEncoderGlobalFunction).
-    ENC_FNC_NONE                                    = 0x93
+    ENC_FNC_NONE                                    = 0x99
 } EncoderFunc;
 
 const EncoderFunc encoderLocalFunction[][8] = {
@@ -1597,6 +1605,12 @@ constexpr EncoderFuncData kEncoderFuncDataLibrary[] = {
     {ENC_NAME_CURSOR,         ENC_RES_S, "CURSOR    ", "FILE  ", "   ", false},
     {ENC_NAME_RANDOM,         ENC_RES_S, "RANDOM    ", "FILE  ", "   ", false},
     {ENC_NOTE_FOLLOW,         ENC_RES_S, "FOLLOW    ", "NOTE  ", "   ", false},
+    {ENC_SYNTH_FM_RATIO,      ENC_RES_S, "FM RATIO  ", "SYNTH ", "   ", false},
+    {ENC_SYNTH_FM_AMOUNT,     ENC_RES_F, "FM AMOUNT ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_FM_DECAY,      ENC_RES_F, "FM DECAY  ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_PITCH_ENV,     ENC_RES_F, "PITCH ENV ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_PITCH_DECAY,   ENC_RES_F, "PITCH DEC ", "SYNTH ", "  %", false},
+    {ENC_SYNTH_FILT_ATTACK,   ENC_RES_F, "FILT ATK  ", "SYNTH ", "  %", false},
 
     // Row for ENC_FNC_NONE itself, so lookups with function == ENC_FNC_NONE stay in bounds.
     {ENC_FNC_NONE,            ENC_RES_F, "----------", "      ", "   ", true}
@@ -1645,14 +1659,16 @@ const EncoderFunc kEncoderNoteFunction[8]           = {ENC_NOTE_MODE, ENC_NOTE_N
 // The pages of a SYNTH layer's Layer Instrument menu, in the order the layer key steps through
 // them. Two pages share each LAYER_INST_x_MENU (kSynthPageMenu), so icons and routing behave as
 // before; Controller::synthPage says which one is shown.
-enum SynthPage : uint8_t { SYNTH_PAGE_SOUND = 0, SYNTH_PAGE_OSC, SYNTH_PAGE_FILTER, SYNTH_PAGE_AMP, SYNTH_PAGE_LFO, SYNTH_PAGE_ROUTING, SYNTH_PAGE_COUNT };
-const uint8_t kSynthPageMenu[SYNTH_PAGE_COUNT]      = {0, 0, 1, 1, 2, 2};  // 0/1/2 = LAYER_INST_0/1/2_MENU
-const char* const kSynthPageNames[SYNTH_PAGE_COUNT] = {"SOUND", "OSC", "FILTER", "AMP", "LFO", "ROUTING"};
+// v2.05: the MOD page (FM, pitch envelope, filter attack) comes after OSC.
+enum SynthPage : uint8_t { SYNTH_PAGE_SOUND = 0, SYNTH_PAGE_OSC, SYNTH_PAGE_MOD, SYNTH_PAGE_FILTER, SYNTH_PAGE_AMP, SYNTH_PAGE_LFO, SYNTH_PAGE_ROUTING, SYNTH_PAGE_COUNT };
+const uint8_t kSynthPageMenu[SYNTH_PAGE_COUNT]      = {0, 0, 0, 1, 1, 2, 2};  // 0/1/2 = LAYER_INST_0/1/2_MENU
+const char* const kSynthPageNames[SYNTH_PAGE_COUNT] = {"SOUND", "OSC", "MOD", "FILTER", "AMP", "LFO", "ROUTING"};
 
 // Knob maps of those pages (instead of the LAYER_INST_0/1/2_MENU rows). Slots 2/3 are the display.
 const EncoderFunc kEncoderSynthFunction[SYNTH_PAGE_COUNT][8] = {
     {ENC_SYNTH_PRESET, ENC_SYNTH_SAVE_SLOT, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE},
     {ENC_SYNTH_WAVE, ENC_SYNTH_DETUNE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_INST_0_LEVEL, ENC_INST_0_PITCH, ENC_SYNTH_SUB, ENC_SYNTH_NOISE},
+    {ENC_SYNTH_FM_RATIO, ENC_SYNTH_FM_AMOUNT, ENC_FNC_NONE, ENC_FNC_NONE, ENC_SYNTH_FM_DECAY, ENC_SYNTH_PITCH_ENV, ENC_SYNTH_PITCH_DECAY, ENC_SYNTH_FILT_ATTACK},
     {ENC_SYNTH_CUTOFF, ENC_SYNTH_RESO, ENC_FNC_NONE, ENC_FNC_NONE, ENC_SYNTH_ENVAMT, ENC_SYNTH_DECAY, ENC_SYNTH_FILTER_TYPE, ENC_SYNTH_DRIVE},
     {ENC_SYNTH_ATTACK, ENC_SYNTH_AMP_DECAY, ENC_FNC_NONE, ENC_FNC_NONE, ENC_SYNTH_SUSTAIN, ENC_SYNTH_RELEASE, ENC_SYNTH_GATE, ENC_SYNTH_PAD_HOLD},
     {ENC_SYNTH_LFO_SHAPE, ENC_SYNTH_LFO_RATE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_SYNTH_LFO_DEPTH, ENC_SYNTH_LFO_TARGET, ENC_SYNTH_LFO_RETRIG, ENC_FNC_NONE},
@@ -7512,6 +7528,7 @@ const char kSynthUserRef[]                          = "RWSYNUS2";  // 21 values 
 const char kSlideFileRef[]                          = "SLD1";  // beats with SLIDE, after the SYNTH sounds
 const char kHoldFileRef[]                           = "HLD1";  // recorded hold lengths, after the slides (v1.13)
 const char kHarmonyFileRef[]                        = "HRM1";  // FOLLOW + interval per layer, after the holds (v2.04)
+const char kSynthExtRef[]                           = "SYX1";  // v2.05: MOD page values (synth::packExt) after the other synth data
 
 // layer_playBeat() flags from the sequencer (SLIDE, 303 style):
 const uint8_t kPlaySlideIn                          = 0x01;  // this beat slides in from the previous note

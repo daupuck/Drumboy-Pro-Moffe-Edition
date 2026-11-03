@@ -3927,6 +3927,25 @@ void Controller::lcd_drawSynthData(uint8_t slot_) {
         case ENC_SYNTH_AMP_DECAY: value = p.ampDecay; break;
         case ENC_SYNTH_SUSTAIN: value = p.sustain; break;
         case ENC_SYNTH_RELEASE: value = p.release; break;
+        // MOD page (v2.05)
+        case ENC_SYNTH_FM_RATIO:
+            snprintf(buffer, sizeof(buffer), "%s:1", synth::kFmRatioNames[p.fmRatio]);
+            name = buffer;
+            break;
+        case ENC_SYNTH_FM_AMOUNT: value = p.fmAmount; break;
+        case ENC_SYNTH_FM_DECAY:
+            if (p.fmDecay >= synth::kMaxParam) name = "HOLD";
+            value = p.fmDecay;
+            break;
+        case ENC_SYNTH_PITCH_ENV:
+            if (p.pitchEnv == 0) name = "OFF";
+            value = p.pitchEnv;
+            break;
+        case ENC_SYNTH_PITCH_DECAY: value = p.pitchDecay; break;
+        case ENC_SYNTH_FILT_ATTACK:
+            if (p.filterAttack == 0) name = "OFF";
+            value = p.filterAttack;
+            break;
         default: return;  // empty slot, or LEVEL/PITCH (drawn by their own functions)
     }
     char text[kMenuDataTextSize + 1];
@@ -4082,6 +4101,77 @@ void Controller::lcd_drawSynthLfoGraph() {
     synthLfoCursorX = -1;  // the graph was redrawn: no old cursor to erase
 }
 
+void Controller::lcd_drawSynthModGraph() {
+    /// @brief MOD page (v2.05): on the left one cycle of the FM wave at its full depth (or a
+    /// hint that FM needs WAVE = FM), on the right the pitch drop (gold) and the filter
+    /// envelope's rise (grey) over the first half second.
+
+    const synth::Params p = synth::sanitize(layerLibrary[selectedLayerNum].synth);
+    const bool fm = (p.wave == synth::kFm);
+    char info[32];
+    if (fm) {
+        snprintf(info, sizeof(info), "FM %s:1  DEPTH %d", synth::kFmRatioNames[p.fmRatio], p.fmAmount);
+    } else {
+        snprintf(info, sizeof(info), "FM: SET WAVE TO FM (OSC)");
+    }
+    lcd.setFont(FONT_05x07);
+    lcd.setAlignment(RIGHT);
+    lcd.setForeColor(fm ? GRAY_75 : kAccent2Color);
+    lcd.drawText(info, static_cast<uint8_t>(strlen(info)), kBeatGraphEndX, kBeatGraphStartY + 2);
+    lcd.setAlignment(LEFT);
+
+    const uint16_t top = kBeatGraphStartY + 13;
+    const uint16_t bottom = kBeatGraphEndY - 4;
+    const uint16_t height = bottom - top;
+    const uint16_t half = kBeatGraphWidth / 2;
+
+    // Left: the FM wave.
+    if (fm) {
+        const uint16_t mid = top + (height / 2);
+        const float index = synth::fmIndexFor(p.fmAmount);
+        lcd.setForeColor(GRAY_25);
+        lcd.drawHLine(kBeatGraphStartX, mid, half - 6);
+        lcd.setForeColor(kAccentColor);
+        int previous = -1;
+        for (uint16_t x = 0; x < half - 6; x++) {
+            const float t = static_cast<float>(x) / static_cast<float>(half - 6);
+            const int y = mid - static_cast<int>(synth::fmShape(t, p.fmRatio, index) * (height / 2 - 1));
+            if (previous < 0) previous = y;
+            const int y0 = (y < previous) ? y : previous;
+            const int y1 = (y < previous) ? previous : y;
+            lcd.drawVLine(kBeatGraphStartX + x, static_cast<uint16_t>(y0), static_cast<uint16_t>(y1 - y0 + 1));
+            previous = y;
+        }
+    }
+
+    // Right: PITCH ENV (gold, how far above the note) and FILTER ATTACK (grey, 0 -> open).
+    const uint16_t x0 = kBeatGraphStartX + half + 6;
+    const uint16_t w = kBeatGraphWidth - half - 6;
+    lcd.setForeColor(GRAY_25);
+    lcd.drawHLine(x0, bottom, w);
+    const float pitchTau = synth::pitchDecaySeconds(p.pitchDecay);
+    const float attack = (p.filterAttack > 0) ? synth::attackSeconds(p.filterAttack) : 0.0f;
+    for (uint16_t x = 0; x < w; x += 2) {
+        const float t = 0.5f * static_cast<float>(x) / static_cast<float>(w);  // 0 .. 0.5 s
+        if (p.filterAttack > 0) {
+            const float rise = (t < attack) ? (t / attack) : 1.0f;
+            const uint16_t h = static_cast<uint16_t>(rise * height * 0.9f);
+            lcd.setForeColor(GRAY_50);
+            if (h > 0) lcd.drawVLine(x0 + x, bottom - h, 1);
+        }
+        if (p.pitchEnv > 0) {
+            const float drop = (static_cast<float>(p.pitchEnv) / 100.0f) * expf(-t / pitchTau);
+            const uint16_t h = static_cast<uint16_t>(drop * height);
+            lcd.setForeColor(kAccentColor);
+            if (h > 0) lcd.drawVLine(x0 + x, bottom - h, h);
+        }
+    }
+    if ((p.pitchEnv == 0) && (p.filterAttack == 0)) {
+        lcd.setForeColor(GRAY_50);
+        lcd.drawText("PITCH ENV / FILT ATK OFF", 24, x0, top + (height / 2) - 3);
+    }
+}
+
 void Controller::lcd_updateSynthLfoCursor() {
     /// @brief Main loop: a small marker under the LFO graph at the voice's current LFO position
     /// (first of the two cycles). Only redraws when it moved.
@@ -4132,6 +4222,9 @@ void Controller::lcd_drawSynthGraph() {
         case SYNTH_PAGE_LFO:
             lcd_drawSynthLfoGraph();
             return;
+        case SYNTH_PAGE_MOD:
+            lcd_drawSynthModGraph();
+            return;
         default:
             break;
     }
@@ -4163,7 +4256,8 @@ void Controller::lcd_drawSynthGraph() {
         for (uint16_t x = 0; x < kBeatGraphWidth; x++) {
             float t = (2.0f * x) / kBeatGraphWidth;
             t -= static_cast<float>(static_cast<int>(t));
-            float s = synth::voiceOscillator(shape, p.wave, t, 0.0f);
+            // FM (v2.05): the shape at its full depth (how bright the attack is).
+            float s = (p.wave == synth::kFm) ? synth::fmShape(t, p.fmRatio, synth::fmIndexFor(p.fmAmount)) : synth::voiceOscillator(shape, p.wave, t, 0.0f);
             if (s > 1.0f) s = 1.0f;
             if (s < -1.0f) s = -1.0f;
             const int y = mid - static_cast<int>(s * (height / 2 - 1));

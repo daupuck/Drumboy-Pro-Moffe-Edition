@@ -2538,6 +2538,7 @@ void Controller::synth_change(EncoderFunc function_, bool up_) {
         case ENC_SYNTH_LFO_RETRIG: choice = &p.lfoRetrig; count = 2; break;
         case ENC_SYNTH_FILTER_TYPE: choice = &p.filterType; count = synth::kFilterTypeCount; break;
         case ENC_SYNTH_PAD_HOLD: choice = &p.padHold; count = 2; break;
+        case ENC_SYNTH_FM_RATIO: choice = &p.fmRatio; count = synth::kFmRatioCount; break;  // v2.05
         default: break;
     }
     if (choice != nullptr) {
@@ -2557,7 +2558,7 @@ void Controller::synth_change(EncoderFunc function_, bool up_) {
         if ((slot != 0xFF) && synthInstPageActive()) lcd_drawSynthData(slot);
         if ((function_ != ENC_SYNTH_LFO_RETRIG) && (function_ != ENC_SYNTH_PAD_HOLD)) lcd_drawSynthGraph();
         if (function_ != ENC_SYNTH_PAD_HOLD) lcd_drawLayerTab_InstData(static_cast<uint8_t>(selectedLayerNum));  // "*" = edited
-        if ((function_ == ENC_SYNTH_WAVE) || (function_ == ENC_SYNTH_FILTER_TYPE)) note_audition();
+        if ((function_ == ENC_SYNTH_WAVE) || (function_ == ENC_SYNTH_FILTER_TYPE) || (function_ == ENC_SYNTH_FM_RATIO)) note_audition();
         return;
     }
 
@@ -2578,6 +2579,12 @@ void Controller::synth_change(EncoderFunc function_, bool up_) {
         case ENC_SYNTH_AMP_DECAY: value = &p.ampDecay; break;
         case ENC_SYNTH_SUSTAIN: value = &p.sustain; break;
         case ENC_SYNTH_RELEASE: value = &p.release; break;
+        // MOD page (v2.05)
+        case ENC_SYNTH_FM_AMOUNT: value = &p.fmAmount; break;
+        case ENC_SYNTH_FM_DECAY: value = &p.fmDecay; break;
+        case ENC_SYNTH_PITCH_ENV: value = &p.pitchEnv; break;
+        case ENC_SYNTH_PITCH_DECAY: value = &p.pitchDecay; break;
+        case ENC_SYNTH_FILT_ATTACK: value = &p.filterAttack; break;
         default: return;  // ENC_FNC_NONE: empty slot
     }
     if (up_ && (*value < synth::kMaxParam)) {
@@ -2593,7 +2600,9 @@ void Controller::synth_change(EncoderFunc function_, bool up_) {
     // Graphs that show this value; redrawn every few steps so fast turning stays smooth.
     const bool graphValue = (function_ == ENC_SYNTH_DECAY) || (function_ == ENC_SYNTH_GATE) || (function_ == ENC_SYNTH_ENVAMT) ||
                             (function_ == ENC_SYNTH_ATTACK) || (function_ == ENC_SYNTH_AMP_DECAY) || (function_ == ENC_SYNTH_SUSTAIN) ||
-                            (function_ == ENC_SYNTH_RELEASE) || (function_ == ENC_SYNTH_LFO_DEPTH);
+                            (function_ == ENC_SYNTH_RELEASE) || (function_ == ENC_SYNTH_LFO_DEPTH) || (function_ == ENC_SYNTH_FM_AMOUNT) ||
+                            (function_ == ENC_SYNTH_FM_DECAY) || (function_ == ENC_SYNTH_PITCH_ENV) || (function_ == ENC_SYNTH_PITCH_DECAY) ||
+                            (function_ == ENC_SYNTH_FILT_ATTACK);
     if (graphValue && ((*value <= 1) || (*value >= 99) || ((*value % 5) == 0))) lcd_drawSynthGraph();
 }
 
