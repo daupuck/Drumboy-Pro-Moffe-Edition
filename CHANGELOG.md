@@ -3,6 +3,38 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v2.05
+
+FM voice, pitch envelope and filter attack. `kVersionMinor` 5; the package is
+`Drumboy_Pro_Fw_Moffe_02_05.bin`. Existing sounds, projects, drumkits and USER presets load and
+sound unchanged.
+
+- **SynthVoice.h:** `Wave::kFm` (after `kSample`): a sine carrier phase-modulated by a sine at
+  `kFmRatios[fmRatio]` × the note (16 ratios incl. inharmonic 1.41, 2.76, 3.5), index
+  `fmIndexFor(fmAmount)` = 10·a² rad × (0.6 + 0.4·velocity) × the FM envelope (1 at the note,
+  decaying with `decaySeconds(fmDecay)`; 100 = hold), ramped per sample. DETUNE's second carrier
+  shares the modulator. `pitchEnv` (0..100 → up to +48 semitones at the note) decays per block with
+  `pitchDecaySeconds(pitchDecay)` (2 ms … 1 s). `filterAttack`: the filter envelope rises linearly
+  (`attackSeconds`) from its level before the note, then decays as before; 0 = unchanged
+  behaviour (the existing tests pass untouched). Cost: FM adds one sine and a phase wrap per sample.
+- **Storage:** the 21-value sound format is unchanged; the 6 new values (`kExtSize`,
+  `packExt`/`unpackExt`) follow as an extra `SYX1` block: in the `.rwn` after `HRM1`, in drumkits
+  after the `SYK4` tail, in `SynthUser.rws` after the slots. Older firmware stops before it.
+  `isDefault` and `sameSound` include them.
+- **UI:** a **MOD** synth page after OSC (`SYNTH_PAGE_MOD`, three pages now share LAYER_INST_0):
+  1 FM RATIO, 2 FM AMOUNT, 5 FM DECAY (`HOLD` at 100), 6 PITCH ENV, 7 PITCH DEC, 8 FILT ATK. Its
+  display shows one FM cycle at full depth and the pitch drop / filter rise over 0.5 s; OSC draws
+  the FM shape for WAVE = FM.
+- **Presets:** 13 new (79): `808 BOOM`, `BELL TOWER`, `DX PIANO`, `FM BRUISER`, `GONG SHOW`,
+  `ICE PALACE`, `KALIMBA`, `LOG DRUM`, `METAL GURU`, `SLOW BLOOM`, `TOM TOM`, `WAH WAH`,
+  `ZAP ATTACK`. `randomSound` makes ~25 % of basses/leads/plucks FM, adds pitch drops to some
+  basses/plucks and half the effects, and blooming filters to some pads; it also no longer makes
+  near-silent HIGH/BAND effects (cutoff far above a noiseless note). `mutateSound` varies FM depth
+  and decay on FM sounds and never changes FM/SAMPLE waveforms.
+- Host tests: `test_synth_voice.cpp` gained `testModPage` (FM = sine at depth 0, brighter with
+  depth, bounded at every ratio/pitch, FM DECAY fades/holds, pitch envelope starts high and settles,
+  filter attack rises from the current level, file block round trip). Not yet tested on hardware.
+
 ## v2.04
 
 Harmony layers. `kVersionMinor` 4; the package is `Drumboy_Pro_Fw_Moffe_02_04.bin`. Existing

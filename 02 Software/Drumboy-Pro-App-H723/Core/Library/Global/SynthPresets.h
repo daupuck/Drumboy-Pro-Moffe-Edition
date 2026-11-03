@@ -42,6 +42,25 @@ constexpr Params makeParams(uint8_t wave, uint8_t cutoff, uint8_t resonance, uin
     return p;
 }
 
+// v2.05 MOD page on top of a sound: WAVE = FM with ratio (index into kFmRatios), depth and decay;
+// a pitch envelope; a filter envelope attack.
+constexpr Params withFm(Params p, uint8_t ratio, uint8_t amount, uint8_t decay) {
+    p.wave = kFm;
+    p.fmRatio = ratio;
+    p.fmAmount = amount;
+    p.fmDecay = decay;
+    return p;
+}
+constexpr Params withPitchEnv(Params p, uint8_t amount, uint8_t decay) {
+    p.pitchEnv = amount;
+    p.pitchDecay = decay;
+    return p;
+}
+constexpr Params withFilterAttack(Params p, uint8_t attack) {
+    p.filterAttack = attack;
+    return p;
+}
+
 struct Preset {
     const char* name;
     Params params;
@@ -57,11 +76,13 @@ constexpr uint8_t pCUT = kLfoCutoff, pPIT = kLfoPitch, pLEV = kLfoLevel;
 inline constexpr Preset kFactoryPresets[] = {
     // Alphabetical (as the PRESET knob shows them); USER 01..16 follow after the last one.
     // EMPTY MIND is the default sound (what a new SYNTH layer starts with).
+    {"808 BOOM",   withPitchEnv(makeParams(pSIN, 100, 0, 0, 30, 30, 15, 0, 0, 0, pLTRI, 5, 0, pCUT, 0, 0, 60, 0, 45, pLP24), 50, 22)}, // 808-style kick (v2.05 pitch envelope)
     {"ACID TRIP",  makeParams(pSAW, 20, 75, 75, 25, 40, 40, 0, 0, 0, pLTRI, 5, 0, pCUT, 0, 10, 50, 100, 13, pLP24)},     // 303-style acid bass
     {"ALIEN SPA",  makeParams(pTRI, 50, 60, 0, 40, 100, 0, 40, 0, 10, pLSIN, 8, 40, pPIT, 0, 70, 60, 90, 80, pBP)},      // warbling band-pass pad
     {"BAD PENNY",  makeParams(pSQR, 45, 30, 60, 20, 40, 20, 0, 0, 0, pLTRI, 5, 0, pCUT, 0, 0, 40, 0, 30, pLP12)},        // hollow square pluck
     {"BANSHEE",    makeParams(pSAW, 55, 85, 50, 45, 85, 80, 40, 0, 0, pLTRI, 5, 0, pCUT, 0, 10, 50, 100, 30, pLP24)},    // screaming resonant lead
     {"BEE SWARM",  makeParams(pSAW, 50, 40, 0, 30, 100, 30, 100, 0, 20, pLRND, 0, 30, pPIT, 0, 30, 50, 100, 40, pBP)},   // buzzing jittery drone
+    {"BELL TOWER", withFm(makeParams(pSIN, 100, 0, 0, 30, 30, 0, 0, 0, 0, pLTRI, 5, 0, pCUT, 0, 0, 85, 0, 85, pLP24), 8, 55, 60)}, // FM church bell (3.5:1)
     {"BIG FUZZ",   makeParams(pSQR, 35, 20, 40, 40, 80, 100, 20, 50, 0, pLTRI, 5, 0, pCUT, 0, 5, 50, 100, 20, pLP24)},   // fuzz bass
     {"BLIP BLOOP", makeParams(pSIN, 70, 40, 60, 10, 20, 0, 0, 0, 0, pLSAW, 1, 50, pPIT, 1, 0, 25, 0, 15, pLP24)},        // pitch-drop blip
     {"BOOMSTICK",  makeParams(pSIN, 100, 0, 0, 30, 10, 20, 0, 0, 0, pLSAW, 1, 100, pPIT, 1, 0, 35, 0, 20, pLP24)},       // synth kick (pitch sweep)
@@ -80,20 +101,27 @@ inline constexpr Preset kFactoryPresets[] = {
     {"DISCO DUCK", makeParams(pSAW, 45, 50, 60, 20, 50, 20, 0, 20, 0, pLTRI, 5, 0, pCUT, 0, 0, 40, 30, 20, pBP)},        // funky quacking bass
     {"DIZZY BOT",  makeParams(pSQR, 55, 40, 20, 30, 80, 20, 0, 0, 0, pLSIN, 1, 50, pPIT, 0, 5, 50, 100, 20, pLP24)},     // fast-vibrato robot
     {"DRAGONROAR", makeParams(pSAW, 25, 55, 65, 40, 90, 90, 60, 70, 15, pLSIN, 6, 20, pPIT, 1, 20, 60, 70, 45, pLP24)},  // huge distorted bass/lead
+    {"DX PIANO",   withFm(makeParams(pSIN, 100, 0, 0, 30, 50, 0, 15, 0, 0, pLTRI, 5, 0, pCUT, 0, 0, 70, 20, 40, pLP24), 1, 45, 35)}, // DX-style electric piano (1:1)
     {"EARTHQUAKE", makeParams(pSIN, 40, 0, 10, 30, 80, 10, 0, 0, 0, pLTRI, 5, 0, pCUT, 0, 15, 50, 100, 25, pLP24)},      // clean sub bass
     {"EMPTY MIND", makeParams(pSAW, 35, 40, 60, 35, 50, 25, 0, 0, 0, pLTRI, 5, 0, pCUT, 0, 10, 50, 100, 13, pLP24)},     // the default sound
     {"EPIC MOVIE", makeParams(pSAW, 60, 5, 0, 30, 100, 0, 80, 0, 0, pLSIN, 3, 20, pPIT, 0, 70, 50, 100, 75, pLP12)},     // strings
     {"FAIRY DUST", makeParams(pSIN, 100, 0, 0, 30, 20, 0, 40, 0, 15, pLRND, 0, 25, pPIT, 0, 0, 40, 0, 70, pHP)},         // sparkles
+    {"FM BRUISER", withFm(makeParams(pSIN, 60, 20, 30, 30, 50, 30, 0, 30, 0, pLTRI, 5, 0, pCUT, 0, 0, 50, 80, 15, pLP24), 0, 60, 25)}, // punchy FM bass (0.5:1)
     {"FOGHORN",    makeParams(pSAW, 20, 10, 10, 50, 100, 40, 30, 80, 0, pLTRI, 5, 0, pCUT, 0, 40, 60, 100, 50, pLP24)},  // low horn
     {"GHOST TOWN", makeParams(pTRI, 40, 60, 0, 40, 100, 0, 20, 0, 40, pLSIN, 9, 50, pCUT, 0, 80, 60, 80, 90, pBP)},      // eerie windy pad
     {"GLASS HARP", makeParams(pSIN, 90, 20, 0, 30, 30, 0, 10, 0, 0, pLSIN, 5, 10, pPIT, 0, 0, 85, 0, 85, pLP12)},        // glassy bell
     {"GOLD RUSH",  makeParams(pSAW, 70, 30, 40, 35, 70, 20, 60, 0, 0, pLSIN, 4, 15, pPIT, 0, 10, 60, 70, 45, pLP12)},    // bright detuned lead
+    {"GONG SHOW",  withFm(makeParams(pSIN, 100, 0, 0, 30, 30, 0, 0, 0, 0, pLTRI, 5, 0, pCUT, 0, 0, 95, 0, 95, pLP24), 2, 70, 75)}, // gong (1.41:1, inharmonic)
     {"HONKY BONK", makeParams(pSQR, 50, 15, 40, 30, 40, 10, 30, 0, 0, pLTRI, 5, 0, pCUT, 0, 0, 60, 0, 45, pLP24)},       // out-of-tune piano
     {"HYPERDRIVE", makeParams(pSAW, 40, 60, 80, 30, 80, 90, 50, 30, 0, pLSAW, 3, 50, pCUT, 1, 0, 50, 100, 25, pLP24)},   // aggressive driven lead
+    {"ICE PALACE", withFm(makeParams(pSIN, 100, 0, 0, 30, 40, 0, 20, 0, 0, pLSIN, 5, 10, pPIT, 0, 0, 80, 0, 85, pLP24), 6, 35, 55)}, // crystal (2.76:1)
     {"JELLYFISH",  makeParams(pTRI, 45, 70, 30, 50, 100, 10, 30, 0, 0, pLSIN, 7, 40, pCUT, 0, 60, 60, 80, 80, pLP12)},   // wobbly soft pad
+    {"KALIMBA",    withFm(makeParams(pSIN, 100, 0, 0, 30, 30, 0, 0, 0, 0, pLTRI, 5, 0, pCUT, 0, 0, 45, 0, 40, pLP24), 10, 25, 15)}, // thumb piano (5:1, short)
     {"KAZOO KING", makeParams(pSQR, 55, 60, 20, 30, 80, 40, 10, 0, 10, pLSIN, 4, 15, pPIT, 0, 10, 50, 100, 15, pBP)},    // kazoo
     {"LASER CAT",  makeParams(pSAW, 85, 80, 0, 30, 30, 30, 0, 0, 0, pLSAW, 2, 80, pPIT, 1, 0, 30, 0, 20, pLP24)},        // slower laser
+    {"LOG DRUM",   withPitchEnv(withFm(makeParams(pSIN, 100, 0, 0, 30, 20, 0, 0, 0, 0, pLTRI, 5, 0, pCUT, 0, 0, 40, 0, 35, pLP24), 4, 30, 15), 12, 20)}, // amapiano log drum
     {"LOUNGE LIZ", makeParams(pTRI, 55, 10, 30, 40, 70, 10, 25, 0, 0, pLSIN, 6, 15, pLEV, 0, 5, 75, 30, 55, pLP24)},     // electric piano with a little tremolo
+    {"METAL GURU", withFm(makeParams(pSIN, 100, 0, 0, 30, 20, 30, 0, 0, 10, pLTRI, 5, 0, pCUT, 0, 0, 40, 0, 40, pHP), 8, 90, 30)}, // metallic hit (3.5:1, deep)
     {"MOON BASS",  makeParams(pTRI, 35, 30, 40, 30, 70, 30, 20, 50, 0, pLTRI, 5, 0, pCUT, 0, 5, 50, 90, 20, pLP24)},     // round warm bass
     {"MORDOR",     makeParams(pTRI, 30, 30, 20, 80, 100, 20, 60, 30, 0, pLSIN, 10, 20, pCUT, 0, 85, 70, 90, 90, pLP24)}, // dark pad
     {"NINJA STAR", makeParams(pSQR, 90, 30, 0, 30, 10, 0, 50, 0, 50, pLSAW, 1, 100, pCUT, 1, 0, 20, 0, 25, pHP)},        // swoosh
@@ -107,6 +135,7 @@ inline constexpr Preset kFactoryPresets[] = {
     {"RUBBERDUCK", makeParams(pSQR, 25, 40, 70, 15, 30, 30, 0, 30, 0, pLTRI, 5, 0, pCUT, 0, 5, 35, 0, 20, pLP24)},       // plucked square bass
     {"SAWSOME",    makeParams(pSAW, 65, 25, 30, 40, 80, 30, 50, 0, 0, pLSIN, 3, 25, pPIT, 0, 15, 50, 100, 35, pLP24)},   // detuned saw lead
     {"SEASICK",    makeParams(pTRI, 70, 10, 0, 30, 100, 0, 30, 0, 0, pLSQR, 2, 80, pLEV, 0, 20, 50, 100, 30, pLP24)},    // choppy tremolo keys
+    {"SLOW BLOOM", withFilterAttack(makeParams(pSAW, 25, 30, 70, 70, 100, 10, 60, 0, 0, pLTRI, 5, 0, pCUT, 0, 50, 60, 90, 70, pLP24), 75)}, // pad that blooms open (filter attack)
     {"SNARE WARS", makeParams(pTRI, 75, 20, 30, 15, 10, 30, 0, 0, 90, pLTRI, 5, 0, pCUT, 0, 0, 30, 0, 25, pHP)},        // noise snare
     {"SPACE TAXI", makeParams(pSAW, 45, 40, 30, 40, 90, 20, 60, 20, 0, pLTRI, 7, 35, pCUT, 0, 20, 60, 90, 50, pLP24)},   // sweeping synth-pop lead
     {"SQUARE GUY", makeParams(pSQR, 60, 20, 25, 40, 70, 20, 20, 0, 0, pLTRI, 5, 0, pCUT, 0, 10, 50, 100, 30, pLP24)},    // square lead
@@ -114,13 +143,16 @@ inline constexpr Preset kFactoryPresets[] = {
     {"STORMBORN",  makeParams(pSIN, 50, 70, 0, 30, 100, 0, 0, 0, 100, pLSIN, 8, 50, pCUT, 0, 80, 50, 100, 85, pBP)},    // wind
     {"SUNNY DAY",  makeParams(pTRI, 70, 10, 20, 30, 70, 0, 30, 0, 0, pLSIN, 5, 10, pLEV, 0, 15, 50, 90, 40, pLP12)},     // bright gentle keys
     {"THICC BASS", makeParams(pSAW, 30, 30, 50, 35, 60, 50, 40, 60, 0, pLTRI, 5, 0, pCUT, 0, 10, 50, 100, 15, pLP24)},   // fat detuned bass + sub
+    {"TOM TOM",    withPitchEnv(makeParams(pSIN, 100, 0, 0, 30, 20, 10, 0, 0, 5, pLTRI, 5, 0, pCUT, 0, 0, 45, 0, 35, pLP24), 25, 35)}, // synth tom
     {"TOY PIANO",  makeParams(pSQR, 85, 10, 30, 20, 30, 0, 15, 0, 0, pLTRI, 5, 0, pCUT, 0, 0, 40, 0, 35, pLP12)},        // tinkly toy keys
     {"TSS TSS",    makeParams(pSIN, 88, 10, 0, 15, 5, 0, 0, 0, 100, pLTRI, 5, 0, pCUT, 0, 0, 20, 0, 15, pHP)},          // closed hi-hat
     {"TUMBLEWEED", makeParams(pSIN, 80, 0, 0, 30, 90, 0, 0, 0, 10, pLSIN, 3, 30, pPIT, 0, 40, 50, 100, 50, pLP24)},      // whistle with vibrato
     {"UFO LANDED", makeParams(pSIN, 60, 40, 0, 30, 100, 0, 0, 0, 0, pLSIN, 2, 60, pPIT, 0, 40, 50, 100, 70, pLP24)},     // flying-saucer warble
     {"VIKING",     makeParams(pSAW, 30, 25, 40, 50, 100, 50, 70, 60, 5, pLTRI, 5, 0, pCUT, 0, 50, 60, 90, 60, pLP24)},   // epic war horn
+    {"WAH WAH",    withFilterAttack(makeParams(pSAW, 20, 65, 75, 40, 60, 20, 20, 0, 0, pLTRI, 5, 0, pCUT, 0, 5, 50, 100, 20, pLP24), 45)}, // slow wah opening on every note
     {"WARM HUG",   makeParams(pSAW, 40, 15, 15, 70, 100, 10, 70, 0, 0, pLTRI, 9, 30, pCUT, 0, 75, 70, 80, 80, pLP12)},   // warm pad
     {"WUBZILLA",   makeParams(pSAW, 30, 60, 0, 30, 100, 60, 30, 50, 0, pLSIN, 3, 70, pCUT, 1, 10, 50, 100, 20, pLP24)},  // wobble bass
+    {"ZAP ATTACK", withPitchEnv(makeParams(pSQR, 80, 40, 0, 30, 20, 20, 0, 0, 0, pLTRI, 5, 0, pCUT, 0, 0, 30, 0, 20, pLP24), 100, 18)}, // laser zap (pitch envelope)
     {"ZEN PLUCK",  makeParams(pSAW, 30, 35, 80, 20, 50, 20, 20, 0, 0, pLTRI, 5, 0, pCUT, 0, 5, 40, 0, 40, pLP24)},       // soft synth pluck
     {"ZOMBIE",     makeParams(pSAW, 30, 50, 20, 40, 100, 60, 90, 30, 30, pLSIN, 8, 30, pPIT, 0, 60, 60, 80, 70, pLP24)}, // groaning undead pad
 };
@@ -138,11 +170,13 @@ inline int16_t defaultPresetIndex() {
 // Same sound? Compares everything that is stored with a sound except PAD HOLD (a playing
 // setting that presets keep as they are).
 inline bool sameSound(const Params& a, const Params& b) {
-    uint8_t x[kPackedSize];
-    uint8_t y[kPackedSize];
+    uint8_t x[kPackedSize + kExtSize];
+    uint8_t y[kPackedSize + kExtSize];
     pack(a, x);
     pack(b, y);
-    for (uint8_t i = 0; i < kPackedSize; i++) {
+    packExt(a, x + kPackedSize);  // v2.05: the MOD page counts too
+    packExt(b, y + kPackedSize);
+    for (uint8_t i = 0; i < kPackedSize + kExtSize; i++) {
         if ((i != 20) && (x[i] != y[i])) return false;  // 20 = padHold
     }
     return true;
@@ -270,21 +304,51 @@ inline Params randomSound(uint32_t& seed) {
             p.sustain = randomBetween(seed, 0, 50);
             p.release = randomBetween(seed, 15, 50);
             p.filterType = randomBetween(seed, 0, kFilterTypeCount - 1);
+            // A HIGH or BAND filter set far above a note without noise filters it all away.
+            if (((p.filterType == kHighPass) || (p.filterType == kBandPass)) && (p.noise == 0) && (p.cutoff > 60)) {
+                p.cutoff = randomBetween(seed, 25, 60);
+            }
+            // v2.05: half of the effects get a pitch envelope (zaps, drops, blips).
+            if (chance(seed, 50)) {
+                p.pitchEnv = randomBetween(seed, 30, 100);
+                p.pitchDecay = randomBetween(seed, 5, 50);
+            }
             break;
     }
+
+    // v2.05 FM: some basses, leads and plucks become FM sounds (keeping their envelopes), with a
+    // harmonic ratio most of the time and an inharmonic (bell / metal) one now and then.
+    if ((family <= 2) && chance(seed, 25)) {
+        static constexpr uint8_t kHarmonic[6] = {0, 1, 1, 4, 7, 9};  // 0.5, 1, 1, 2, 3, 4
+        static constexpr uint8_t kInharmonic[3] = {2, 6, 8};         // 1.41, 2.76, 3.5
+        p.wave = kFm;
+        p.fmRatio = chance(seed, 75) ? kHarmonic[soundRandom(seed) % 6] : kInharmonic[soundRandom(seed) % 3];
+        p.fmAmount = randomBetween(seed, 20, 75);
+        p.fmDecay = randomBetween(seed, 10, 70);
+        p.cutoff = randomBetween(seed, 55, 100);  // FM makes its own brightness
+    }
+    // ...and some basses and plucks a short pitch drop at the start.
+    if (((family == 0) || (family == 2)) && chance(seed, 15)) {
+        p.pitchEnv = randomBetween(seed, 10, 40);
+        p.pitchDecay = randomBetween(seed, 5, 30);
+    }
+    // ...and some pads a filter that blooms open.
+    if ((family == 3) && chance(seed, 35)) p.filterAttack = randomBetween(seed, 40, 85);
     return sanitize(p);
 }
 
 // A small variation: three of the continuous settings move 5..15 steps (clamped to 0..100), and
 // now and then the waveform changes. Returns how many settings changed.
 inline uint8_t mutateSound(Params& p, uint32_t& seed) {
-    uint8_t* fields[12] = {&p.cutoff, &p.resonance, &p.envAmount, &p.decay, &p.drive, &p.detune,
-                           &p.sub, &p.attack, &p.ampDecay, &p.sustain, &p.release, &p.lfoDepth};
+    // v2.05: an FM sound may also move its FM depth and decay.
+    uint8_t* fields[14] = {&p.cutoff, &p.resonance, &p.envAmount, &p.decay, &p.drive, &p.detune, &p.sub,
+                           &p.attack, &p.ampDecay, &p.sustain, &p.release, &p.lfoDepth, &p.fmAmount, &p.fmDecay};
+    const uint8_t fieldCount = (p.wave == kFm) ? 14 : 12;
     uint8_t changed = 0;
     uint16_t used = 0;
     for (uint8_t c = 0; c < 3; c++) {
-        uint8_t index = static_cast<uint8_t>(soundRandom(seed) % 12);
-        while (used & (1u << index)) index = static_cast<uint8_t>((index + 1) % 12);
+        uint8_t index = static_cast<uint8_t>(soundRandom(seed) % fieldCount);
+        while (used & (1u << index)) index = static_cast<uint8_t>((index + 1) % fieldCount);
         used = static_cast<uint16_t>(used | (1u << index));
         const int step = 5 + static_cast<int>(soundRandom(seed) % 11);
         int value = *fields[index] + ((soundRandom(seed) & 1u) ? step : -step);
@@ -293,7 +357,7 @@ inline uint8_t mutateSound(Params& p, uint32_t& seed) {
         if (value != *fields[index]) changed++;
         *fields[index] = static_cast<uint8_t>(value);
     }
-    if (chance(seed, 15) && (p.wave != kSample)) {
+    if (chance(seed, 15) && (p.wave < kSample)) {  // SAMPLE and FM keep their waveform
         const uint8_t wave = randomBetween(seed, 0, kSample - 1);
         if (wave != p.wave) changed++;
         p.wave = wave;

@@ -1228,6 +1228,7 @@ class Controller {
     void lcd_drawSynthSoundGraph();
     void lcd_drawSynthAmpGraph();
     void lcd_drawSynthLfoGraph();
+    void lcd_drawSynthModGraph();                        // v2.05 MOD page
     void lcd_updateSynthLfoCursor();                     // main loop: the moving position on the LFO page
     int16_t synthLfoCursorX = -1;
     uint32_t synthLfoCursorTick = 0;

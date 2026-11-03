@@ -5,7 +5,7 @@ Moffe Edition is **unofficial community firmware** for the Drumboy Pro, based on
 is not affiliated with or endorsed by Randomwaves. This page collects everything that is new
 compared with the factory firmware: what each feature does and how to use it on the device.
 
-- **Current version:** v2.04 — download from the
+- **Current version:** v2.05 — download from the
   [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest);
   how to install: [README → Install](README.md#install)
 - **User manual:** published by Randomwaves at [randomwaves.io](https://www.randomwaves.io) (it
@@ -27,8 +27,17 @@ compared with the factory firmware: what each feature does and how to use it on 
 > (v1.10); from v2.00, in its test builds: SYNTH layers, erasing on the EUCLID/NOTE pages, DETUNE,
 > SUB, NOISE, DRIVE, GLIDE, WAVE = SAMPLE and SLIDE; AUTOSAVE and resume (v2.01); names for
 > projects and drumkits (v2.02); song transpose (v2.03). **Not yet tested on a device:** the rest of v2.00 (presets,
-> random sounds, AMP and LFO pages, PAD HOLD, VISUALS, the new look) and v2.04 (harmony layers). Each release says what has been tested on hardware;
+> random sounds, AMP and LFO pages, PAD HOLD, VISUALS, the new look), v2.04 (harmony layers) and v2.05 (FM, pitch envelope, filter attack). Each release says what has been tested on hardware;
 > please report anything odd in [Issues](../../issues).
+
+## What's new in v2.05 – FM and synth drums
+
+| | New | What it means for you |
+|---|---|---|
+| 🔔 | **[FM voice](#7-synth-layers--a-built-in-synth-voice-v200)** | WAVE = **FM**: DX-style e-pianos, bells, gongs, rubbery basses and metallic hits. New **MOD** page with FM RATIO, FM AMOUNT and FM DECAY. |
+| 🥁 | **[PITCH ENV](#7-synth-layers--a-built-in-synth-voice-v200)** | Every note can start higher and drop to its pitch: 808 kicks, toms, zaps and lasers from the synth. |
+| 🌅 | **[FILTER ATTACK](#7-synth-layers--a-built-in-synth-voice-v200)** | The filter can open slowly instead of jumping: wah swells and blooming pads. |
+| 🎁 | **13 new presets** | `808 BOOM`, `BELL TOWER`, `DX PIANO`, `FM BRUISER`, `GONG SHOW`, `ICE PALACE`, `KALIMBA`, `LOG DRUM`, `METAL GURU`, `SLOW BLOOM`, `TOM TOM`, `WAH WAH`, `ZAP ATTACK` – 79 in all. Random sounds use FM and pitch drops too. |
 
 ## What's new in v2.04 – harmony layers
 
@@ -429,20 +438,22 @@ scale and octave as on the NOTE page, where UP/DOWN sets the octave):
  Page 1 SOUND:   [1 PRESET]    [2 SAVE TO]    [ preset name, hints ]           (v2.00)
  Page 2 OSC:     [1 WAVE]      [2 DETUNE]     [ waveform ]
                  [5 LEVEL]     [6 PITCH]      [7 SUB]        [8 NOISE]
- Page 3 FILTER:  [1 CUTOFF]    [2 RESO]       [ filter envelope + type ]
+ Page 3 MOD:     [1 FM RATIO]  [2 FM AMOUNT]  [ FM wave, pitch drop ]        (v2.05)
+                 [5 FM DECAY]  [6 PITCH ENV]  [7 PITCH DEC]  [8 FILT ATK]
+ Page 4 FILTER:  [1 CUTOFF]    [2 RESO]       [ filter envelope + type ]
                  [5 ENV AMT]   [6 DECAY]      [7 FILT TYPE]  [8 DRIVE]
- Page 4 AMP:     [1 ATTACK]    [2 AMP DECAY]  [ level envelope ]               (v2.00)
+ Page 5 AMP:     [1 ATTACK]    [2 AMP DECAY]  [ level envelope ]               (v2.00)
                  [5 SUSTAIN]   [6 RELEASE]    [7 GATE]       [8 PAD HOLD]
- Page 5 LFO:     [1 LFO SHAPE] [2 LFO RATE]   [ LFO wave + position ]          (v2.00)
+ Page 6 LFO:     [1 LFO SHAPE] [2 LFO RATE]   [ LFO wave + position ]          (v2.00)
                  [5 LFO DEPTH] [6 LFO TARGET] [7 LFO RETRIG]
- Page 6:         routing to EQ / FILTER / EFFECT / REVERB, as for samples
+ Page 7:         routing to EQ / FILTER / EFFECT / REVERB, as for samples
 ```
 
 **Sounds in three ways** (v2.00):
 
 | | What it does |
 |---|---|
-| **PRESET** (SOUND page, knob 1) | 66 factory sounds in **alphabetical order**, with names to match their egos: `ACID TRIP`, `ALIEN SPA`, `BAD PENNY`, `BANSHEE`, `BEE SWARM`, `BIG FUZZ`, `BLIP BLOOP`, `BOOMSTICK` (kick), `BRASS GOD`, `BUBBLEGUM`, `CAT WALK`, `CHURCH BOI`, `CLOUD NINE`, `COCONUTS`, `COIN GET`, `COWBELL!`, `DAD STEP`, `DARK LORD`, `DEEP SPACE`, `DING DONG`, `DISCO DUCK`, `DIZZY BOT`, `DRAGONROAR`, `EARTHQUAKE`, `EMPTY MIND` (the default), `EPIC MOVIE`, `FAIRY DUST`, `FOGHORN`, `GHOST TOWN`, `GLASS HARP`, `GOLD RUSH`, `HONKY BONK`, `HYPERDRIVE`, `JELLYFISH`, `KAZOO KING`, `LASER CAT`, `LOUNGE LIZ`, `MOON BASS`, `MORDOR`, `NINJA STAR`, `NOODLE ARM`, `OCTOPUS`, `PANIC BOT`, `PEW PEW`, `PIXEL HERO`, `R2 DEEDOO`, `ROBO CHOIR`, `RUBBERDUCK`, `SAWSOME`, `SEASICK`, `SNARE WARS`, `SPACE TAXI`, `SQUARE GUY`, `STARGATE`, `STORMBORN`, `SUNNY DAY`, `THICC BASS`, `TOY PIANO`, `TSS TSS` (hi-hat), `TUMBLEWEED`, `UFO LANDED`, `VIKING`, `WARM HUG`, `WUBZILLA`, `ZEN PLUCK`, `ZOMBIE` – then your own sounds, `USER 01`…`USER 16`. Turning plays a note so you hear each one. (66 and alphabetical since v2.00; 32 before.) |
+| **PRESET** (SOUND page, knob 1) | 79 factory sounds in **alphabetical order**, with names to match their egos: `808 BOOM` (kick), `ACID TRIP`, `ALIEN SPA`, `BAD PENNY`, `BANSHEE`, `BEE SWARM`, `BELL TOWER` (FM), `BIG FUZZ`, `BLIP BLOOP`, `BOOMSTICK` (kick), `BRASS GOD`, `BUBBLEGUM`, `CAT WALK`, `CHURCH BOI`, `CLOUD NINE`, `COCONUTS`, `COIN GET`, `COWBELL!`, `DAD STEP`, `DARK LORD`, `DEEP SPACE`, `DING DONG`, `DISCO DUCK`, `DIZZY BOT`, `DRAGONROAR`, `DX PIANO` (FM), `EARTHQUAKE`, `EMPTY MIND` (the default), `EPIC MOVIE`, `FAIRY DUST`, `FM BRUISER` (FM bass), `FOGHORN`, `GHOST TOWN`, `GLASS HARP`, `GOLD RUSH`, `GONG SHOW` (FM), `HONKY BONK`, `HYPERDRIVE`, `ICE PALACE` (FM), `JELLYFISH`, `KALIMBA` (FM), `KAZOO KING`, `LASER CAT`, `LOG DRUM`, `LOUNGE LIZ`, `METAL GURU` (FM), `MOON BASS`, `MORDOR`, `NINJA STAR`, `NOODLE ARM`, `OCTOPUS`, `PANIC BOT`, `PEW PEW`, `PIXEL HERO`, `R2 DEEDOO`, `ROBO CHOIR`, `RUBBERDUCK`, `SAWSOME`, `SEASICK`, `SLOW BLOOM`, `SNARE WARS`, `SPACE TAXI`, `SQUARE GUY`, `STARGATE`, `STORMBORN`, `SUNNY DAY`, `THICC BASS`, `TOM TOM`, `TOY PIANO`, `TSS TSS` (hi-hat), `TUMBLEWEED`, `UFO LANDED`, `VIKING`, `WAH WAH`, `WARM HUG`, `WUBZILLA`, `ZAP ATTACK`, `ZEN PLUCK`, `ZOMBIE` – then your own sounds, `USER 01`…`USER 16`. Turning plays a note so you hear each one. (79 since v2.05: 13 new FM, pitch-envelope and filter-attack sounds; 66 in v2.00, 32 before.) |
 | **Track list name** | A SYNTH layer shows its sound in the layer list on the main screen, like a sample name: the preset name, `USER 03` for a saved sound, a `*` after the name once you have changed it, or `SYNTH` for a sound of its own (e.g. a random one). Also after loading a project or drumkit. (v2.00) |
 | **ADD** on the SOUND page | Saves the current sound into the USER slot shown by **SAVE TO** (knob 2; `*` = slot already used, it is overwritten). Kept on the SD card (`System/Preset/SynthUser.rws`) for all projects. |
 | **ADD hold** on OSC / FILTER / AMP / LFO | A **random sound** when you let go: a bass, lead, pluck, pad or effect, always in useful ranges. |
@@ -453,7 +464,7 @@ ADD used together with a knob (LFO on LEVEL/PITCH) or UP/DOWN never changes the 
 
 | Control | What it does |
 |---|---|
-| **WAVE** | Saw (bright, the classic bass), square (hollow), triangle (soft), sine (pure, sub-bass), or **SAMPLE** (v2.00): the layer's loaded sample as one cycle of the waveform – see below. |
+| **WAVE** | Saw (bright, the classic bass), square (hollow), triangle (soft), sine (pure, sub-bass), **SAMPLE** (v2.00): the layer's loaded sample as one cycle of the waveform – see below, or **FM** (v2.05): two-operator FM, set on the MOD page – e-pianos, bells, FM basses, metal. |
 | **DETUNE** | 0 = one oscillator. Higher values use two, spread up to 40 cents below and above the note (it stays in tune): from a slight thickening to a wide, chorus-like beating. (v2.00) |
 | **LEVEL / PITCH** | As for samples, including their LFOs. PITCH 1.00 = the notes as shown on the NOTE page. |
 | **SUB** | Adds a square wave one octave below: more weight for basses. (v2.00) |
@@ -475,6 +486,12 @@ ADD used together with a knob (LFO on LEVEL/PITCH) or UP/DOWN never changes the 
 | **LFO DEPTH** | How strongly it moves its target. **OFF (0) by default**: turn this up first. (v2.00) |
 | **LFO TARGET** | **CUTOFF** (wobble/sweep, up to 3 octaves each way), **PITCH** (vibrato: gentle at low depth, up to an octave each way at 100) or **LEVEL** (tremolo, down to silence at 100). (v2.00) |
 | **LFO RETRIG** | **FREE**: the LFO runs on by itself, across notes. **NOTE**: it starts again with every note (not on a SLIDE): with SAW DOWN on CUTOFF every note gets its own filter sweep. (v2.00) |
+| **FM RATIO** (MOD page) | WAVE = **FM** only. The modulator's frequency as a multiple of the note: whole numbers (`1:1`, `2:1`, `3:1` …) sound harmonic – pianos, organs, basses; `1.41`, `2.76` and `3.5` are inharmonic – bells, gongs, metal. (v2.05) |
+| **FM AMOUNT** | WAVE = FM only. How deep the modulation goes: 0 = a pure sine, higher = brighter and more complex, up to harsh and metallic. Accents (FLAT beats) are a little brighter than GHOST ones. (v2.05) |
+| **FM DECAY** | How fast that brightness fades after the note starts: short = a percussive "ding" (e-piano, bell), long = it stays bright, **HOLD** (100) = it never fades. (v2.05) |
+| **PITCH ENV** | Any wave: each note starts higher (up to 4 octaves) and drops to its pitch – synth kicks and toms, zaps and lasers. 0 = OFF. (v2.05) |
+| **PITCH DEC** | How fast that drop is: 2 ms (a click of pitch, punch) to 1 s (a slow dive). (v2.05) |
+| **FILT ATK** | The filter envelope **rises** instead of jumping open: slow "wah" swells and pads that bloom. 0 = OFF (opens at once, as before). (v2.05) |
 
 - **Your own waveforms (WAVE = SAMPLE):** put single-cycle WAVs (one period of a waveform,
   typically 600 samples; free collections exist online) in an instrument folder on the card. Load
@@ -701,6 +718,7 @@ Your projects and drumkits have names now – yours, or a random one like `TURBO
 | **v2.01** | **AUTOSAVE** (File menu, knob 5) and **RESUME LAST SESSION?** at power-on; **crash-safe saving** for projects and drumkits; the File menu starts at the current project's slot. |
 | **v2.02** | **Names** for projects and drumkits: shown in LOAD / SAVE / CLEAR, edited with knobs 6–7, or rolled at random with knob 8. |
 | **v2.03** | Song mode **TRANSPOSE** per chain step (ADD + knob 7 in the Rhythm menu): melody layers move along their scale, drums stay. |
+| **v2.05** | **FM voice** (WAVE = FM) and a **MOD** page: FM RATIO / AMOUNT / DECAY, PITCH ENV + PITCH DEC (synth drums, zaps), FILT ATK (filter envelope attack); 13 new presets (79); random sounds use them. |
 | **v2.04** | **Harmony layers**: a TONE/SYNTH layer FOLLOWs another and plays its notes at an interval, in its key (NOTE page knob 4, ADD + knob 4 = interval). |
 
 ## Coming next
@@ -716,10 +734,10 @@ The step-by-step guide (which file to download, where to put it, what the screen
 to do if something goes wrong) is in the **[README → Install](README.md#install)**. In short:
 
 1. Back up the whole SD card.
-2. Download `Drumboy_Pro_Fw_Moffe_02_04.bin` from the
+2. Download `Drumboy_Pro_Fw_Moffe_02_05.bin` from the
    [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest).
 3. Copy it, with its exact name, to the root of the card as the only `Drumboy_Pro_Fw…bin` there.
-4. Power on: *UPDATING FIRMWARE V2.04* → *FIRMWARE UPDATED* → sunglasses.
+4. Power on: *UPDATING FIRMWARE V2.05* → *FIRMWARE UPDATED* → sunglasses.
 
 **Roll back:** install `Drumboy_Pro_Fw_01_01.bin` (factory, in the release Assets and in
 `02 Software/Firmware/`) the same way. The bootloader accepts any version, older or newer.

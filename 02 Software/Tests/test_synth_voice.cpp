@@ -841,7 +841,192 @@ static void testPresetsAndRandom() {
     }
 }
 
+// "Brightness" of a stretch of output: mean |difference| between neighbouring samples relative to
+// the mean |sample| (high for many harmonics, ~2 pi f / fs for a pure sine).
+static float brightness(const std::vector<float>& s, size_t from, size_t to) {
+    double diff = 0.0, level = 0.0;
+    for (size_t i = from + 1; i < to; i++) {
+        diff += std::fabs(s[i] - s[i - 1]);
+        level += std::fabs(s[i]);
+    }
+    return (level > 1e-9) ? static_cast<float>(diff / level) : 0.0f;
+}
+
+// Rising zero crossings in a stretch (= cycles of the fundamental for a simple wave).
+static int crossings(const std::vector<float>& s, size_t from, size_t to) {
+    int n = 0;
+    for (size_t i = from + 1; i < to; i++) {
+        if ((s[i - 1] < 0.0f) && (s[i] >= 0.0f)) n++;
+    }
+    return n;
+}
+
+static Params open(uint8_t wave) {
+    Params p;
+    p.wave = wave;
+    p.cutoff = 100;
+    p.resonance = 0;
+    p.envAmount = 0;
+    p.drive = 0;
+    p.attack = 0;
+    p.sustain = 100;
+    return p;
+}
+
+static void testModPage() {
+    // v2.05: the extra file block round-trips, is sanitized, and the defaults change nothing.
+    Params p;
+    p.fmRatio = 8;
+    p.fmAmount = 77;
+    p.fmDecay = 12;
+    p.pitchEnv = 55;
+    p.pitchDecay = 66;
+    p.filterAttack = 44;
+    uint8_t d[kExtSize];
+    packExt(p, d);
+    const Params q = unpackExt(Params{}, d);
+    CHECK(q.fmRatio == 8 && q.fmAmount == 77 && q.fmDecay == 12 && q.pitchEnv == 55 && q.pitchDecay == 66 && q.filterAttack == 44, "ext round trip");
+    uint8_t junk[kExtSize];
+    for (uint8_t i = 0; i < kExtSize; i++) junk[i] = 0xEE;
+    const Params j = unpackExt(Params{}, junk);
+    CHECK(j.fmRatio < kFmRatioCount && j.fmAmount <= kMaxParam && j.filterAttack <= kMaxParam, "ext junk sanitized");
+    CHECK(isDefault(Params{}), "default is default");
+    CHECK(!isDefault(p), "a MOD value makes a sound non-default");
+    Params onlyExt;
+    onlyExt.pitchEnv = 10;
+    CHECK(!sameSound(onlyExt, Params{}), "sameSound sees the MOD page");
+    CHECK(kFmRatioCount == 16 && std::strcmp(kFmRatioNames[kDefaultFmRatio], "1") == 0, "ratio table");
+
+    // FM: no depth = a sine; more depth = brighter; bounded at every ratio, pitch and depth.
+    std::vector<float> plain, deep;
+    {
+        Params a = open(kFm);
+        a.fmAmount = 0;
+        Voice v;
+        start(v, note(220.0f, 40000));
+        uint8_t f = 0;
+        run(v, a, 300, f, &plain);
+        Params s = open(kSine);
+        std::vector<float> sine;
+        Voice w;
+        start(w, note(220.0f, 40000));
+        run(w, s, 300, f, &sine);
+        float maxDiff = 0.0f;
+        for (size_t i = 0; i < sine.size(); i++) maxDiff = std::fmax(maxDiff, std::fabs(sine[i] - plain[i]));
+        CHECK(maxDiff < 1e-4f, "FM with no depth is the sine: %f", maxDiff);
+        Params b = open(kFm);
+        b.fmAmount = 80;
+        b.fmDecay = 100;  // stays
+        Voice x;
+        start(x, note(220.0f, 40000));
+        run(x, b, 300, f, &deep);
+    }
+    const float bPlain = brightness(plain, 2000, 9000), bDeep = brightness(deep, 2000, 9000);
+    CHECK(bDeep > 3.0f * bPlain, "FM depth adds harmonics: %f vs %f", bDeep, bPlain);
+    for (uint8_t r = 0; r < kFmRatioCount; r++) {
+        for (float hz : {40.0f, 440.0f, 3000.0f}) {
+            Params a = open(kFm);
+            a.fmRatio = r;
+            a.fmAmount = 100;
+            a.detune = 50;
+            Voice v;
+            start(v, note(hz, 20000));
+            uint8_t f = 0;
+            const float peak = run(v, a, 200, f);
+            CHECK(peak > 0.05f && peak < 3.0f, "FM ratio %s at %.0f Hz bounded: %f", kFmRatioNames[r], hz, peak);
+        }
+    }
+
+    // FM DECAY: the depth fades (darker later); 100 keeps it.
+    {
+        Params a = open(kFm);
+        a.fmAmount = 80;
+        a.fmDecay = 15;
+        std::vector<float> s;
+        Voice v;
+        start(v, note(220.0f, 44100));
+        uint8_t f = 0;
+        run(v, a, 1200, f, &s);
+        CHECK(brightness(s, 0, 1000) > 2.0f * brightness(s, 30000, 38000), "FM DECAY fades the brightness: %f vs %f", brightness(s, 0, 1000), brightness(s, 30000, 38000));
+        a.fmDecay = 100;
+        std::vector<float> h;
+        Voice w;
+        start(w, note(220.0f, 44100));
+        run(w, a, 1200, f, &h);
+        const float early = brightness(h, 2000, 8000), late = brightness(h, 30000, 36000);
+        CHECK(std::fabs(early - late) < 0.15f * early, "FM DECAY 100 holds: %f vs %f", early, late);
+    }
+
+    // PITCH ENV: the note starts higher and settles on its pitch; 0 = no change.
+    {
+        Params a = open(kSine);
+        a.pitchEnv = 50;   // +24 semitones at the start
+        a.pitchDecay = 50; // ~45 ms time constant
+        std::vector<float> s;
+        Voice v;
+        start(v, note(110.0f, 44100));
+        uint8_t f = 0;
+        run(v, a, 1300, f, &s);
+        const int first = crossings(s, 0, 2205);        // first 50 ms
+        const int later = crossings(s, 30870, 35280);   // 0.70..0.80 s: back at 110 Hz
+        CHECK(first > 2 * 6, "pitch envelope starts high: %d cycles in 50 ms", first);
+        CHECK(later >= 10 && later <= 12, "and settles at the note: %d cycles in 100 ms", later);
+        Params z = open(kSine);
+        std::vector<float> t;
+        Voice w;
+        start(w, note(110.0f, 44100));
+        run(w, z, 100, f, &t);
+        const int plainFirst = crossings(t, 0, 2205);
+        CHECK(plainFirst >= 5 && plainFirst <= 6, "no pitch envelope: %d cycles in 50 ms", plainFirst);
+        a.pitchEnv = 100;
+        a.pitchDecay = 100;
+        Voice x;
+        start(x, note(2000.0f, 20000));
+        CHECK(run(x, a, 300, f) < 3.0f, "huge pitch envelope stays bounded");
+    }
+
+    // FILTER ATTACK: 0 opens at once (as before); a slow attack rises over its time.
+    {
+        Params a = open(kSaw);
+        a.cutoff = 10;
+        a.envAmount = 100;
+        a.decay = 100;
+        a.filterAttack = 0;
+        Voice v;
+        start(v, note(110.0f, 44100));
+        float block[kBlock];
+        render(v, a, block, kBlock, kFs);
+        CHECK(v.filterEnv > 0.99f, "no attack: open at once (%f)", v.filterEnv);
+        a.filterAttack = 70;  // ~ 0.27 s
+        Voice w;
+        start(w, note(110.0f, 44100));
+        render(w, a, block, kBlock, kFs);
+        CHECK(w.filterEnv < 0.05f, "attack: starts closed (%f)", w.filterEnv);
+        for (int i = 0; i < 200; i++) render(w, a, block, kBlock, kFs);  // ~0.145 s
+        CHECK(w.filterEnv > 0.3f && w.filterEnv < 0.8f, "attack: half way (%f)", w.filterEnv);
+        for (int i = 0; i < 400; i++) render(w, a, block, kBlock, kFs);
+        CHECK(!w.filterRising && w.filterEnv <= 1.0f && w.filterEnv > 0.5f, "attack: reached the top, now decaying (%f)", w.filterEnv);
+        // A retrigger with an attack starts from where the envelope is, not from zero.
+        const float before = w.filterEnv;
+        start(w, note(110.0f, 44100));
+        render(w, a, block, kBlock, kFs);
+        CHECK(w.filterEnv >= before, "retrigger rises from the current level (%f >= %f)", w.filterEnv, before);
+    }
+
+    // Random sounds now include FM, pitch drops and blooming filters.
+    uint32_t seed = 4242;
+    int fm = 0, pitch = 0, bloom = 0;
+    for (int n = 0; n < 3000; n++) {
+        const Params r = randomSound(seed);
+        if (r.wave == kFm) fm++;
+        if (r.pitchEnv > 0) pitch++;
+        if (r.filterAttack > 0) bloom++;
+    }
+    CHECK(fm > 200 && pitch > 100 && bloom > 50, "random uses the MOD page: fm %d pitch %d bloom %d", fm, pitch, bloom);
+}
+
 int main() {
+    testModPage();
     testAmpEnvelope();
     testFilterTypes();
     testPresetsAndRandom();

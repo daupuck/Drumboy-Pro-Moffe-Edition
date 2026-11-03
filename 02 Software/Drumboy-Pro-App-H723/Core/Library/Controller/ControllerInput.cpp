@@ -2728,6 +2728,12 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
         case ENC_SYNTH_RELEASE:
         case ENC_SYNTH_FILTER_TYPE:
         case ENC_SYNTH_PAD_HOLD:
+        case ENC_SYNTH_FM_RATIO:
+        case ENC_SYNTH_FM_AMOUNT:
+        case ENC_SYNTH_FM_DECAY:
+        case ENC_SYNTH_PITCH_ENV:
+        case ENC_SYNTH_PITCH_DECAY:
+        case ENC_SYNTH_FILT_ATTACK:
             synth_change(encoder[encoderNum_].function, true);
             break;
 
@@ -3368,6 +3374,12 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
         case ENC_SYNTH_RELEASE:
         case ENC_SYNTH_FILTER_TYPE:
         case ENC_SYNTH_PAD_HOLD:
+        case ENC_SYNTH_FM_RATIO:
+        case ENC_SYNTH_FM_AMOUNT:
+        case ENC_SYNTH_FM_DECAY:
+        case ENC_SYNTH_PITCH_ENV:
+        case ENC_SYNTH_PITCH_DECAY:
+        case ENC_SYNTH_FILT_ATTACK:
             synth_change(encoder[encoderNum_].function, false);
             break;
 
