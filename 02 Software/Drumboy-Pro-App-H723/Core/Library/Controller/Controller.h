@@ -1264,6 +1264,24 @@ class Controller {
     bool sd_applyCommit();
     void sd_recoverSave();             // power-on
 
+    /* Names for projects and drumkits (v2.02, ControllerName.cpp) ----------- */
+
+    char projectName[pname::kLength + 1] = "          ";  // the session's project, saved with it
+    char kitName[pname::kLength + 1] = "          ";      // the session's drumkit, saved with it
+    char fileSlotName[pname::kLength + 1] = "          "; // File menu: name of the slot under the cursor
+    char kitSlotName[pname::kLength + 1] = "          ";  // Drumkit menu: same
+    uint8_t nameCursor = 0;                              // 0..9, the NAME knob edits this character
+    uint32_t nameSeed = 0;
+    char* name_target();                                 // projectName in the File menu, kitName in the Drumkit menu
+    void name_initialize();                              // boot: fresh random names
+    void name_changeChar(bool up_);
+    void name_moveCursor(bool right_);
+    void name_random();
+    void name_roll(char* name_);                         // new random name, different from the current one
+    void lcd_drawName_Row();                            // knobs 6-8 of the File / Drumkit menu
+    void lcd_drawName_Data();
+    void lcd_drawSlotLabel(uint8_t tab_, bool drumkit_); // LOAD/SAVE/CLEAR value: slot name or FILE_007
+
     /* Audio CPU Meter -------------------------------------- */
 
     void cpu_service();  // main loop: refreshes the IO menu readout a few times per second

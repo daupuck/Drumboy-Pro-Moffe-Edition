@@ -21,8 +21,8 @@
 /* Application Version -------------------------------------------------------*/
 ////////////////////////////////////////////////////////////////////////////////
 
-const uint8_t kVersionMajor                         = 0x02;  // v2.01: AUTOSAVE + resume, crash-safe saving
-const uint8_t kVersionMinor                         = 0x01;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMajor                         = 0x02;  // v2.02: names for projects and drumkits
+const uint8_t kVersionMinor                         = 0x02;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/
@@ -973,6 +973,9 @@ const char kHeaderShiftAll[]                        = "SHIFT ALL ";
 const char kHeaderPreview[]                         = "PREVIEW   ";
 const char kHeaderPreviewLevel[]                    = "PREV LEVEL";
 const char kHeaderAutosave[]                        = "AUTOSAVE  ";
+const char kHeaderName[]                            = "NAME      ";
+const char kHeaderCursor[]                          = "CURSOR    ";
+const char kHeaderRandom[]                          = "RANDOM    ";
 const char kHeaderEuclidSteps[]                     = "STEPS     ";
 const char kHeaderEuclidHits[]                      = "HITS      ";
 const char kHeaderEuclidRotate[]                    = "ROTATE    ";
@@ -1365,10 +1368,15 @@ typedef enum {
     // File menu (v2.01)
     ENC_FILE_AUTOSAVE                               = 0x8E,  // AUTOSAVE on/off (knob 5)
 
+    // File / Drumkit menu names (v2.02)
+    ENC_NAME_CHAR                                   = 0x8F,  // knob 6: the character at the cursor
+    ENC_NAME_CURSOR                                 = 0x90,  // knob 7: which character
+    ENC_NAME_RANDOM                                 = 0x91,  // knob 8: a new random name
+
     // Must equal the number of rows before the trailing NONE row in kEncoderFuncDataLibrary,
     // which is indexed by EncoderFunc value. Never stored on SD (only the global map is
     // persisted, and it is range-checked against kMaxEncoderGlobalFunction).
-    ENC_FNC_NONE                                    = 0x8F
+    ENC_FNC_NONE                                    = 0x92
 } EncoderFunc;
 
 const EncoderFunc encoderLocalFunction[][8] = {
@@ -1377,9 +1385,9 @@ const EncoderFunc encoderLocalFunction[][8] = {
     // GLOBAL_MENU = 0x01
     {ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF},
     // FILE_MENU = 0x02
-    {ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FILE_AUTOSAVE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE},
+    {ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FILE_AUTOSAVE, ENC_NAME_CHAR, ENC_NAME_CURSOR, ENC_NAME_RANDOM},
     // DRUMKIT_MENU = 0x03
-    {ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE},
+    {ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_NONE, ENC_NAME_CHAR, ENC_NAME_CURSOR, ENC_NAME_RANDOM},
     // MIXER_MENU = 0x04
     {ENC_MIXER_MASTERVOLUME, ENC_MIXER_HPVOLUME, ENC_MIXER_LOVOLUME, ENC_MIXER_LIVOLUME, ENC_MIXER_LIMIXERIN, ENC_MIXER_PAN, ENC_MIXER_LIMITER, ENC_MIXER_NORMALIZE},
     // RHYTHM_MENU = 0x05
@@ -1583,6 +1591,9 @@ constexpr EncoderFuncData kEncoderFuncDataLibrary[] = {
     {ENC_SYNTH_FILTER_TYPE,   ENC_RES_S, "FILT TYPE ", "SYNTH ", "   ", false},
     {ENC_SYNTH_PAD_HOLD,      ENC_RES_S, "PAD HOLD  ", "SYNTH ", "   ", false},
     {ENC_FILE_AUTOSAVE,       ENC_RES_S, "AUTOSAVE  ", "FILE  ", "   ", false},
+    {ENC_NAME_CHAR,           ENC_RES_S, "NAME      ", "FILE  ", "   ", false},
+    {ENC_NAME_CURSOR,         ENC_RES_S, "CURSOR    ", "FILE  ", "   ", false},
+    {ENC_NAME_RANDOM,         ENC_RES_S, "RANDOM    ", "FILE  ", "   ", false},
 
     // Row for ENC_FNC_NONE itself, so lookups with function == ENC_FNC_NONE stay in bounds.
     {ENC_FNC_NONE,            ENC_RES_F, "----------", "      ", "   ", true}
@@ -7470,6 +7481,9 @@ const char kSongModeText[3][5]                      = {"OFF", "LOOP", "ONCE"};
 
 // AUTOSAVE + crash-safe saving (v2.01, host-testable).
 #include "Autosave.h"
+
+// Names for projects and drumkits (v2.02, host-testable).
+#include "ProjectName.h"
 
 const char kToneModeText[tone::kModeCount][11]      = {"      DRUM", "      TONE", "     SYNTH"};
 

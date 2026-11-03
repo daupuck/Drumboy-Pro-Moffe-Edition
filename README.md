@@ -23,6 +23,15 @@ rolled back to the factory firmware the same way.
 > SD card first** and keep the factory firmware for rolling back. Modifying the firmware may affect
 > your warranty with Randomwaves.
 
+## 🏷️ New in v2.02: names for your projects and drumkits
+
+- LOAD, SAVE and CLEAR show your projects and drumkits **by name** (`NEON YAK`, `DJ BLOOP`)
+  instead of FILE_007.
+- Every new project and drumkit gets a **random synth-flavoured name**; turn knob 8 for another.
+- Or type your own with knobs 6 and 7: up to 10 letters, digits and `! - + . ? #`.
+
+→ **[How it works](MOFFE-EDITION.md#11-names-for-projects-and-drumkits-v202)**
+
 ## 🛟 New in v2.01: never lose a session
 
 - **AUTOSAVE:** the Drumboy saves your session by itself when you've changed something and then
@@ -75,6 +84,7 @@ The biggest Moffe Edition update yet, big enough for a new major version. Highli
 | 🎯 | [**Precise beat placement**](MOFFE-EDITION.md#1-place-beats-precisely--layer-song-menu-v103) | Move a single beat, shift a whole layer, or add one beat exactly where you want it. |
 | 🎧 | [**Sample preview**](MOFFE-EDITION.md#3-sample-preview--layer-instrument-menu-v105) | Hear a sample *before* you load it. Your ears will thank you. |
 | 📊 | [**CPU meter**](MOFFE-EDITION.md#audio-cpu-meter-v109) | See how busy the audio engine is (IO menu), so you know how much room is left. |
+| 🏷️ | [**Names**](MOFFE-EDITION.md#11-names-for-projects-and-drumkits-v202) | Projects and drumkits by name – your own, or a random one like `TURBO DUCK`. |
 | 🛟 | [**AUTOSAVE and resume**](MOFFE-EDITION.md#10-autosave-and-resume-v201) | Your session saves itself and comes back after a power cut or freeze; every save is crash-safe. |
 | 🧰 | [**Fixes**](MOFFE-EDITION.md#improvements-and-fixes) | A full card or a failed save no longer leaves half-written files, plus a stack of bug fixes. |
 | 🏆 | [**The look and the boot screen**](MOFFE-EDITION.md#9-the-moffe-edition-look-v200) | Gold and orange, sunglasses with a golden rim. Purely cosmetic. Deeply important. |
@@ -87,7 +97,8 @@ the **[CHANGELOG](CHANGELOG.md)**, and each published version has its firmware f
 
 | Version | Highlights |
 |---|---|
-| **v2.01** (latest) | AUTOSAVE and RESUME LAST SESSION? at power-on · crash-safe saving for projects and drumkits · File menu starts at your project's slot |
+| **v2.02** (latest) | Names for projects and drumkits: shown in LOAD / SAVE / CLEAR, your own or random |
+| v2.01 | AUTOSAVE and RESUME LAST SESSION? at power-on · crash-safe saving for projects and drumkits · File menu starts at your project's slot |
 | v2.00 | SYNTH layers with 66 presets, random sounds, envelope, LFO, filter types and PAD HOLD · 13 VISUALS · the gold-and-orange Moffe Edition look and boot screen · NOTE page and file improvements (developed as test builds v1.11–v1.14) |
 | v1.10 | The pads as a scale keyboard: step entry and live recording; melody generator and variations |
 | v1.09 | Melody layers (TONE) on the NOTE page; audio CPU meter |
@@ -118,8 +129,8 @@ a minute, and future you will be very grateful in the unlikely event it's needed
 ### Step 2 — Download the right file
 
 1. Open **[Releases → latest](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest)**.
-2. Scroll down to **Assets** and click **`Drumboy_Pro_Fw_Moffe_02_01.bin`** (the numbers are the
-   version: `02_01` = v2.01).
+2. Scroll down to **Assets** and click **`Drumboy_Pro_Fw_Moffe_02_02.bin`** (the numbers are the
+   version: `02_02` = v2.02).
 
 What the files in Assets are:
 
@@ -136,9 +147,9 @@ What the files in Assets are:
 
 Open the matching `.sha256` file in a text editor and compare its long number with the output of:
 
-- **Windows:** `certutil -hashfile Drumboy_Pro_Fw_Moffe_02_01.bin SHA256`
-- **macOS:** `shasum -a 256 Drumboy_Pro_Fw_Moffe_02_01.bin`
-- **Linux:** `sha256sum -c Drumboy_Pro_Fw_Moffe_02_01.bin.sha256`
+- **Windows:** `certutil -hashfile Drumboy_Pro_Fw_Moffe_02_02.bin SHA256`
+- **macOS:** `shasum -a 256 Drumboy_Pro_Fw_Moffe_02_02.bin`
+- **Linux:** `sha256sum -c Drumboy_Pro_Fw_Moffe_02_02.bin.sha256`
 
 If they differ, download it again. The bootloader also checks a CRC before it writes anything, so
 a damaged file is refused rather than installed.
@@ -151,14 +162,14 @@ folders, **not** inside them.
 
 ```
 SD card
-├── Drumboy_Pro_Fw_Moffe_02_01.bin   ← here
+├── Drumboy_Pro_Fw_Moffe_02_02.bin   ← here
 ├── Sample/
 └── System/
 ```
 
 - **Keep the exact file name.** The bootloader only looks for names that start with
   `Drumboy_Pro_Fw` and are at most 32 characters long. It is very literal-minded. If your
-  browser saved it as `Drumboy_Pro_Fw_Moffe_02_01 (1).bin`, rename it back.
+  browser saved it as `Drumboy_Pro_Fw_Moffe_02_02 (1).bin`, rename it back.
 - **Make it the only `Drumboy_Pro_Fw…bin` file in the root.** The bootloader installs the first
   one it finds.
 - Don't change anything else on the card. Eject the card safely before you pull it out.
@@ -167,7 +178,7 @@ SD card
 
 Put the card back in the Drumboy Pro and switch it on. You should see:
 
-1. **UPDATING FIRMWARE** with the version (e.g. **V2.01**) and a line that fills up.
+1. **UPDATING FIRMWARE** with the version (e.g. **V2.02**) and a line that fills up.
 2. **FIRMWARE UPDATED** for a few seconds.
 3. The normal start-up, now with **sunglasses and a golden MOFFE EDITION** on the logo. If you see
    the sunglasses, it worked. The sunglasses don't lie.

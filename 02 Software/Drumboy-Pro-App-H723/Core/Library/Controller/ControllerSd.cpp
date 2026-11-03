@@ -741,6 +741,7 @@ SdResult Controller::sd_checkFile(uint8_t fileNum_) {
 
     SdResult result = SD_ERROR;
     fileStatus = FILE_NONE;
+    if (fileNum_ != kAutosaveFileNum) pname::clear(fileSlotName);
     char refRead[sizeof(kFileRef)] = {};
     char data;
     char fileName[50];
@@ -760,6 +761,14 @@ SdResult Controller::sd_checkFile(uint8_t fileNum_) {
                 // If the signature matches, read the status byte. '*' denotes a saved project.
                 sd_read(&data, 1);
                 (data == '*') ? fileStatus = FILE_ACTIVE : fileStatus = FILE_INACTIVE;
+
+                // v2.02: the slot's name for the File menu (the auto-save is never shown there).
+                if ((fileStatus == FILE_ACTIVE) && (fileNum_ != kAutosaveFileNum)) {
+                    uint8_t nameBytes[pname::kLength];
+                    if ((f_lseek(&sd.file, strlen(kFileRef) + pname::kNameOffset) == FR_OK) && (sd_read(nameBytes, pname::kLength) == FR_OK)) {
+                        pname::decode(nameBytes, fileSlotName);
+                    }
+                }
             } else {
                 // 5. COMPATIBILITY HANDLING
                 // The file exists but the header is unrecognized or from an older version.
@@ -881,6 +890,9 @@ SdResult Controller::sd_loadFile(uint8_t fileNum_) {
                         songchain::decode(chainBytes, songChain);
                         song_onFileLoaded();
                     }
+
+                    // v2.02: the project's name (none in files from older firmware).
+                    pname::decode(reinterpret_cast<const uint8_t*>(&data[pname::kNameOffset]), projectName);
 
                     // AUTOSAVE (v2.01): the slot the auto-saved session came from.
                     if (fileNum_ == kAutosaveFileNum) {
@@ -1401,6 +1413,9 @@ SdResult Controller::sd_saveFile(uint8_t fileNum_) {
         for (uint8_t i = 0; i < songchain::kMaxSteps; i++) data[kSongChainStepsOffset + i] = chainBytes[1 + i];
     }
 
+    // v2.02: the project's name.
+    pname::encode(projectName, &data[pname::kNameOffset]);
+
     // AUTOSAVE (v2.01): the auto-save remembers which slot the session belongs to.
     if (fileNum_ == kAutosaveFileNum) {
         data[kAutosaveOriginOffset] = 'S';
@@ -1898,6 +1913,7 @@ SdResult Controller::sd_checkDrumkit(uint8_t kitNum_) {
 
     SdResult result = SD_ERROR;
     drumkitStatus = FILE_NONE;
+    pname::clear(kitSlotName);
     char refRead[sizeof(kDrumkitRef)] = {};
     char data;
 
@@ -1921,6 +1937,14 @@ SdResult Controller::sd_checkDrumkit(uint8_t kitNum_) {
                 // If the signature matches, read the status byte. '*' denotes a saved drumkit.
                 sd_read(&data, 1);
                 (data == '*') ? drumkitStatus = FILE_ACTIVE : drumkitStatus = FILE_INACTIVE;
+
+                // v2.02: the slot's name for the Drumkit menu.
+                if (drumkitStatus == FILE_ACTIVE) {
+                    uint8_t nameBytes[pname::kLength];
+                    if ((f_lseek(&sd.file, strlen(kDrumkitRef) + pname::kNameOffset) == FR_OK) && (sd_read(nameBytes, pname::kLength) == FR_OK)) {
+                        pname::decode(nameBytes, kitSlotName);
+                    }
+                }
             } else {
                 // 5. COMPATIBILITY HANDLING
                 // The file exists but the header is unrecognized or from an older version.
@@ -2010,6 +2034,9 @@ SdResult Controller::sd_loadDrumkit(uint8_t kitNum_) {
                 if (errorCount == 0) {
                     // 5.3 PARAMETER DECODE
                     // Decode and apply mixer/rhythm/FX/layer parameters from the buffer.
+
+                    // v2.02: the drumkit's name (none in kits from older firmware).
+                    pname::decode(reinterpret_cast<const uint8_t*>(&data[pname::kNameOffset]), kitName);
 
                     // Mixer configuration
 
@@ -2525,6 +2552,9 @@ SdResult Controller::sd_saveDrumkit(uint8_t kitNum_) {
             data[offset + 50] = 'o';
         }
     }
+
+    // v2.02: the drumkit's name.
+    pname::encode(kitName, &data[pname::kNameOffset]);
 
     // 3. INPUT PROTECTION
     // Disable keyboard interrupts during SD write operations.

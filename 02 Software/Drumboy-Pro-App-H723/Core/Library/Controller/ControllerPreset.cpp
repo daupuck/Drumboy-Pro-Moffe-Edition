@@ -540,8 +540,10 @@ void Controller::file_newAction() {
     effect_reset(1);
     reverb_reset();
 
-    // 7. A new project belongs to no slot yet (v2.01).
+    // 7. A new project belongs to no slot yet (v2.01) and gets a fresh random name (v2.02).
     currentFileSlot = -1;
+    name_roll(projectName);
+    lcd_drawName_Data();
 }
 
 void Controller::file_loadSelect() {
@@ -600,6 +602,7 @@ void Controller::file_loadAction() {
     // Release load-in-progress flag after SD transaction completes.
     loadAction = false;
     currentFileSlot = fileMenuCounter;  // v2.01: SAVE and AUTOSAVE now belong to this slot
+    lcd_drawName_Data();                // v2.02: the loaded project's name
 
     // 5. RESULT ALERT PRESENTATION
     // Display result alert and keep it visible for user acknowledgment.
@@ -651,6 +654,7 @@ void Controller::file_saveAction() {
     // Re-evaluate slot status and refresh indexed file library cache.
     sd_checkFile(fileMenuCounter);
     lcd_drawFileBox(menuTab, fileStatus);
+    lcd_drawSlotLabel(menuTab, false);  // v2.02: the slot's (new) name
     sd_getFileLibrary();
 
     // 6. RESULT ALERT PRESENTATION
@@ -697,6 +701,7 @@ void Controller::file_clearAction() {
     // Re-evaluate slot status and refresh indexed file library cache.
     sd_checkFile(fileMenuCounter);
     lcd_drawFileBox(menuTab, fileStatus);
+    lcd_drawSlotLabel(menuTab, false);  // v2.02: the slot's (new) name
     sd_getFileLibrary();
 
     // 4. RESULT ALERT PRESENTATION
@@ -953,6 +958,10 @@ void Controller::drumkit_newAction() {
     effect_reset(0);
     effect_reset(1);
     reverb_reset();
+
+    // 6. A fresh random name for the new drumkit (v2.02).
+    name_roll(kitName);
+    lcd_drawName_Data();
 }
 
 void Controller::drumkit_loadSelect() {
@@ -1010,6 +1019,7 @@ void Controller::drumkit_loadAction() {
     // 4. TRANSACTION FLAG RESTORE
     // Release load-in-progress flag after SD transaction completes.
     loadAction = false;
+    lcd_drawName_Data();  // v2.02: the loaded drumkit's name
 
     // 5. RESULT ALERT PRESENTATION
     // Display result alert and keep it visible for user acknowledgment.
@@ -1060,6 +1070,7 @@ void Controller::drumkit_saveAction() {
     // Re-evaluate slot status and refresh indexed drumkit library cache.
     sd_checkDrumkit(drumkitMenuCounter);
     lcd_drawFileBox(menuTab, drumkitStatus);
+    lcd_drawSlotLabel(menuTab, true);  // v2.02: the slot's (new) name
     sd_getDrumkitLibrary();
 
     // 6. RESULT ALERT PRESENTATION
@@ -1106,6 +1117,7 @@ void Controller::drumkit_clearAction() {
     // Re-evaluate slot status and refresh indexed drumkit library cache.
     sd_checkDrumkit(drumkitMenuCounter);
     lcd_drawFileBox(menuTab, drumkitStatus);
+    lcd_drawSlotLabel(menuTab, true);  // v2.02: the slot's (new) name
     sd_getDrumkitLibrary();
 
     // 4. RESULT ALERT PRESENTATION

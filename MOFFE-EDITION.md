@@ -5,7 +5,7 @@ Moffe Edition is **unofficial community firmware** for the Drumboy Pro, based on
 is not affiliated with or endorsed by Randomwaves. This page collects everything that is new
 compared with the factory firmware: what each feature does and how to use it on the device.
 
-- **Current version:** v2.01 — download from the
+- **Current version:** v2.02 — download from the
   [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest);
   how to install: [README → Install](README.md#install)
 - **User manual:** published by Randomwaves at [randomwaves.io](https://www.randomwaves.io) (it
@@ -27,8 +27,16 @@ compared with the factory firmware: what each feature does and how to use it on 
 > (v1.10); from v2.00, in its test builds: SYNTH layers, erasing on the EUCLID/NOTE pages, DETUNE,
 > SUB, NOISE, DRIVE, GLIDE, WAVE = SAMPLE and SLIDE; AUTOSAVE and resume (v2.01). **Not yet
 > tested on a device:** the rest of v2.00 (presets, random sounds, AMP and LFO pages, PAD HOLD,
-> VISUALS, the new look). Each release says what has been tested on hardware; please report
-> anything odd in [Issues](../../issues).
+> VISUALS, the new look) and v2.02 (names). Each release says what has been tested on hardware;
+> please report anything odd in [Issues](../../issues).
+
+## What's new in v2.02 – give it a name
+
+| | New | What it means for you |
+|---|---|---|
+| 🏷️ | **[Project and drumkit names](#11-names-for-projects-and-drumkits-v202)** | LOAD, SAVE and CLEAR show your projects and drumkits by name (`NEON YAK`, `DJ BLOOP`) instead of FILE_007. |
+| 🎲 | **[Random names](#11-names-for-projects-and-drumkits-v202)** | Every new project and drumkit gets a funny synth-flavoured name; turn knob 8 for another one. |
+| ✏️ | **[Your own name](#11-names-for-projects-and-drumkits-v202)** | Knob 6 changes a letter, knob 7 picks which one: up to 10 letters, digits and `! - + . ? #`. |
 
 ## What's new in v2.01 – never lose a session
 
@@ -464,6 +472,43 @@ tabs start at that project's slot instead of FILE_001, so saving again is one pr
 
 ---
 
+## 11. Names for projects and drumkits (v2.02)
+
+Your projects and drumkits have names now – yours, or a random one like `TURBO DUCK`,
+`DJ BLOOP`, `YAK 303` or `SPICY WIZARD`.
+
+**In the File menu and the Drumkit menu**
+
+```
+ Top:     [1 NEW]       [2 LOAD   007]  [3 SAVE]       [4 CLEAR]
+ Bottom:  [5 AUTOSAVE]  [6 NAME]        [7 CURSOR]     [8 RANDOM]      (File menu)
+ Bottom:  [5 –]         [6 NAME]        [7 CURSOR]     [8 RANDOM]      (Drumkit menu)
+```
+
+- **LOAD / SAVE / CLEAR** show the slot's **name**, and the slot number moves up into the
+  header (`LOAD   007`). A slot without a name (empty, or saved by older firmware) shows
+  `FILE_007` / `DRUM_007` as before.
+- **Knob 6 NAME** shows the name of what you are working on: the project in the File menu, the
+  drumkit in the Drumkit menu. Turning it changes the character under the cursor, which is shown
+  in **gold** (a gold `_` on a space): A–Z, 0–9, space and `! - + . ? #`.
+- **Knob 7 CURSOR** moves the cursor over the 10 characters.
+- **Knob 8 RANDOM**: every click rolls a new random name. Keep turning until one makes you smile.
+- Then **SAVE** as usual: the name is saved with the project or drumkit, and comes back when you
+  load it (and when you resume an auto-save).
+
+**Where names come from**
+- At power-on and after **NEW**, the project and the drumkit each get a random name.
+- **LOAD** brings the saved name. A project from before v2.02 has no name: its NAME is empty
+  (shown as a gold `_`). Give it one, or SAVE it as it is to keep `FILE_007`.
+- To remove a name, set every character to a space (the first choice of knob 6).
+
+**Good to know**
+- The name is stored inside the file, in bytes no firmware used. The files keep their names on
+  the card (`File_007.rwf`, `Drumkit_007.rwd`), so the factory firmware and older Moffe versions
+  still load them; they just don't show the name, and saving with them drops it.
+
+---
+
 ## Improvements and fixes
 
 ### Audio CPU meter (v1.09)
@@ -510,6 +555,7 @@ tabs start at that project's slot instead of FILE_001, so saving again is one pr
 | v1.10 | Pads as a scale keyboard (step entry, live recording); melody generator and variations |
 | **v2.00** | **SYNTH layers**: a built-in synth voice (saw, square, triangle, sine or single-cycle WAVs; DETUNE, SUB, NOISE, DRIVE, four filter types, AMP envelope, LFO page, SLIDE and GLIDE), 66 presets in alphabetical order + 16 USER slots, random sounds and variations, PAD HOLD (also when recording), the synth sound's name in the track list, synth sounds in drumkits and the instrument copy. **VISUALS**: 13 full-screen music visuals in seven colour themes. **The Moffe Edition look**: gold and orange, new boot screen. **NOTE page**: pads only play while stopped (ADD + pad = step entry), wider octave range. (Test builds v1.11–v1.14 led up to it; they were not released.) |
 | **v2.01** | **AUTOSAVE** (File menu, knob 5) and **RESUME LAST SESSION?** at power-on; **crash-safe saving** for projects and drumkits; the File menu starts at the current project's slot. |
+| **v2.02** | **Names** for projects and drumkits: shown in LOAD / SAVE / CLEAR, edited with knobs 6–7, or rolled at random with knob 8. |
 
 ## Coming next
 
@@ -524,10 +570,10 @@ The step-by-step guide (which file to download, where to put it, what the screen
 to do if something goes wrong) is in the **[README → Install](README.md#install)**. In short:
 
 1. Back up the whole SD card.
-2. Download `Drumboy_Pro_Fw_Moffe_02_01.bin` from the
+2. Download `Drumboy_Pro_Fw_Moffe_02_02.bin` from the
    [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest).
 3. Copy it, with its exact name, to the root of the card as the only `Drumboy_Pro_Fw…bin` there.
-4. Power on: *UPDATING FIRMWARE V2.01* → *FIRMWARE UPDATED* → sunglasses.
+4. Power on: *UPDATING FIRMWARE V2.02* → *FIRMWARE UPDATED* → sunglasses.
 
 **Roll back:** install `Drumboy_Pro_Fw_01_01.bin` (factory, in the release Assets and in
 `02 Software/Firmware/`) the same way. The bootloader accepts any version, older or newer.
