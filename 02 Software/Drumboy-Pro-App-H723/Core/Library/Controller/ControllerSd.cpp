@@ -887,7 +887,10 @@ SdResult Controller::sd_loadFile(uint8_t fileNum_) {
                         uint8_t chainBytes[songchain::kEncodedSize];
                         chainBytes[0] = static_cast<uint8_t>(data[kSongChainHeaderOffset]);
                         for (uint8_t i = 0; i < songchain::kMaxSteps; i++) chainBytes[1 + i] = static_cast<uint8_t>(data[kSongChainStepsOffset + i]);
-                        songchain::decode(chainBytes, songChain);
+                        if (songchain::decode(chainBytes, songChain)) {
+                            // v2.03: TRANSPOSE per step (zeros in older files).
+                            songchain::decodeTranspose(reinterpret_cast<const uint8_t*>(&data[kSongTransposeOffset]), songChain);
+                        }
                         song_onFileLoaded();
                     }
 
@@ -1411,6 +1414,7 @@ SdResult Controller::sd_saveFile(uint8_t fileNum_) {
         songchain::encode(songChain, chainBytes);
         data[kSongChainHeaderOffset] = chainBytes[0];
         for (uint8_t i = 0; i < songchain::kMaxSteps; i++) data[kSongChainStepsOffset + i] = chainBytes[1 + i];
+        songchain::encodeTranspose(songChain, &data[kSongTransposeOffset]);  // v2.03
     }
 
     // v2.02: the project's name.

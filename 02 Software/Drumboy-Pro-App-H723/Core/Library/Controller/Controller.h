@@ -297,6 +297,8 @@ class Controller {
     volatile bool songChainPendingStart = false;  // SONG turned on mid-song: start at the next loop end
     volatile bool songChainDisplayFlag = false;   // ISR -> main loop: redraw the SONG field
     uint8_t songEditStep = 0;
+    // v2.03: scale steps added to every TONE / SYNTH note while the chain plays a transposed step.
+    int8_t song_transposeNow() const { return songchain::currentTranspose(songChain, songPosition, songChainRunning); }
     bool layerFillCopyKeyFlag;
     bool layerFillPasteKeyFlag;
 

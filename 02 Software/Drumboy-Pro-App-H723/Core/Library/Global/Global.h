@@ -21,8 +21,8 @@
 /* Application Version -------------------------------------------------------*/
 ////////////////////////////////////////////////////////////////////////////////
 
-const uint8_t kVersionMajor                         = 0x02;  // v2.02: names for projects and drumkits
-const uint8_t kVersionMinor                         = 0x02;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMajor                         = 0x02;  // v2.03: song transpose
+const uint8_t kVersionMinor                         = 0x03;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/
@@ -7519,6 +7519,9 @@ const uint8_t kSlideGlideMin                        = 25;    // SLIDE with GLIDE
 // (33 bytes incl. NUL), leaving +84..+99 free.
 const uint16_t kSongChainHeaderOffset               = 176;
 const uint16_t kSongChainStepsOffset                = 500 + 84;
+// v2.03: TRANSPOSE per chain step (signed scale steps), in the unused tail of layer 2's asset
+// entry (bytes 684..699; names are read up to byte 683).
+const uint16_t kSongTransposeOffset                 = 600 + 84;
 static_assert(kSongChainStepsOffset + songchain::kMaxSteps <= 500 + 100, "song chain steps must stay inside layer 1's free bytes");
 static_assert(songchain::kParts == kBankLibrarySize, "song chain parts must match the number of song banks");
 

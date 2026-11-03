@@ -3,6 +3,27 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v2.03
+
+Song mode TRANSPOSE. `kVersionMinor` 3; the package is `Drumboy_Pro_Fw_Moffe_02_03.bin`.
+Existing projects load unchanged (no transpose).
+
+- `songchain::Step` gained `transpose` (scale steps, −7…+7). `currentTranspose(chain, pos,
+  running)` gives the playing step's value while the chain runs, 0 otherwise.
+- **Playback:** `layer_playBeat` (TONE) and `synth_playBeat` (SYNTH) add `song_transposeNow()`
+  to the beat's scale degree before `tone::semitones`, so the move stays in the layer's scale and
+  is clamped to its range; the MIDI out note follows. It is read when each note starts, and the
+  ISR changes the chain position at the loop end, so a part's transpose starts with its first
+  loop and ringing notes keep their pitch. Stored notes are never changed. Pads played while the
+  chain runs are transposed too, so recordings stay relative to the pattern.
+- **UI:** Rhythm menu, ADD + knob 7 (PART) sets the edited step's transpose (not for END); PART
+  shows e.g. `  2  KEY+3`. Using ADD as a modifier cancels its long-press LOCK action.
+- **Storage:** 16 signed bytes at `kSongTransposeOffset` = 684 of the project's drumkit block
+  (the unused tail of layer 2's asset entry; names are read up to byte 683), written with the
+  chain and read only when the chain header is valid. Older files hold zeros (no transpose); a
+  cleared slot's filler is out of range and reads as 0.
+- Host tests: `test_song_chain.cpp` 21 → 336 checks. Not yet tested on hardware.
+
 ## v2.02
 
 Names for projects and drumkits. `kVersionMinor` 2; the package is

@@ -303,7 +303,8 @@ void Controller::layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int
                 tBD.glideTarget = 0.0f;
                 tBD.glideCoef = 0.0f;
                 if (layer.toneMode == tone::kModeTone) {
-                    const int semis = tone::semitones(note_, layer.toneScale, layer.toneRoot);
+                    // v2.03: song mode TRANSPOSE moves the note along the scale.
+                    const int semis = tone::semitones(note_ + song_transposeNow(), layer.toneScale, layer.toneRoot);
                     const float target = tone::clampIncrement(tBD.increment * tone::ratio(semis));
                     // SLIDE on this beat glides even with GLIDE 0 (sample is retriggered, as always on TONE).
                     const bool slideIn = (beatFlags_ & kPlaySlideIn) != 0;
@@ -2385,8 +2386,9 @@ void Controller::synth_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int
         }
     }
 
-    // Pitch: C4 at PITCH 1.00, moved by the note in ROOT/SCALE.
-    const int semis = tone::semitones(note_, layer.toneScale, layer.toneRoot);
+    // Pitch: C4 at PITCH 1.00, moved by the note in ROOT/SCALE (and by the song step's
+    // TRANSPOSE, v2.03).
+    const int semis = tone::semitones(note_ + song_transposeNow(), layer.toneScale, layer.toneRoot);
     const float speed = tone::clampIncrement(kLayerPitchDataLibrary[nPitch].data * tone::ratio(semis));
 
     // Gate: GATE % of the time until the next beat (an eighth note for pads and auditions). If the

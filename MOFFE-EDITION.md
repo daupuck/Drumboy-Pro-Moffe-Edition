@@ -5,7 +5,7 @@ Moffe Edition is **unofficial community firmware** for the Drumboy Pro, based on
 is not affiliated with or endorsed by Randomwaves. This page collects everything that is new
 compared with the factory firmware: what each feature does and how to use it on the device.
 
-- **Current version:** v2.02 — download from the
+- **Current version:** v2.03 — download from the
   [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest);
   how to install: [README → Install](README.md#install)
 - **User manual:** published by Randomwaves at [randomwaves.io](https://www.randomwaves.io) (it
@@ -27,8 +27,14 @@ compared with the factory firmware: what each feature does and how to use it on 
 > (v1.10); from v2.00, in its test builds: SYNTH layers, erasing on the EUCLID/NOTE pages, DETUNE,
 > SUB, NOISE, DRIVE, GLIDE, WAVE = SAMPLE and SLIDE; AUTOSAVE and resume (v2.01); names for
 > projects and drumkits (v2.02). **Not yet tested on a device:** the rest of v2.00 (presets,
-> random sounds, AMP and LFO pages, PAD HOLD, VISUALS, the new look). Each release says what has been tested on hardware;
+> random sounds, AMP and LFO pages, PAD HOLD, VISUALS, the new look) and v2.03 (song transpose). Each release says what has been tested on hardware;
 > please report anything odd in [Issues](../../issues).
+
+## What's new in v2.03 – song transpose
+
+| | New | What it means for you |
+|---|---|---|
+| 🎼 | **[TRANSPOSE per song step](#5-song-mode--arrange-parts-into-a-song-v107)** | Each step of the song chain can move all melody layers up or down the scale (ADD + knob 7 in the Rhythm menu): verse, chorus and bridge from one pattern, always in key. |
 
 ## What's new in v2.02 – give it a name
 
@@ -190,7 +196,7 @@ loop.
 |---|---|
 | **5 SONG** | **OFF**: banks switch manually, as before. **LOOP**: the chain starts again after the last step. **ONCE**: the song stops at the end of the last step. |
 | **6 STEP** | Which step of the chain you are editing (1–16), shown as `step/length` |
-| **7 PART** | The part (song bank 1–5) that step plays, or **END** to end the chain there |
+| **7 PART** | The part (song bank 1–5) that step plays, or **END** to end the chain there. **ADD + knob 7** = that step's **TRANSPOSE** (v2.03), shown as e.g. `2  KEY+3` |
 | **8 REPEAT** | How many loops that step plays (1–16) |
 
 **Example:** step 1 = part 1 × 2 (intro), step 2 = part 2 × 4 (verse), step 3 = part 3 × 1
@@ -206,6 +212,22 @@ loop.
 - **Saved with the project.** Files from older firmware open with song mode OFF; drumkits are
   not affected. NEW FILE resets the chain.
 - All parts share the song length (BAR × MEASURE). Use REPEAT for longer sections.
+
+**TRANSPOSE – a chord progression from one pattern (v2.03).** Hold **ADD** and turn **knob 7**:
+the step's melody layers (TONE and SYNTH) move up or down by that many **notes of their scale**
+(−7…+7) while the step plays. Drum layers are not touched, and your notes are not changed – the
+move is applied as they play.
+
+- **Example:** one bassline in C major, chain *part 1 ×2 (KEY+0) → part 1 ×2 (KEY+3) → part 1 ×2
+  (KEY+4) → part 1 ×2 (KEY+0)*: the classic I–IV–V–I, all in key.
+- Steps in scale notes keep everything in the scale, so it can't sound off-key; a 3rd up in a
+  minor scale stays minor.
+- It changes exactly at the loop end, with the part. A note still ringing keeps its pitch.
+- Pads played along while the chain runs follow the step's transpose too, and what you record
+  then moves along with the song.
+- Only while song mode plays the chain: stopped, or with SONG OFF, everything is at its written
+  pitch. MIDI out sends the transposed notes.
+- Saved with the project; older projects have no transpose.
 
 ## 6. Melody layers – NOTE page in Layer Song (v1.09)
 
@@ -556,6 +578,7 @@ Your projects and drumkits have names now – yours, or a random one like `TURBO
 | **v2.00** | **SYNTH layers**: a built-in synth voice (saw, square, triangle, sine or single-cycle WAVs; DETUNE, SUB, NOISE, DRIVE, four filter types, AMP envelope, LFO page, SLIDE and GLIDE), 66 presets in alphabetical order + 16 USER slots, random sounds and variations, PAD HOLD (also when recording), the synth sound's name in the track list, synth sounds in drumkits and the instrument copy. **VISUALS**: 13 full-screen music visuals in seven colour themes. **The Moffe Edition look**: gold and orange, new boot screen. **NOTE page**: pads only play while stopped (ADD + pad = step entry), wider octave range. (Test builds v1.11–v1.14 led up to it; they were not released.) |
 | **v2.01** | **AUTOSAVE** (File menu, knob 5) and **RESUME LAST SESSION?** at power-on; **crash-safe saving** for projects and drumkits; the File menu starts at the current project's slot. |
 | **v2.02** | **Names** for projects and drumkits: shown in LOAD / SAVE / CLEAR, edited with knobs 6–7, or rolled at random with knob 8. |
+| **v2.03** | Song mode **TRANSPOSE** per chain step (ADD + knob 7 in the Rhythm menu): melody layers move along their scale, drums stay. |
 
 ## Coming next
 
@@ -570,10 +593,10 @@ The step-by-step guide (which file to download, where to put it, what the screen
 to do if something goes wrong) is in the **[README → Install](README.md#install)**. In short:
 
 1. Back up the whole SD card.
-2. Download `Drumboy_Pro_Fw_Moffe_02_02.bin` from the
+2. Download `Drumboy_Pro_Fw_Moffe_02_03.bin` from the
    [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest).
 3. Copy it, with its exact name, to the root of the card as the only `Drumboy_Pro_Fw…bin` there.
-4. Power on: *UPDATING FIRMWARE V2.02* → *FIRMWARE UPDATED* → sunglasses.
+4. Power on: *UPDATING FIRMWARE V2.03* → *FIRMWARE UPDATED* → sunglasses.
 
 **Roll back:** install `Drumboy_Pro_Fw_01_01.bin` (factory, in the release Assets and in
 `02 Software/Firmware/`) the same way. The bootloader accepts any version, older or newer.

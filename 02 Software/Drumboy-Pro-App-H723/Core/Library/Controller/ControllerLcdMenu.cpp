@@ -1268,11 +1268,27 @@ void Controller::lcd_drawRhythm_SongStepData() {
 }
 
 void Controller::lcd_drawRhythm_SongPartData() {
-    /// @brief PART: the part (song bank 1-5) of the edited step, or END.
+    /// @brief PART: the part (song bank 1-5) of the edited step, or END; with a TRANSPOSE
+    /// (v2.03, ADD + this knob) also its scale steps, e.g. "  2  KEY+3".
 
-    const uint8_t part = songChain.steps[songEditStep].part;
+    const songchain::Step& step = songChain.steps[songEditStep];
     lcd_setMenuDataState(WHITE);
-    lcd.drawText((part < songchain::kParts) ? kNumberDataLibrary[part + 1].nameLongR : "       END", kMenuDataTextSize, kMenuDataX[6], kMenuDataY[6]);
+    if (step.part >= songchain::kParts) {
+        lcd.drawText("       END", kMenuDataTextSize, kMenuDataX[6], kMenuDataY[6]);
+        return;
+    }
+    char text[kMenuDataTextSize + 1] = "          ";
+    text[kMenuDataTextSize - 1] = static_cast<char>('1' + step.part);
+    if (step.transpose != 0) {
+        // "  2  KEY+3": part 2, three scale steps up
+        const int t = (step.transpose < 0) ? -step.transpose : step.transpose;
+        text[kMenuDataTextSize - 1] = ' ';
+        text[2] = static_cast<char>('1' + step.part);
+        memcpy(text + 3, "  KEY", 5);
+        text[8] = (step.transpose < 0) ? '-' : '+';
+        text[9] = static_cast<char>('0' + t);
+    }
+    lcd.drawText(text, kMenuDataTextSize, kMenuDataX[6], kMenuDataY[6]);
 }
 
 void Controller::lcd_drawRhythm_SongRepeatData() {

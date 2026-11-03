@@ -11,6 +11,8 @@
 // other code reads or writes (see kSongChainHeaderOffset / kSongChainStepsOffset in Global.h):
 //   header : 0xA0 | mode   (high nibble = marker; anything else -> default chain, mode OFF)
 //   step i : (part << 4) | (repeats - 1)      part 0..4 = bank 1..5, 7 = END
+// v2.03: each step also has a TRANSPOSE in scale steps (-7..+7), one signed byte per step in
+// kSongTransposeOffset (16 more unused bytes; zero in older files = no transpose).
 
 #include <stdint.h>
 
@@ -22,6 +24,7 @@ constexpr uint8_t kPartEnd = 7;      // marks the end of the chain
 constexpr uint8_t kMaxRepeats = 16;
 constexpr uint8_t kHeaderMarker = 0xA0;
 constexpr uint8_t kEncodedSize = 1 + kMaxSteps;
+constexpr int8_t kMaxTranspose = 7;   // scale steps either way (an octave in a 7-note scale)
 
 enum Mode : uint8_t { OFF = 0, LOOP = 1, ONCE = 2 };
 enum Action : uint8_t { STAY = 0, SWITCH = 1, STOP = 2 };
@@ -29,6 +32,7 @@ enum Action : uint8_t { STAY = 0, SWITCH = 1, STOP = 2 };
 struct Step {
     uint8_t part;     // 0..4, or kPartEnd
     uint8_t repeats;  // 1..16
+    int8_t transpose = 0;  // v2.03: melody layers move this many scale steps while it plays
 };
 
 struct Chain {
@@ -119,6 +123,30 @@ inline bool decode(const uint8_t* in, Chain& c) {
     }
     c.mode = mode;
     return true;
+}
+
+// v2.03: the TRANSPOSE of every step, one signed byte each (kMaxSteps bytes).
+inline void encodeTranspose(const Chain& c, uint8_t* out) {
+    for (uint8_t i = 0; i < kMaxSteps; i++) {
+        int t = c.steps[i].transpose;
+        if (t > kMaxTranspose) t = kMaxTranspose;
+        if (t < -kMaxTranspose) t = -kMaxTranspose;
+        out[i] = static_cast<uint8_t>(static_cast<int8_t>(t));
+    }
+}
+
+// Anything out of range (e.g. a cleared slot's filler) reads as 0.
+inline void decodeTranspose(const uint8_t* in, Chain& c) {
+    for (uint8_t i = 0; i < kMaxSteps; i++) {
+        const int8_t t = static_cast<int8_t>(in[i]);
+        c.steps[i].transpose = ((t >= -kMaxTranspose) && (t <= kMaxTranspose)) ? t : 0;
+    }
+}
+
+// The transpose in effect: the playing step's while the chain runs, otherwise none.
+inline int8_t currentTranspose(const Chain& c, const Position& pos, bool running) {
+    if (!running || (c.mode == OFF) || (pos.step >= kMaxSteps) || (c.steps[pos.step].part >= kParts)) return 0;
+    return c.steps[pos.step].transpose;
 }
 
 }  // namespace songchain
