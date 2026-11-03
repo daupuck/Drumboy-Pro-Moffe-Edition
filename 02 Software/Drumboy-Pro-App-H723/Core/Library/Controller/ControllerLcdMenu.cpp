@@ -3664,7 +3664,7 @@ void Controller::lcd_drawLayerSongNoteMenu(uint8_t layerNum_) {
     const uint8_t slots[6] = {0, 1, 4, 5, 6, 7};
     for (uint8_t i = 0; i < 6; i++) lcd.drawText((slots[i] == 6) ? "  %" : "   ", kMenuSignTextSize, kMenuSignBoxX[slots[i]], kMenuSignBoxY[slots[i]]);
 
-    // 4. VALUES + STRIP
+    // 4. VALUES + STRIP (knobs 3 PAD HOLD and 4 FOLLOW have no label: the strip shows them)
     for (uint8_t i = 0; i < 6; i++) lcd_drawNoteData(slots[i]);
     lcd_drawNoteStrip();
 }
@@ -3694,6 +3694,7 @@ void Controller::lcd_drawNoteData(uint8_t slot_) {
                 snprintf(text, sizeof(text), "%s", kDataDashR);
             }
             if (!tone::playsNotes(layer.toneMode)) color = GRAY_50;  // edited, but not heard as a DRUM layer
+            if (layer.followLayer >= 0) color = GRAY_50;            // v2.04: it plays the followed layer's notes
             break;
         case 4:
             snprintf(text, sizeof(text), "%10.10s", tone::kNoteNames[layer.toneRoot % tone::kRootCount]);
@@ -3731,15 +3732,20 @@ void Controller::lcd_drawNoteStrip() {
 
     if (!notePageActive() || (selectedLayerNum == -1)) return;
     const Layer& layer = layerLibrary[selectedLayerNum];
-    const Bank& bank = layer.bankLibrary[activeSongBank];
     const bool toneOn = tone::playsNotes(layer.toneMode);
+    // v2.04 harmony: a layer that FOLLOWs another (knob 4) shows the notes it will actually
+    // play: the followed layer's beats at the interval, in that layer's key.
+    const bool following = toneOn && (layer.followLayer >= 0);
+    const Layer& src = following ? layerLibrary[layer.followLayer] : layer;
+    const Bank& bank = src.bankLibrary[activeSongBank];
+    const Layer& key = layerLibrary[layer_keyLayer(static_cast<uint8_t>(selectedLayerNum))];
 
     lcd.setBackColor(BLACK);
     lcd.clearRect(kBeatGraphStartX, kBeatGraphStartY, kBeatGraphWidth + 1, kBeatGraphHeight + 1);
 
     // Title: key and scale, or a reminder that a DRUM layer ignores the notes.
     char title[32];
-    snprintf(title, sizeof(title), "NOTES  %s %s", tone::kNoteNames[layer.toneRoot % tone::kRootCount], tone::kScales[tone::safeScale(layer.toneScale)].name);
+    snprintf(title, sizeof(title), "NOTES  %s %s", tone::kNoteNames[key.toneRoot % tone::kRootCount], tone::kScales[tone::safeScale(key.toneScale)].name);
     lcd.setFont(FONT_05x07);
     lcd.setAlignment(LEFT);
     lcd.setForeColor(GRAY_75);
@@ -3748,6 +3754,14 @@ void Controller::lcd_drawNoteStrip() {
     lcd.setForeColor(GRAY_50);
     if (!toneOn) {
         lcd.drawText("DRUM: MODE TO TONE", 18, kBeatGraphEndX, kBeatGraphStartY + 2);
+    } else if (following) {
+        // Knob 4 FOLLOW, ADD + knob 4 the interval (the knob has no label: the strip shows it).
+        char follow[11];
+        harmony::label(layer.followLayer, layer.harmonyInterval, follow);
+        char text[24];
+        snprintf(text, sizeof(text), "FOLLOW %s", follow);
+        lcd.setForeColor(kAccentColor);
+        lcd.drawText(text, strlen(text), kBeatGraphEndX, kBeatGraphStartY + 2);
     } else {
         lcd.drawText("ADD+PAD: STEP", 13, kBeatGraphEndX, kBeatGraphStartY + 2);  // pads alone only play
     }
@@ -3763,7 +3777,8 @@ void Controller::lcd_drawNoteStrip() {
         for (int16_t i = 0; i <= bank.lastActiveBeatNum; i++) {
             const Beat& beat = bank.beatLibrary[i];
             if (!beat.getActive()) continue;
-            const int semis = tone::semitones(beat.getNote(), layer.toneScale, layer.toneRoot);
+            const int8_t degree = following ? harmony::note(beat.getNote(), layer.harmonyInterval, src.toneScale) : beat.getNote();
+            const int semis = tone::semitones(degree, key.toneScale, key.toneRoot);
             int y = static_cast<int>(kNoteRollMidY) - (semis / 2);
             if (y < static_cast<int>(kNoteRollTopY)) y = kNoteRollTopY;
             if (y > static_cast<int>(kNoteRollBottomY) - 2) y = kNoteRollBottomY - 2;
@@ -3775,7 +3790,7 @@ void Controller::lcd_drawNoteStrip() {
                 const int y1 = (y < previousY) ? previousY : y;
                 lcd.drawVLine(static_cast<uint16_t>(x), static_cast<uint16_t>(y0), static_cast<uint16_t>(y1 - y0 + 1));
             }
-            const bool selected = (i == selectedBeatNum);
+            const bool selected = !following && (i == selectedBeatNum);
             lcd.setForeColor(selected ? kAccentColor : (toneOn ? WHITE : GRAY_50));
             lcd.fillRect(static_cast<uint16_t>(x), static_cast<uint16_t>(y), kNoteMarkWidth, selected ? 3 : 2);
             previousX = static_cast<int>(x);
@@ -3787,8 +3802,8 @@ void Controller::lcd_drawNoteStrip() {
     lcd.setFont(FONT_05x07);
     if (toneOn) {
         char low[8], high[8], keys[32];
-        tone::noteName(tone::semitones(tone::keyDegree(0, noteKeysOctave, layer.toneScale), layer.toneScale, layer.toneRoot), low, sizeof(low));
-        tone::noteName(tone::semitones(tone::keyDegree(tone::kKeyCount - 1, noteKeysOctave, layer.toneScale), layer.toneScale, layer.toneRoot), high, sizeof(high));
+        tone::noteName(tone::semitones(tone::keyDegree(0, noteKeysOctave, key.toneScale), key.toneScale, key.toneRoot), low, sizeof(low));
+        tone::noteName(tone::semitones(tone::keyDegree(tone::kKeyCount - 1, noteKeysOctave, key.toneScale), key.toneScale, key.toneRoot), high, sizeof(high));
         // PAD HOLD (knob 3): pad notes sound while the pad is pressed.
         snprintf(keys, sizeof(keys), "PADS %s-%s%s", low, high, layer.synth.padHold ? "  HOLD" : "");
         lcd.setAlignment(LEFT);

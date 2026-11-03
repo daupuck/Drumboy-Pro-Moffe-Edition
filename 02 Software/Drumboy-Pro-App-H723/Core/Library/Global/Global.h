@@ -21,8 +21,8 @@
 /* Application Version -------------------------------------------------------*/
 ////////////////////////////////////////////////////////////////////////////////
 
-const uint8_t kVersionMajor                         = 0x02;  // v2.03: song transpose
-const uint8_t kVersionMinor                         = 0x03;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMajor                         = 0x02;  // v2.04: harmony layers
+const uint8_t kVersionMinor                         = 0x04;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/
@@ -993,8 +993,7 @@ const char kHeaderNoteNote[]                        = "NOTE      ";
 const char kHeaderNoteRoot[]                        = "ROOT      ";
 const char kHeaderNoteScale[]                       = "SCALE     ";
 const char kHeaderNoteGlide[]                       = "GLIDE     ";
-const char kHeaderNoteTranspose[]                   = "TRANSPOSE ";
-const char kHeaderSynthWave[]                       = "WAVE      ";
+const char kHeaderNoteTranspose[]                   = "TRANSPOSE ";const char kHeaderSynthWave[]                       = "WAVE      ";
 const char kHeaderSynthCutoff[]                     = "CUTOFF    ";
 const char kHeaderSynthReso[]                       = "RESONANCE ";
 const char kHeaderSynthEnvAmt[]                     = "ENV AMT   ";
@@ -1373,10 +1372,13 @@ typedef enum {
     ENC_NAME_CURSOR                                 = 0x90,  // knob 7: which character
     ENC_NAME_RANDOM                                 = 0x91,  // knob 8: a new random name
 
+    // NOTE page harmony (v2.04)
+    ENC_NOTE_FOLLOW                                 = 0x92,  // knob 4: FOLLOW layer; ADD + knob 4: interval
+
     // Must equal the number of rows before the trailing NONE row in kEncoderFuncDataLibrary,
     // which is indexed by EncoderFunc value. Never stored on SD (only the global map is
     // persisted, and it is range-checked against kMaxEncoderGlobalFunction).
-    ENC_FNC_NONE                                    = 0x92
+    ENC_FNC_NONE                                    = 0x93
 } EncoderFunc;
 
 const EncoderFunc encoderLocalFunction[][8] = {
@@ -1594,6 +1596,7 @@ constexpr EncoderFuncData kEncoderFuncDataLibrary[] = {
     {ENC_NAME_CHAR,           ENC_RES_S, "NAME      ", "FILE  ", "   ", false},
     {ENC_NAME_CURSOR,         ENC_RES_S, "CURSOR    ", "FILE  ", "   ", false},
     {ENC_NAME_RANDOM,         ENC_RES_S, "RANDOM    ", "FILE  ", "   ", false},
+    {ENC_NOTE_FOLLOW,         ENC_RES_S, "FOLLOW    ", "NOTE  ", "   ", false},
 
     // Row for ENC_FNC_NONE itself, so lookups with function == ENC_FNC_NONE stay in bounds.
     {ENC_FNC_NONE,            ENC_RES_F, "----------", "      ", "   ", true}
@@ -1636,7 +1639,7 @@ const EncoderFunc kEncoderEuclidFunction[8]         = {ENC_EUCLID_STEPS, ENC_EUC
 // Knob map of the Layer Song NOTE page (Controller::layerSongPage == 2). Slots 2/3 hold the
 // note strip.
 // Knob 3 (no tab: the strip is there) toggles PAD HOLD, shown in the strip.
-const EncoderFunc kEncoderNoteFunction[8]           = {ENC_NOTE_MODE, ENC_NOTE_NOTE, ENC_SYNTH_PAD_HOLD, ENC_FNC_NONE,
+const EncoderFunc kEncoderNoteFunction[8]           = {ENC_NOTE_MODE, ENC_NOTE_NOTE, ENC_SYNTH_PAD_HOLD, ENC_NOTE_FOLLOW,
                                                        ENC_NOTE_ROOT, ENC_NOTE_SCALE, ENC_NOTE_GLIDE, ENC_NOTE_TRANSPOSE};
 
 // The pages of a SYNTH layer's Layer Instrument menu, in the order the layer key steps through
@@ -7485,6 +7488,9 @@ const char kSongModeText[3][5]                      = {"OFF", "LOOP", "ONCE"};
 // Names for projects and drumkits (v2.02, host-testable).
 #include "ProjectName.h"
 
+// Harmony layers (v2.04, host-testable).
+#include "Harmony.h"
+
 const char kToneModeText[tone::kModeCount][11]      = {"      DRUM", "      TONE", "     SYNTH"};
 
 // The synth voice's C4 (MIDI 60) at PITCH 1.00, matching TONE layers' "the sample is a C4".
@@ -7505,12 +7511,14 @@ const char kSynthUserFile[]                         = "System/Preset/SynthUser.r
 const char kSynthUserRef[]                          = "RWSYNUS2";  // 21 values per slot ("RWSYNUSR" = 20, still read)
 const char kSlideFileRef[]                          = "SLD1";  // beats with SLIDE, after the SYNTH sounds
 const char kHoldFileRef[]                           = "HLD1";  // recorded hold lengths, after the slides (v1.13)
+const char kHarmonyFileRef[]                        = "HRM1";  // FOLLOW + interval per layer, after the holds (v2.04)
 
 // layer_playBeat() flags from the sequencer (SLIDE, 303 style):
 const uint8_t kPlaySlideIn                          = 0x01;  // this beat slides in from the previous note
 const uint8_t kPlayTieOut                           = 0x02;  // the next beat slides in: hold this note until it
 const uint8_t kPlayHold                             = 0x04;  // PAD HOLD: a pad note, held until the pad is released
 const uint8_t kPlayHeld                             = 0x08;  // a recorded held note: sounds its whole length (no GATE)
+const uint8_t kPlayHarmony                          = 0x10;  // v2.04: played for a followed layer (never triggers further harmony)
 const uint8_t kSlideGlideMin                        = 25;    // SLIDE with GLIDE 0 still slides (~36 ms)
 
 // Where the chain lives in the project file's 1500-byte drumkit-style block. Both ranges are
@@ -7586,6 +7594,10 @@ struct Layer {
     uint8_t toneScale                               = tone::kDefaultScale;
     uint8_t toneGlide                               = 0;
     float toneGlideCoef                             = 0.0f;  // derived from toneGlide (tone::glideBlockCoef)
+    // v2.04 harmony: play the notes of another layer (0..9, -1 = off) at an interval, in that
+    // layer's key, instead of this layer's own beats. Saved in the .rwn file ("HRM1").
+    int8_t followLayer                              = -1;
+    uint8_t harmonyInterval                         = 0;     // harmony::Interval
     synth::Params synth;                                     // SYNTH sound (Layer Inst pages 1-2), saved in the .rwn file
 
     Bank bankLibrary[kBankLibrarySize];

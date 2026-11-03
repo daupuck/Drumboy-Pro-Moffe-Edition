@@ -1029,6 +1029,10 @@ class Controller {
     // SYNTH gate (0 = an eighth note, for pads and auditions)
     // beatFlags_: kPlaySlideIn / kPlayTieOut (SLIDE)
     void layer_playBeat(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_ = 0, uint16_t lengthIntervals_ = 0, uint8_t beatFlags_ = 0);
+    void layer_playVoice(uint8_t layerNum_, float fillVolMultiplier_, int8_t note_, uint16_t lengthIntervals_, uint8_t beatFlags_);  // one layer only
+    uint8_t layer_keyLayer(uint8_t layerNum_) const;  // v2.04: whose ROOT/SCALE this layer plays in
+    // v2.04: a harmony layer plays the followed layer's notes, not its own beats.
+    bool layer_follows(uint8_t layerNum_) const { return (layerLibrary[layerNum_].followLayer >= 0) && tone::playsNotes(layerLibrary[layerNum_].toneMode); }
 
     /* Layer Inst Functions -------------------------------------- */
 
