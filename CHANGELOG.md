@@ -29,7 +29,7 @@ LOAD/SAVE/CLEAR values are drawn by `lcd_drawSlotLabel`: the slot's name, or `FI
 **Random names.** `Global/ProjectName.h`: ADJECTIVE THING ("NEON YAK"), TITLE THING ("DJ
 BLOOP") or THING NUMBER ("YAK 303"), always 10 characters or fewer and never the same twice in a
 row; host-tested by `test_project_name.cpp` (120,160 checks). The six `lcd_draw*_Load/Save/
-ClearData` functions lost their `sprintf`s: warnings 464 → 440. Not yet tested on hardware.
+ClearData` functions lost their `sprintf`s: warnings 464 → 440. Tested on a device by the maintainer.
 
 ## v2.01
 

@@ -20,14 +20,14 @@ compared with the factory firmware: what each feature does and how to use it on 
 > the firmware may affect your warranty with Randomwaves. Report problems in this repository's
 > [Issues](../../issues), not to Randomwaves.
 
-> **Status (2 November 2026):** every version is built, unit-tested and verified by CI. Tested on
+> **Status (3 November 2026):** every version is built, unit-tested and verified by CI. Tested on
 > a Drumboy Pro by the maintainer: song mode (v1.07); the melody layers with notes, GLIDE and
 > TRANSPOSE, and the CPU meter (v1.09: CPU PEAK about 42 % with all 10 layers playing, two of them
 > TONE, and chorus, delay, reverb and both filters on); the pad keyboard and the melody generator
 > (v1.10); from v2.00, in its test builds: SYNTH layers, erasing on the EUCLID/NOTE pages, DETUNE,
-> SUB, NOISE, DRIVE, GLIDE, WAVE = SAMPLE and SLIDE; AUTOSAVE and resume (v2.01). **Not yet
-> tested on a device:** the rest of v2.00 (presets, random sounds, AMP and LFO pages, PAD HOLD,
-> VISUALS, the new look) and v2.02 (names). Each release says what has been tested on hardware;
+> SUB, NOISE, DRIVE, GLIDE, WAVE = SAMPLE and SLIDE; AUTOSAVE and resume (v2.01); names for
+> projects and drumkits (v2.02). **Not yet tested on a device:** the rest of v2.00 (presets,
+> random sounds, AMP and LFO pages, PAD HOLD, VISUALS, the new look). Each release says what has been tested on hardware;
 > please report anything odd in [Issues](../../issues).
 
 ## What's new in v2.02 – give it a name
