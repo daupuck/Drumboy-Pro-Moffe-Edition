@@ -293,35 +293,125 @@ A quick bassline: EUCLID page E(5,16), then the NOTE page, MODE TONE, hold ADD u
 - **Saved with the project** in a small extra file (`File_NNN.rwn`) next to the project file.
   Projects from older firmware open with all layers as DRUM; older firmware ignores the new file.
   NEW FILE resets everything; drumkits don't store notes.
-### Harmony layers (v2.04)
-
-A TONE or SYNTH layer can **follow** another melody layer and play every note it plays, a
-chosen interval higher or lower – a pad a 3rd above your bassline, or two layers on a 3rd and a
-5th for full chords.
-
-1. Open the NOTE page of the layer that should harmonise (it needs MODE TONE or SYNTH and its
-   own sound).
-2. Turn **knob 4**: OFF → L1 … L10 (any other layer). The strip shows `FOLLOW L3  3RD UP` in
-   gold and draws the notes this layer will play.
-3. **ADD + knob 4** chooses the interval: **3RD, 4TH, 5TH, 6TH or OCT, UP or DN**.
-
-- **Always in key:** intervals are counted in the followed layer's scale and played in its ROOT
-  and SCALE, so a 3rd is major or minor wherever the key says. (In pentatonic and blues scales
-  the intervals are the scale's own next notes; in CHROMATIC they are semitones.)
-- **Same rhythm:** the harmony layer plays exactly the followed layer's beats, slides and held
-  notes; its own beats are ignored while FOLLOW is on (and come back when you turn it OFF).
-- **Live:** edit, record or regenerate the followed melody and the harmony follows at once.
-  Playing the followed layer's pads plays the harmony too – chords from one finger.
-- **Its own sound:** level, sample or synth sound, effects and MUTE are the harmony layer's own.
-  Muting the followed layer silences its harmony too.
-- Song **TRANSPOSE** moves harmonies along with everything else.
-- One level only: a harmony layer can't itself be followed (a layer following it stays silent).
-- Saved with the project (in the `.rwn` file); older firmware plays the layer's own beats.
-
 - **Good to know:** one note at a time per layer (use several layers – or harmony layers – for chords). As on any
   sampler, higher notes play the sample faster, so they are also shorter. Outside the NOTE page
   the pads, and MIDI in, play the root; on the NOTE page of a TONE layer the pads only play that
   layer (go back to the edit page to play the drums).
+
+### Harmony layers (v2.04)
+
+A **harmony layer** plays along with another melody layer – the **leader** – a chosen interval
+higher or lower, always in key: a pad a 3rd above your bassline, a 5th for a power riff, or two
+harmony layers for full chords. The leader stays exactly as it is.
+
+#### Before you start
+
+- **The leader** (e.g. layer 3): MODE **TONE** or **SYNTH** on its NOTE page, and beats with
+  notes – record them, step them in with ADD + pads, or hold ADD on the NOTE page for a melody.
+- **The harmony layer** (e.g. layer 4): MODE **TONE** (a sample with a clear pitch) or **SYNTH**,
+  with its own sound. For SYNTH: Layer Instrument (**I + layer key**), SOUND page, knob 1
+  **PRESET** – soft sounds like `WARM HUG` sit nicely over a bass. It needs no beats of its own.
+  (A DRUM layer can't harmonise: its strip shows `DRUM: MODE TO TONE`.)
+- The NOTE page: Layer Song (**S + layer key**), then press the layer key until the NOTE page
+  shows (edit page → EUCLID → NOTE).
+
+#### Make a layer follow
+
+On the **harmony layer's** NOTE page:
+
+```
+ Top:     [1 MODE]  [2 NOTE]   [3 –]     [4 –]          knob 4 = FOLLOW (no label)
+ Bottom:  [5 ROOT]  [6 SCALE]  [7 GLIDE] [8 TRANSPOSE]
+```
+
+1. **Turn knob 4** to the right: OFF → L1 → L2 → … → L10 (it skips the layer itself). Stop at the
+   leader, e.g. **L3**. Turning left goes back towards OFF.
+2. **Look at the note strip** (the graph area at the top right): it shows `FOLLOW L3  3RD UP` in
+   gold, draws the leader's melody at the pitches this layer will play, and its title shows the
+   leader's key (e.g. `NOTES  C MINOR`). The NOTE value turns grey: this layer's own notes are
+   not used while it follows.
+3. **Hold ADD and turn knob 4** to choose the interval (the list wraps around). Using ADD here
+   doesn't make a new melody when you let go.
+
+   | Interval | Sound |
+   |---|---|
+   | **3RD UP** (default) | The classic sweet harmony; major or minor, whichever the key gives |
+   | **4TH UP** | Open, "suspended" |
+   | **5TH UP** | Strong and powerful (power chord) |
+   | **6TH UP** | Soft, a little nostalgic |
+   | **OCT UP** | The same melody an octave higher: doubles the line |
+   | **3RD DN … 6TH DN** | The same intervals below the melody |
+   | **OCT DN** | The same melody an octave lower: a fat sub under a lead |
+
+4. **Press PLAY.** The harmony layer plays every note of the leader, on exactly the same beats,
+   at the interval.
+
+To stop, turn knob 4 back to **OFF**: the layer plays its own beats again (they were kept, only
+ignored).
+
+#### How it behaves
+
+- **Always in key.** The interval is counted in the leader's scale, and the harmony layer plays
+  in the **leader's ROOT and SCALE**: a 3rd above C in C major is E (major), above D it is F
+  (minor). Change the leader's ROOT or SCALE and the harmony follows. The harmony layer's own
+  ROOT and SCALE are ignored while it follows (and kept for when FOLLOW is off).
+- **Same rhythm.** Beats, fills, accents (FLAT / GHOST), slides and notes recorded with PAD HOLD
+  are all followed.
+- **Live.** Change a note, tap ADD for a variation, record new notes: the harmony follows
+  immediately. Nothing is copied.
+- **Pads.** On the **leader's** NOTE page the pads play the leader *and* every harmony layer:
+  chords with one finger. With PAD HOLD on the leader the harmony holds too, and stops when you
+  let go. On the harmony layer's own NOTE page the pads play only that layer (in the leader's
+  key).
+- **Its own sound and mix.** Level, PITCH, sound or sample, GLIDE, the EQ / filter / effect /
+  reverb sends and probability are the harmony layer's own, so you can mix it separately.
+- **Mute.** MUTE on the harmony layer silences just the harmony; MUTE on the leader silences both
+  (the harmony is triggered by the leader).
+- **Song TRANSPOSE** ([section 5](#5-song-mode--arrange-parts-into-a-song-v107)) moves the leader
+  and its harmonies together along the scale.
+
+#### Chords: several harmony layers
+
+Any number of layers can follow the same leader.
+
+- **Major / minor triads:** layer 4 FOLLOW L3 **3RD UP**, layer 5 FOLLOW L3 **5TH UP**: every
+  bass note becomes a full chord in the key.
+- **Thick lead:** a second synth on **OCT UP** with a different preset.
+- **Wide pad:** **3RD UP** and **6TH UP** on two soft pads.
+
+#### Recipes
+
+1. **Bass + pad in two minutes:** layer 3 SYNTH `ACID TRIP`, EUCLID page E(5,16), NOTE page hold
+   ADD for a melody. Layer 4 SYNTH `WARM HUG`, FOLLOW L3, 3RD UP; turn layer 4's level down a bit.
+2. **Power riff:** a TONE layer with a guitar or synth stab, a second layer following it on
+   5TH UP, a third on OCT DN.
+3. **A chord progression:** bass + 3RD UP + 5TH UP as above, then song mode LOOP in the Rhythm
+   menu with steps KEY+0 → KEY+3 → KEY+4 → KEY+0 (ADD + knob 7): a full I–IV–V–I from one
+   bassline.
+
+#### Good to know
+
+- **Scales with 5 or 6 notes** (pentatonic, blues): the intervals are the scale's own next notes
+  ("3RD UP" = two scale notes up), so they always fit the scale. In **CHROMATIC** the steps are
+  semitones; choose a 7-note scale for classic harmony.
+- **Range:** at the top or bottom of the note range the harmony note stops at the edge instead
+  of jumping an octave.
+- **One level only:** a harmony layer can't itself be a leader (a layer following it stays
+  silent).
+- **Saved with the project** (in the `.rwn` file) and restored on load and by AUTOSAVE resume;
+  NEW FILE clears it. Drumkits and the instrument copy/paste don't store it. Older firmware plays
+  the layer's own beats.
+- Switching the harmony layer to DRUM keeps its FOLLOW setting but switches it off; it comes back
+  with TONE or SYNTH.
+
+#### No harmony to hear?
+
+- Both layers on **TONE or SYNTH**, and the leader has beats?
+- The harmony layer has a sound (a loaded sample for TONE, a sound for SYNTH) and its level isn't 0?
+- Neither layer muted?
+- The harmony layer's strip shows `FOLLOW Lx …` in gold, and Lx isn't itself following another
+  layer?
+- No sound at all? Check **MASTER MUTE** in the Mixer menu (select it and hold ADD to unmute).
 
 ## 7. SYNTH layers – a built-in synth voice (v2.00)
 
