@@ -200,6 +200,9 @@ void Controller::keyboard_action() {
 
     // 1. INPUT GATE CHECK
     if (keyboardActive) {
+        // AUTOSAVE: any key counts as a possible change and restarts the idle wait.
+        if (keyboard.keyLayer.read || keyboard.keyLeft.read || keyboard.keyRight.read) autosave_noteInput();
+
         // VISUALS mode takes its steering keys first (and leaves before a menu key).
         visual_filterKeys();
 
@@ -701,6 +704,10 @@ void Controller::keyboard_action() {
                                         case ALERT_CLEARDRUMKIT:
                                             drumkit_clearAction();
                                             break;
+
+                                        case ALERT_RESUME:
+                                            autosave_answerResume(true);
+                                            break;
                                     }
                                 } else if (keyboard.muteKeyPress) {
                                     for (uint8_t i = 0; i < kLayerLibrarySize; i++) {
@@ -851,6 +858,7 @@ void Controller::keyboard_action() {
                                 if (alertFlag) {
                                     lcd_clearAlert();
                                     alertFlag = false;
+                                    if (alertType == ALERT_RESUME) autosave_answerResume(false);
                                 } else if (keyboard.muteKeyPress) {
                                     for (uint8_t i = 0; i < kLayerLibrarySize; i++) {
                                         if (layerLibrary[i].mute) layerInst_setMute(i, false);
@@ -1800,6 +1808,7 @@ void Controller::encoder_action() {
             // 2. ACTION DISPATCH
             // Process only events promoted by encoder_read().
             if (enc.read) {
+                autosave_noteInput();  // AUTOSAVE: a turned knob may have changed the session
                 switch (enc.mode) {
                         // --- LOCAL MODE ---
                         // Use menu-bound function mapping.
@@ -2721,6 +2730,10 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
             synth_change(encoder[encoderNum_].function, true);
             break;
 
+        case ENC_FILE_AUTOSAVE:
+            autosave_setEnabled(true);
+            break;
+
         default:
             break;
     }
@@ -3342,6 +3355,10 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
         case ENC_SYNTH_FILTER_TYPE:
         case ENC_SYNTH_PAD_HOLD:
             synth_change(encoder[encoderNum_].function, false);
+            break;
+
+        case ENC_FILE_AUTOSAVE:
+            autosave_setEnabled(false);
             break;
 
         default:

@@ -21,8 +21,8 @@
 /* Application Version -------------------------------------------------------*/
 ////////////////////////////////////////////////////////////////////////////////
 
-const uint8_t kVersionMajor                         = 0x02;  // v2.00: the synth, VISUALS and Gold Rush release
-const uint8_t kVersionMinor                         = 0x00;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMajor                         = 0x02;  // v2.01: AUTOSAVE + resume, crash-safe saving
+const uint8_t kVersionMinor                         = 0x01;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/
@@ -972,6 +972,7 @@ const char kHeaderMove[]                            = "MOVE      ";
 const char kHeaderShiftAll[]                        = "SHIFT ALL ";
 const char kHeaderPreview[]                         = "PREVIEW   ";
 const char kHeaderPreviewLevel[]                    = "PREV LEVEL";
+const char kHeaderAutosave[]                        = "AUTOSAVE  ";
 const char kHeaderEuclidSteps[]                     = "STEPS     ";
 const char kHeaderEuclidHits[]                      = "HITS      ";
 const char kHeaderEuclidRotate[]                    = "ROTATE    ";
@@ -1361,10 +1362,13 @@ typedef enum {
     ENC_SYNTH_FILTER_TYPE                           = 0x8C,
     ENC_SYNTH_PAD_HOLD                              = 0x8D,  // AMP page knob 8, NOTE page knob 3
 
+    // File menu (v2.01)
+    ENC_FILE_AUTOSAVE                               = 0x8E,  // AUTOSAVE on/off (knob 5)
+
     // Must equal the number of rows before the trailing NONE row in kEncoderFuncDataLibrary,
     // which is indexed by EncoderFunc value. Never stored on SD (only the global map is
     // persisted, and it is range-checked against kMaxEncoderGlobalFunction).
-    ENC_FNC_NONE                                    = 0x8E
+    ENC_FNC_NONE                                    = 0x8F
 } EncoderFunc;
 
 const EncoderFunc encoderLocalFunction[][8] = {
@@ -1373,7 +1377,7 @@ const EncoderFunc encoderLocalFunction[][8] = {
     // GLOBAL_MENU = 0x01
     {ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF},
     // FILE_MENU = 0x02
-    {ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE},
+    {ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FILE_AUTOSAVE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE},
     // DRUMKIT_MENU = 0x03
     {ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_OFF, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE, ENC_FNC_NONE},
     // MIXER_MENU = 0x04
@@ -1578,6 +1582,7 @@ constexpr EncoderFuncData kEncoderFuncDataLibrary[] = {
     {ENC_SYNTH_RELEASE,       ENC_RES_F, "RELEASE   ", "SYNTH ", "  %", false},
     {ENC_SYNTH_FILTER_TYPE,   ENC_RES_S, "FILT TYPE ", "SYNTH ", "   ", false},
     {ENC_SYNTH_PAD_HOLD,      ENC_RES_S, "PAD HOLD  ", "SYNTH ", "   ", false},
+    {ENC_FILE_AUTOSAVE,       ENC_RES_S, "AUTOSAVE  ", "FILE  ", "   ", false},
 
     // Row for ENC_FNC_NONE itself, so lookups with function == ENC_FNC_NONE stay in bounds.
     {ENC_FNC_NONE,            ENC_RES_F, "----------", "      ", "   ", true}
@@ -1776,6 +1781,7 @@ typedef enum {
     ALERT_CLEARSUCCESS                              = 0x16,
     ALERT_CLEARERROR                                = 0x17,
     ALERT_SHUTDOWN                                  = 0x18,
+    ALERT_RESUME                                    = 0x19,  // v2.01: power-on, resume the auto-saved session?
     ALERT_OFF                                       = 0x20
 } AlertType;
 
@@ -1801,6 +1807,7 @@ const char kAlertTextSaveSuccess[]                  = "SAVE -> SUCCESS";
 const char kAlertTextSaveError[]                    = "SAVE -> ERROR";
 const char kAlertTextClearSuccess[]                 = "CLEAR -> SUCCESS";
 const char kAlertTextClearError[]                   = "CLEAR -> ERROR";
+const char kAlertTextResume[]                       = "RESUME LAST SESSION?";
 
 struct Icon {
     bool flag                                       = false;
@@ -1972,6 +1979,19 @@ const uint8_t kFileLibrarySize                      = 100;
 const uint8_t kMinFile                              = 0;
 const uint8_t kMaxFile                              = 99;
 
+// AUTOSAVE (v2.01): the session is auto-saved as an extra project next to the 100 slots
+// (System/File/Autosave.rwf + .rwn), addressed with this slot number. The File menu never
+// shows it. Bytes 488..499 of a project's drumkit block are unused by every firmware; the
+// auto-save keeps the slot it came from there, so SAVE after resuming offers that slot.
+const uint8_t kAutosaveFileNum                      = 0xFE;
+const char kAutosaveFileBase[]                      = "System/File/Autosave";
+const uint16_t kAutosaveOriginOffset                = 488;  // 'S', slot + 1 (0 = none)
+
+// Crash-safe saving (v2.01, see Autosave.h): temporary files and the commit record.
+const char kSaveTempMain[]                          = "System/Save.tmf";
+const char kSaveTempSide[]                          = "System/Save.tmn";
+const char kSaveCommitFile[]                        = "System/Save.cmt";
+
 ////////////////////////////////////////////////////////////////////////////////
 /* Drumkit Constants ---------------------------------------------------------*/
 ////////////////////////////////////////////////////////////////////////////////
@@ -2017,7 +2037,10 @@ const char kSystemPresetFilename[]                  = "System/Preset/System.rwp"
 // 21 bytes up to v1.04; v1.05 adds [21] preview on/off and [22] preview level. System.rwp is
 // 48 bytes (25 header + data); bytes 46..47 held leftovers of an old "EOF" marker that nothing
 // reads, so the 23 bytes still fit the existing file. Older firmware reads only the first 21.
-const uint8_t kSystemPresetDataSize                 = 23;
+// v2.01 adds [23] AUTOSAVE on/off and [24] "resume pending" (tagged values, see Autosave.h);
+// the file grows to 50 bytes the first time they are written.
+const uint8_t kSystemPresetPreviewSize              = 23;
+const uint8_t kSystemPresetDataSize                 = 25;
 
 const char kEncoderPresetRef[]                      = "RW_DRUMBOYPRO_PRESET_ENC ";
 const char kEncoderPresetFilename[]                 = "System/Preset/Encoder.rwp";
@@ -7444,6 +7467,9 @@ const char kSongModeText[3][5]                      = {"OFF", "LOOP", "ONCE"};
 // SYNTH layers: one subtractive voice per layer, rendered in the audio ISR (host-testable).
 #include "SynthVoice.h"
 #include "SynthPresets.h"
+
+// AUTOSAVE + crash-safe saving (v2.01, host-testable).
+#include "Autosave.h"
 
 const char kToneModeText[tone::kModeCount][11]      = {"      DRUM", "      TONE", "     SYNTH"};
 

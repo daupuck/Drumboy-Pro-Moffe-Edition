@@ -3,6 +3,44 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v2.01
+
+AUTOSAVE with resume at power-on, and crash-safe saving. `kVersionMinor` 1; the package is
+`Drumboy_Pro_Fw_Moffe_02_01.bin`. Existing projects, drumkits and settings load unchanged.
+
+**Crash-safe saving.** `sd_saveFile`, `sd_clearFile`, `sd_saveDrumkit` and `sd_clearDrumkit`
+no longer open the slot's file with `FA_CREATE_ALWAYS` (which truncated the old version before
+the new one was written). They write complete temporary files (`System/Save.tmf`, and
+`System/Save.tmn` for a project's `.rwn`), then a 93-byte commit record `System/Save.cmt`
+(magic, destination paths, what to do with the `.rwn`, checksum, end marker), then replace the
+real files (unlink + `f_rename`; the `.rwn` first, the main file last). `sd_applyCommit` runs
+before every save and at power-on (`sd_recoverSave`): with a valid record it finishes the
+replace (idempotent), without one it deletes the temporary files, so a power cut leaves either
+the old or the new version. Record format and the recovery plan are in `Global/Autosave.h`,
+host-tested by `test_autosave.cpp` (every torn or bit-flipped record is rejected).
+`sd_saveNotes` now writes to a given path and reports whether a `.rwn` is needed; the old
+`sd_deleteNotes` is replaced by the commit's "delete side file" mode.
+
+**AUTOSAVE.** `autosave_service()` in the main loop saves the session as an extra project,
+`System/File/Autosave.rwf` + `.rwn` (slot number `kAutosaveFileNum` = 0xFE; the File menu
+never shows it), when it is dirty (any key or knob event; recording keeps it dirty) and idle:
+10 s stopped, 30 s playing, at most every 30 s, never while recording, during an alert, a file
+load/save or the test screen. The auto-save stores the project's slot in bytes 488–489 of the
+drumkit block (`'S'`, slot + 1), which no firmware uses. File menu knob 5 `AUTOSAVE` ON/OFF
+(`ENC_FILE_AUTOSAVE`); System.rwp grows to 25 data bytes: [23] on/off and [24] "resume pending",
+both tagged (0xA0|on, 0xA5) so old or factory bytes read as ON / not pending.
+
+**Resume.** At the end of boot `autosave_askResume()` shows **RESUME LAST SESSION?**
+(`ALERT_RESUME`) when AUTOSAVE is on, an auto-save is pending and the file is valid. ADD loads
+it like LOAD (no auto-play) and restores the slot; CLEAR starts fresh. Either answer clears the
+pending flag until the next auto-save.
+
+**File menu.** `currentFileSlot` follows LOAD, SAVE, NEW and resume; the LOAD/SAVE/CLEAR tabs
+start at it instead of FILE_001.
+
+Also: `lcd_drawAlert` has a default text (fixes a maybe-uninitialized warning). Warnings
+467 → 464. Not yet tested on hardware.
+
 ## v2.00
 
 The biggest update so far, and the first release since v1.10: a new major version. It contains
