@@ -21,8 +21,8 @@
 /* Application Version -------------------------------------------------------*/
 ////////////////////////////////////////////////////////////////////////////////
 
-const uint8_t kVersionMajor                         = 0x02;  // v2.05: FM voice, pitch envelope, filter attack
-const uint8_t kVersionMinor                         = 0x05;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMajor                         = 0x02;  // v2.06: retro + crazy VISUALS (CLASSIC, MOUTH, EYEBALLS, ...)
+const uint8_t kVersionMinor                         = 0x06;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/

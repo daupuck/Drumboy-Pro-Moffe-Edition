@@ -23,6 +23,16 @@ rolled back to the factory firmware the same way.
 > SD card first** and keep the factory firmware for rolling back. Modifying the firmware may affect
 > your warranty with Randomwaves.
 
+## 📼 New in v2.06: a new light show
+
+- **16 VISUALS**, many brand new: **CLASSIC** (the late-90s media-player look with spectrum bars, peak dots,
+  scope and marquee), **MOUTH** (the teeth are level meters!), **EYEBALLS**, **SPEAKER**, **DEMO SCENE**
+  (copper bars, sine scroller), **SUNSET DRIVE** (80s neon sunset), **SUPERSCOPE** and **STEP GRID**.
+- **AUTO** (ADD): a new style every 16 bars, on the bar. **INFO** (CLEAR): project, tempo and bar on screen.
+- New colour themes **WINAMP** and **C64**.
+
+→ **[All styles](MOFFE-EDITION.md#8-visuals--full-screen-music-visuals-v200-all-new-line-up-in-v206)**
+
 ## 🔔 New in v2.05: FM and synth drums
 
 - **FM voice:** set WAVE to **FM** for DX-style e-pianos, glassy bells, gongs, rubbery basses and
@@ -103,7 +113,7 @@ The biggest Moffe Edition update yet, big enough for a new major version. Highli
 | | Feature | In one sentence |
 |---|---|---|
 | 🎛️ | [**SYNTH layers**](MOFFE-EDITION.md#7-synth-layers--a-built-in-synth-voice-v200) | A built-in synth on any layer – subtractive or **FM** – with 79 presets, random sounds, envelopes, pitch envelope, LFO, filter types and PAD HOLD. Acid basslines without a single sample. |
-| 🌈 | [**VISUALS**](MOFFE-EDITION.md#8-visuals--full-screen-music-visuals-v200) | 13 full-screen music visuals in 7 colour themes; keep playing while they run. |
+| 🌈 | [**VISUALS**](MOFFE-EDITION.md#8-visuals--full-screen-music-visuals-v200-all-new-line-up-in-v206) | 16 full-screen music visuals (retro media-player, demo scene, cartoon mouth and eyes …) in 9 colour themes, with AUTO; keep playing while they run. |
 | 🎶 | [**Harmony layers**](MOFFE-EDITION.md#harmony-layers-v204) | One layer follows another a 3rd or 5th above – instant chords, always in key. |
 | 🎹 | [**Melody layers**](MOFFE-EDITION.md#6-melody-layers--note-page-in-layer-song-v109) | Turn any layer into an instrument: give each beat a note in a key and scale, add glide and slides, play the pads as a keyboard, or hold ADD and let it write a melody. Your kick just became an 808 bassline. |
 | 🥁 | [**Euclidean rhythms**](MOFFE-EDITION.md#4-euclidean-rhythms--euclid-page-in-layer-song-v106) | Pick steps and hits, turn a knob, hear the pattern change live. |
@@ -124,7 +134,8 @@ the **[CHANGELOG](CHANGELOG.md)**, and each published version has its firmware f
 
 | Version | Highlights |
 |---|---|
-| **v2.05** (latest) | FM voice and MOD page (FM ratio / amount / decay, pitch envelope, filter attack) · 13 new presets (79) |
+| **v2.06** (latest) | 16 VISUALS incl. CLASSIC, MOUTH, EYEBALLS, SPEAKER, DEMO SCENE, SUNSET DRIVE, SUPERSCOPE, STEP GRID · AUTO + INFO · WINAMP and C64 themes |
+| v2.05 | FM voice and MOD page (FM ratio / amount / decay, pitch envelope, filter attack) · 13 new presets (79) |
 | v2.04 | Harmony layers: FOLLOW another layer at a 3rd, 4th, 5th, 6th or octave, always in key |
 | v2.03 | Song mode TRANSPOSE per chain step: melody layers move along their scale |
 | v2.02 | Names for projects and drumkits: shown in LOAD / SAVE / CLEAR, your own or random |
@@ -159,8 +170,8 @@ a minute, and future you will be very grateful in the unlikely event it's needed
 ### Step 2 — Download the right file
 
 1. Open **[Releases → latest](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest)**.
-2. Scroll down to **Assets** and click **`Drumboy_Pro_Fw_Moffe_02_05.bin`** (the numbers are the
-   version: `02_05` = v2.05).
+2. Scroll down to **Assets** and click **`Drumboy_Pro_Fw_Moffe_02_06.bin`** (the numbers are the
+   version: `02_06` = v2.06).
 
 What the files in Assets are:
 
@@ -177,9 +188,9 @@ What the files in Assets are:
 
 Open the matching `.sha256` file in a text editor and compare its long number with the output of:
 
-- **Windows:** `certutil -hashfile Drumboy_Pro_Fw_Moffe_02_05.bin SHA256`
-- **macOS:** `shasum -a 256 Drumboy_Pro_Fw_Moffe_02_05.bin`
-- **Linux:** `sha256sum -c Drumboy_Pro_Fw_Moffe_02_05.bin.sha256`
+- **Windows:** `certutil -hashfile Drumboy_Pro_Fw_Moffe_02_06.bin SHA256`
+- **macOS:** `shasum -a 256 Drumboy_Pro_Fw_Moffe_02_06.bin`
+- **Linux:** `sha256sum -c Drumboy_Pro_Fw_Moffe_02_06.bin.sha256`
 
 If they differ, download it again. The bootloader also checks a CRC before it writes anything, so
 a damaged file is refused rather than installed.
@@ -192,14 +203,14 @@ folders, **not** inside them.
 
 ```
 SD card
-├── Drumboy_Pro_Fw_Moffe_02_05.bin   ← here
+├── Drumboy_Pro_Fw_Moffe_02_06.bin   ← here
 ├── Sample/
 └── System/
 ```
 
 - **Keep the exact file name.** The bootloader only looks for names that start with
   `Drumboy_Pro_Fw` and are at most 32 characters long. It is very literal-minded. If your
-  browser saved it as `Drumboy_Pro_Fw_Moffe_02_05 (1).bin`, rename it back.
+  browser saved it as `Drumboy_Pro_Fw_Moffe_02_06 (1).bin`, rename it back.
 - **Make it the only `Drumboy_Pro_Fw…bin` file in the root.** The bootloader installs the first
   one it finds.
 - Don't change anything else on the card. Eject the card safely before you pull it out.
@@ -208,7 +219,7 @@ SD card
 
 Put the card back in the Drumboy Pro and switch it on. You should see:
 
-1. **UPDATING FIRMWARE** with the version (e.g. **V2.05**) and a line that fills up.
+1. **UPDATING FIRMWARE** with the version (e.g. **V2.06**) and a line that fills up.
 2. **FIRMWARE UPDATED** for a few seconds.
 3. The normal start-up, now with **sunglasses and a golden MOFFE EDITION** on the logo. If you see
    the sunglasses, it worked. The sunglasses don't lie.

@@ -158,7 +158,7 @@ keep the Controller method as thin glue (snapshot → pure function → write ba
    (projects), `System/Drumkit/` and `System/Preset/` hold the user's own data.
 2. **Verify the package** you are about to install:
    ```sh
-   python3 "02 Software/Firmware/make_fw_package.py" --verify build/firmware/Drumboy_Pro_Fw_Moffe_02_05.bin
+   python3 "02 Software/Firmware/make_fw_package.py" --verify build/firmware/Drumboy_Pro_Fw_Moffe_02_06.bin
    ```
 3. **Copy only the package** to the **root** of the card. Do not touch anything else.
    Make sure there is only one `Drumboy_Pro_Fw*.bin` in the root.

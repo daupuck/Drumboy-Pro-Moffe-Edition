@@ -3,6 +3,37 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v2.06
+
+A new VISUALS line-up. `kVersionMinor` 6; the package is `Drumboy_Pro_Fw_Moffe_02_06.bin`. Contains
+v2.05 (FM voice), which was not released on its own.
+
+- **Scenes** (`ControllerVisual.cpp`, `enum Scene`, 16): new **CLASSIC** (bevelled media-player
+  window: ribbed title bar, LCD time from the play time, 62-character marquee with the project name,
+  info line, L/R level bars, triggered oscilloscope, position bar from `playInterval/songInterval`,
+  transport buttons lit by the transport state, SHUFFLE = AUTO and REPEAT = song mode lights, volume
+  slider from MASTER, 32-bar analyser with 42 segments and falling peak dots), **SUPERSCOPE**
+  (160-point polyline from the waveform, four shapes switching every bar, Y/X tumble with
+  perspective, erased by redrawing the previous polyline in black), **MOUTH** (jaw quantised from
+  the bass, drawn in 120 six-pixel columns that only repaint what changed; upper teeth = layer meters
+  with hit flashes, lower teeth = spectrum, tongue), **EYEBALLS** (10 eyes looking at the loudest
+  layer, pop on hits, pupils with the bass, blinks in quiet parts, red veins while
+  `limitAlertActive`), **SPEAKER** (cone rings and dust cap quantised from the bass, glitter on
+  accents kept clear of the cabinet, tweeter fizz from the top 10 bands, port rings on kicks),
+  **DEMO SCENE** (5 copper bars composed per row and only changed rows drawn, FONT_14x18 x2 sine
+  scroller, 3-speed starfield kept off the logo, MOFFE logo x4 bouncing on the beat phase),
+  **SUNSET DRIVE** (static sky/mountains/palms, sun rows repainted only when their half-width or
+  stripe state changes, horizon flash, beat-locked road lines passing behind the palm trunks,
+  twinkling stars) and **STEP GRID** (the active bank's beats per 1/16 step, up to 64 columns, beat
+  map re-read every 8 frames, play-head flashes). Kept: SHOWTIME, SPECTRO, TUNNEL, KALEIDO (was
+  MANDALA), ORBIT, DISCO, RIDGES, LIFE. Removed: PHASE, SPECTRUM, METERS, RAIN, FIREWORKS.
+- **Themes:** 9; WINAMP (green → yellow → red, a negative hue spread) and C64 (blue → purple).
+- **Keys:** ADD = AUTO (random other style every 16 bars on the bar, 20 s when stopped), CLEAR =
+  INFO overlay (`visual_drawOverlay`, every 6 frames). With MUTE/FILL/STYLE held they pass through.
+  The hint line is at most 104 characters.
+- DTCM use fell from 57 KB to 50 KB (RAIN/FIREWORKS buffers were bigger than the new state).
+  Not yet tested on hardware.
+
 ## v2.05
 
 FM voice, pitch envelope and filter attack. `kVersionMinor` 5; the package is

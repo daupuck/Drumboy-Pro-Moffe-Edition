@@ -1202,15 +1202,25 @@ class Controller {
     void visual_initScene();
     void visual_drawScene();
     void visual_drawHint(bool show_);
+    void visual_runScene(bool init_);
+    void visual_drawOverlay();
+    bool visualAuto = false;       // v2.06: ADD = a new style every 16 bars
+    bool visualOverlay = false;    // v2.06: CLEAR = tempo / bar / project in a corner
+    uint32_t visualAutoBars = 0;
+    uint32_t visualAutoMs = 0;
+    uint32_t visualLastBar = 0;
+    void visual_sceneClassic(bool init_);
     void visual_sceneShowtime(bool init_);
+    void visual_sceneSuperscope(bool init_);
+    void visual_sceneMouth(bool init_);
+    void visual_sceneEyeballs(bool init_);
+    void visual_sceneSpeaker(bool init_);
+    void visual_sceneDemo(bool init_);
+    void visual_sceneSunset(bool init_);
+    void visual_sceneStepGrid(bool init_);
     void visual_sceneOrbit(bool init_);
-    void visual_scenePhase(bool init_);
-    void visual_sceneSpectrum(bool init_);
     void visual_sceneSpectro(bool init_);
     void visual_sceneTunnel(bool init_);
-    void visual_sceneMeters(bool init_);
-    void visual_sceneRain(bool init_);
-    void visual_sceneFireworks(bool init_);
     void visual_sceneMandala(bool init_);
     void visual_sceneDisco(bool init_);
     void visual_sceneRidges(bool init_);
