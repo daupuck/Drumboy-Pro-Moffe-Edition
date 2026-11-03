@@ -39,7 +39,7 @@ pending flag until the next auto-save.
 start at it instead of FILE_001.
 
 Also: `lcd_drawAlert` has a default text (fixes a maybe-uninitialized warning). Warnings
-467 → 464. Not yet tested on hardware.
+467 → 464. AUTOSAVE and resume confirmed working on a device by the maintainer.
 
 ## v2.00
 

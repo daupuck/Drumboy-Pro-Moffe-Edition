@@ -25,10 +25,10 @@ compared with the factory firmware: what each feature does and how to use it on 
 > TRANSPOSE, and the CPU meter (v1.09: CPU PEAK about 42 % with all 10 layers playing, two of them
 > TONE, and chorus, delay, reverb and both filters on); the pad keyboard and the melody generator
 > (v1.10); from v2.00, in its test builds: SYNTH layers, erasing on the EUCLID/NOTE pages, DETUNE,
-> SUB, NOISE, DRIVE, GLIDE, WAVE = SAMPLE and SLIDE. **Not yet tested on a device:** the rest of
-> v2.00 (presets, random sounds, AMP and LFO pages, PAD HOLD, VISUALS, the new look) and
-> v2.01 (AUTOSAVE, resume, crash-safe saving). Each release says what has been tested on
-> hardware; please report anything odd in [Issues](../../issues).
+> SUB, NOISE, DRIVE, GLIDE, WAVE = SAMPLE and SLIDE; AUTOSAVE and resume (v2.01). **Not yet
+> tested on a device:** the rest of v2.00 (presets, random sounds, AMP and LFO pages, PAD HOLD,
+> VISUALS, the new look). Each release says what has been tested on hardware; please report
+> anything odd in [Issues](../../issues).
 
 ## What's new in v2.01 – never lose a session
 
