@@ -3,6 +3,34 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v2.02
+
+Names for projects and drumkits. `kVersionMinor` 2; the package is
+`Drumboy_Pro_Fw_Moffe_02_02.bin`. Existing projects, drumkits and settings load unchanged.
+
+**Storage.** The name is 10 characters at bytes 490–499 of the 1500-byte drumkit block of
+`.rwf` and `.rwd` files (`pname::kNameOffset`), which no firmware used (the layer settings end
+at 487, the AUTOSAVE origin is at 488–489, asset references start at 500). Old saved slots hold
+zeros there, cleared slots spaces (`kDataDrumkit`): both decode as "no name", as does anything
+outside the font's character set. File names on the card are unchanged, so the factory firmware
+still loads the files.
+
+**Session names.** `projectName` / `kitName`: random at power-on (`name_initialize`, seeded from
+the cycle counter, tick and card serial) and after NEW; read by `sd_loadFile` / `sd_loadDrumkit`
+(so also by resume), written by `sd_saveFile` / `sd_saveDrumkit` (so also by AUTOSAVE).
+`sd_checkFile` / `sd_checkDrumkit` read the name of the slot under the cursor
+(`fileSlotName` / `kitSlotName`; not for the auto-save).
+
+**Menus.** File and Drumkit menu knobs 6–8: `ENC_NAME_CHAR` (the character at `nameCursor`,
+drawn in the accent colour, `_` on a space), `ENC_NAME_CURSOR`, `ENC_NAME_RANDOM`. The
+LOAD/SAVE/CLEAR values are drawn by `lcd_drawSlotLabel`: the slot's name, or `FILE_007` /
+`DRUM_007` without one; the active tab's header carries the slot number (`LOAD   007`).
+
+**Random names.** `Global/ProjectName.h`: ADJECTIVE THING ("NEON YAK"), TITLE THING ("DJ
+BLOOP") or THING NUMBER ("YAK 303"), always 10 characters or fewer and never the same twice in a
+row; host-tested by `test_project_name.cpp` (120,160 checks). The six `lcd_draw*_Load/Save/
+ClearData` functions lost their `sprintf`s: warnings 464 → 440. Tested on a device by the maintainer.
+
 ## v2.01
 
 AUTOSAVE with resume at power-on, and crash-safe saving. `kVersionMinor` 1; the package is

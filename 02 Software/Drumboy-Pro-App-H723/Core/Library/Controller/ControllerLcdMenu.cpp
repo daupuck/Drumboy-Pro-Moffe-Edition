@@ -896,6 +896,7 @@ void Controller::lcd_drawFileMenu() {
     lcd_drawFile_SaveData();
     lcd_drawFile_ClearData();
     lcd_drawFile_AutosaveData();
+    lcd_drawName_Row();
 }
 
 void Controller::lcd_drawFile_AutosaveData() {
@@ -922,55 +923,22 @@ void Controller::lcd_drawFile_NewData() {
 void Controller::lcd_drawFile_LoadData() {
     /// @brief Draws File->Load row with selected file index.
 
-    // 1. STYLE SETUP
-    // Configure data text style.
-    lcd_setMenuDataState(WHITE);
-
-    // 2. TEXT BUILD AND DRAW
-    // Build FILE_XXX label and draw when Load tab is active.
-    char* text;
-    char file[11] = "  FILE_";
-    char num[4];
-    sprintf(num, "%03d", fileMenuCounter + 1);
-    strncat(file, num, 3);
-    (menuTab == 1) ? text = file : text = (char*)kDataDashR;
-    lcd.drawText(text, kMenuDataTextSize, kMenuDataX[1], kMenuDataY[1]);
+    // v2.02: the slot's name (or FILE_007 / DRUM_007), slot number in the header.
+    lcd_drawSlotLabel(1, false);
 }
 
 void Controller::lcd_drawFile_SaveData() {
     /// @brief Draws File->Save row with selected file index.
 
-    // 1. STYLE SETUP
-    // Configure data text style.
-    lcd_setMenuDataState(WHITE);
-
-    // 2. TEXT BUILD AND DRAW
-    // Build FILE_XXX label and draw when Save tab is active.
-    char* text;
-    char file[11] = "  FILE_";
-    char num[4];
-    sprintf(num, "%03d", fileMenuCounter + 1);
-    strncat(file, num, 3);
-    (menuTab == 2) ? text = file : text = (char*)kDataDashR;
-    lcd.drawText(text, kMenuDataTextSize, kMenuDataX[2], kMenuDataY[2]);
+    // v2.02: the slot's name (or FILE_007 / DRUM_007), slot number in the header.
+    lcd_drawSlotLabel(2, false);
 }
 
 void Controller::lcd_drawFile_ClearData() {
     /// @brief Draws File->Clear row with selected file index.
 
-    // 1. STYLE SETUP
-    // Configure data text style.
-    lcd_setMenuDataState(WHITE);
-
-    // 2. TEXT BUILD AND DRAW
-    // Build FILE_XXX label and draw when Clear tab is active.
-    char* text;
-    char file[11] = "  FILE_";
-    char num[4];
-    sprintf(num, "%03d", fileMenuCounter + 1);
-    strncat(file, num, 3);
-    (menuTab == 3) ? text = file : text = (char*)kDataDashR;
-    lcd.drawText(text, kMenuDataTextSize, kMenuDataX[3], kMenuDataY[3]);
+    // v2.02: the slot's name (or FILE_007 / DRUM_007), slot number in the header.
+    lcd_drawSlotLabel(3, false);
 }
 
 /* Lcd Drumkit Menu Functions ------------------------------------------------*/
@@ -1009,6 +977,7 @@ void Controller::lcd_drawDrumkitMenu() {
     lcd_drawDrumkit_LoadData();
     lcd_drawDrumkit_SaveData();
     lcd_drawDrumkit_ClearData();
+    lcd_drawName_Row();
 }
 
 void Controller::lcd_drawDrumkit_NewData() {
@@ -1028,55 +997,22 @@ void Controller::lcd_drawDrumkit_NewData() {
 void Controller::lcd_drawDrumkit_LoadData() {
     /// @brief Draws Drumkit->Load row with selected drumkit index.
 
-    // 1. STYLE SETUP
-    // Configure data text style.
-    lcd_setMenuDataState(WHITE);
-
-    // 2. TEXT BUILD AND DRAW
-    // Build DRUM_XXX label and draw when Load tab is active.
-    char* text;
-    char drum[11] = "  DRUM_";
-    char num[4];
-    sprintf(num, "%03d", drumkitMenuCounter + 1);
-    strncat(drum, num, 3);
-    (menuTab == 1) ? text = drum : text = (char*)kDataDashR;
-    lcd.drawText(text, kMenuDataTextSize, kMenuDataX[1], kMenuDataY[1]);
+    // v2.02: the slot's name (or FILE_007 / DRUM_007), slot number in the header.
+    lcd_drawSlotLabel(1, true);
 }
 
 void Controller::lcd_drawDrumkit_SaveData() {
     /// @brief Draws Drumkit->Save row with selected drumkit index.
 
-    // 1. STYLE SETUP
-    // Configure data text style.
-    lcd_setMenuDataState(WHITE);
-
-    // 2. TEXT BUILD AND DRAW
-    // Build DRUM_XXX label and draw when Save tab is active.
-    char* text;
-    char drum[11] = "  DRUM_";
-    char num[4];
-    sprintf(num, "%03d", drumkitMenuCounter + 1);
-    strncat(drum, num, 3);
-    (menuTab == 2) ? text = drum : text = (char*)kDataDashR;
-    lcd.drawText(text, kMenuDataTextSize, kMenuDataX[2], kMenuDataY[2]);
+    // v2.02: the slot's name (or FILE_007 / DRUM_007), slot number in the header.
+    lcd_drawSlotLabel(2, true);
 }
 
 void Controller::lcd_drawDrumkit_ClearData() {
     /// @brief Draws Drumkit->Clear row with selected drumkit index.
 
-    // 1. STYLE SETUP
-    // Configure data text style.
-    lcd_setMenuDataState(WHITE);
-
-    // 2. TEXT BUILD AND DRAW
-    // Build DRUM_XXX label and draw when Clear tab is active.
-    char* text;
-    char drum[11] = "  DRUM_";
-    char num[4];
-    sprintf(num, "%03d", drumkitMenuCounter + 1);
-    strncat(drum, num, 3);
-    (menuTab == 3) ? text = drum : text = (char*)kDataDashR;
-    lcd.drawText(text, kMenuDataTextSize, kMenuDataX[3], kMenuDataY[3]);
+    // v2.02: the slot's name (or FILE_007 / DRUM_007), slot number in the header.
+    lcd_drawSlotLabel(3, true);
 }
 
 /* Lcd Mixer Menu Functions --------------------------------------------------*/

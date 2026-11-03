@@ -341,6 +341,7 @@ void Controller::initialize() {
         loadEncoderPreset();  // Restore last-used knob values
         sd_loadSynthUser();   // USER 01..16 synth sounds (none yet = all empty)
         sd_recoverSave();     // v2.01: finish / discard a save a power cut interrupted
+        name_initialize();    // v2.02: random names for the new session's project and drumkit
 
         // 4. Enable Global Communication Protocols
         HAL_HalfDuplex_EnableReceiver(&huart1);  // MIDI In (Interrupt)

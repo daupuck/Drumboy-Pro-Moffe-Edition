@@ -2734,6 +2734,18 @@ void Controller::encoder_incValue(uint8_t encoderNum_) {
             autosave_setEnabled(true);
             break;
 
+        case ENC_NAME_CHAR:
+            name_changeChar(true);
+            break;
+
+        case ENC_NAME_CURSOR:
+            name_moveCursor(true);
+            break;
+
+        case ENC_NAME_RANDOM:
+            name_random();
+            break;
+
         default:
             break;
     }
@@ -3359,6 +3371,18 @@ void Controller::encoder_decValue(uint8_t encoderNum_) {
 
         case ENC_FILE_AUTOSAVE:
             autosave_setEnabled(false);
+            break;
+
+        case ENC_NAME_CHAR:
+            name_changeChar(false);
+            break;
+
+        case ENC_NAME_CURSOR:
+            name_moveCursor(false);
+            break;
+
+        case ENC_NAME_RANDOM:
+            name_random();
             break;
 
         default:
