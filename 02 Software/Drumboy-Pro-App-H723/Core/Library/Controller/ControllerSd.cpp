@@ -744,14 +744,10 @@ SdResult Controller::sd_checkFile(uint8_t fileNum_) {
     char refRead[sizeof(kFileRef)] = {};
     char data;
     char fileName[50];
-    char fileNum[4];
 
     // 1. FILENAME CONSTRUCTION
-    // Generate the 3-digit padded filename (e.g., File_001.rws).
-    sprintf(fileNum, "%03d", (fileNum_ + 1));
-    strcpy(fileName, kFileStart);
-    strcat(fileName, fileNum);
-    strcat(fileName, kFileEnd);
+    // File_NNN.rwf for a slot, Autosave.rwf for kAutosaveFileNum.
+    projectFileName(fileNum_, fileName, sizeof(fileName));
 
     // 2. FILE ACCESS
     // Attempt to open the file. If it fails, the file is physically missing.
@@ -792,14 +788,10 @@ SdResult Controller::sd_loadFile(uint8_t fileNum_) {
     SdResult result = SD_ERROR;
     char data[1500] = {};
     char fileName[50];
-    char fileNum[4];
 
     // 1. FILENAME CONSTRUCTION
-    // Generate the 3-digit padded filename (e.g., File_001.rws).
-    sprintf(fileNum, "%03d", (fileNum_ + 1));
-    strcpy(fileName, kFileStart);
-    strcat(fileName, fileNum);
-    strcat(fileName, kFileEnd);
+    // File_NNN.rwf for a slot, Autosave.rwf for kAutosaveFileNum.
+    projectFileName(fileNum_, fileName, sizeof(fileName));
 
     char instName[kLayerLibrarySize][kFileNameSize + 1];
     uint16_t instNum[kLayerLibrarySize];
@@ -888,6 +880,12 @@ SdResult Controller::sd_loadFile(uint8_t fileNum_) {
                         for (uint8_t i = 0; i < songchain::kMaxSteps; i++) chainBytes[1 + i] = static_cast<uint8_t>(data[kSongChainStepsOffset + i]);
                         songchain::decode(chainBytes, songChain);
                         song_onFileLoaded();
+                    }
+
+                    // AUTOSAVE (v2.01): the slot the auto-saved session came from.
+                    if (fileNum_ == kAutosaveFileNum) {
+                        const uint8_t slot = static_cast<uint8_t>(data[kAutosaveOriginOffset + 1]);
+                        currentFileSlot = ((data[kAutosaveOriginOffset] == 'S') && (slot >= 1) && (slot <= kFileLibrarySize)) ? static_cast<int8_t>(slot - 1) : -1;
                     }
 
                     // Metronome settings
@@ -1210,14 +1208,12 @@ SdResult Controller::sd_saveFile(uint8_t fileNum_) {
     SdResult result = SD_ERROR;
     char eof[] = "EOF";
     char fileName[50];
-    char fileNum[4];
+    char noteName[50];
 
     // 1. FILENAME CONSTRUCTION
-    // Generate the 3-digit padded filename (e.g., File_001.rws).
-    sprintf(fileNum, "%03d", (fileNum_ + 1));
-    strcpy(fileName, kFileStart);
-    strcat(fileName, fileNum);
-    strcat(fileName, kFileEnd);
+    // File_NNN.rwf / .rwn for a slot, Autosave.rwf / .rwn for kAutosaveFileNum.
+    projectFileName(fileNum_, fileName, sizeof(fileName));
+    noteFileName(fileNum_, noteName, sizeof(noteName));
     uint8_t data[kDrumkitByteSize] = {0x00};
 
     // 2. PAYLOAD ENCODING
@@ -1405,10 +1401,19 @@ SdResult Controller::sd_saveFile(uint8_t fileNum_) {
         for (uint8_t i = 0; i < songchain::kMaxSteps; i++) data[kSongChainStepsOffset + i] = chainBytes[1 + i];
     }
 
-    // 5. FILE WRITE PIPELINE
-    // Write header, drumkit block, song blocks, and EOF marker.
+    // AUTOSAVE (v2.01): the auto-save remembers which slot the session belongs to.
+    if (fileNum_ == kAutosaveFileNum) {
+        data[kAutosaveOriginOffset] = 'S';
+        data[kAutosaveOriginOffset + 1] = (currentFileSlot >= 0) ? static_cast<uint8_t>(currentFileSlot + 1) : 0;
+    }
+
+    // 5. FILE WRITE PIPELINE (crash-safe since v2.01)
+    // Write header, drumkit block, song blocks, and EOF marker to a temporary file; the notes
+    // go to a second one. Only when both are complete does the commit replace the slot's
+    // files, so a power cut mid-save never destroys the previous version.
+    sd_beginSafeSave();
     if (sd_checkFile(fileNum_) == SD_OK) {
-        if (f_open(&sd.file, fileName, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK) {
+        if (f_open(&sd.file, kSaveTempMain, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK) {
             if (sd_write(kFileRef, strlen(kFileRef)) == FR_OK) {
                 // 5.1 DRUMKIT BLOCK WRITE
                 // Stream encoded drumkit payload in 512-byte chunks.
@@ -1482,8 +1487,15 @@ SdResult Controller::sd_saveFile(uint8_t fileNum_) {
         if (f_close(&sd.file) != FR_OK) result = SD_ERROR;
 
         // TONE settings and notes go to the .rwn file next to it; losing them is a save error.
-        if ((result == SD_OK) && (sd_saveNotes(fileNum_) != SD_OK)) result = SD_ERROR;
+        bool notesWritten = false;
+        if ((result == SD_OK) && (sd_saveNotes(kSaveTempSide, notesWritten) != SD_OK)) result = SD_ERROR;
+
+        // Commit: a drum-only project has no .rwn (an old one is removed).
+        if (result == SD_OK) {
+            result = sd_commitSafeSave(fileName, noteName, notesWritten ? autosave::kSideReplace : autosave::kSideDelete);
+        }
     }
+    if (result != SD_OK) sd_beginSafeSave();  // throw away whatever a failed save left behind
 
     // 6. INPUT RESTORATION
     // Re-enable keyboard interrupts before returning to caller.
@@ -1498,14 +1510,12 @@ SdResult Controller::sd_clearFile(uint8_t fileNum_) {
     SdResult result = SD_ERROR;
     char eof[] = "EOF";
     char fileName[50];
-    char fileNum[4];
+    char noteName[50];
 
     // 1. FILENAME CONSTRUCTION
-    // Build the target path (e.g., System/File/File_001.rws).
-    sprintf(fileNum, "%03d", (fileNum_ + 1));
-    strcpy(fileName, kFileStart);
-    strcat(fileName, fileNum);
-    strcat(fileName, kFileEnd);
+    // Build the target paths (e.g., System/File/File_001.rwf / .rwn).
+    projectFileName(fileNum_, fileName, sizeof(fileName));
+    noteFileName(fileNum_, noteName, sizeof(noteName));
 
     // 2. INPUT PROTECTION + SD STATE RECOVERY
     // Lock keyboard input and ensure SDMMC is in a clean 'Ready' state.
@@ -1515,10 +1525,11 @@ SdResult Controller::sd_clearFile(uint8_t fileNum_) {
         HAL_SD_Abort(&hsd2);
     }
 
-    // 3. FILE RE-CREATION
+    // 3. FILE RE-CREATION (crash-safe since v2.01: temporary file + commit)
     // Re-create the target slot to wipe any previous project data.
+    sd_beginSafeSave();
     if (sd_checkFile(fileNum_) == SD_OK) {
-        if (f_open(&sd.file, fileName, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK) {
+        if (f_open(&sd.file, kSaveTempMain, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK) {
             // 4. HEADER WRITE
             // Write standard project signature header.
             if (sd_write(kFileRef, strlen(kFileRef)) == FR_OK) {
@@ -1577,8 +1588,9 @@ SdResult Controller::sd_clearFile(uint8_t fileNum_) {
         if (f_close(&sd.file) != FR_OK) result = SD_ERROR;
 
         // An empty slot has no notes either.
-        sd_deleteNotes(fileNum_);
+        if (result == SD_OK) result = sd_commitSafeSave(fileName, noteName, autosave::kSideDelete);
     }
+    if (result != SD_OK) sd_beginSafeSave();
 
     // 6. INPUT RESTORATION
     // Re-enable keyboard interrupts before returning to caller.
@@ -1604,18 +1616,27 @@ SdResult Controller::sd_clearFile(uint8_t fileNum_) {
 // so the file never depends on slot order. Older firmware never opens it.
 
 void Controller::noteFileName(uint8_t fileNum_, char* name_, size_t size_) {
-    snprintf(name_, size_, "%s%03u%s", kFileStart, static_cast<unsigned>(fileNum_ + 1), kNoteFileEnd);
+    if (fileNum_ == kAutosaveFileNum) {
+        snprintf(name_, size_, "%s%s", kAutosaveFileBase, kNoteFileEnd);
+    } else {
+        snprintf(name_, size_, "%s%03u%s", kFileStart, static_cast<unsigned>(fileNum_ + 1), kNoteFileEnd);
+    }
 }
 
-void Controller::sd_deleteNotes(uint8_t fileNum_) {
-    char name[50];
-    noteFileName(fileNum_, name, sizeof(name));
-    f_unlink(name);  // FR_NO_FILE is fine: there was nothing to delete
+void Controller::projectFileName(uint8_t fileNum_, char* name_, size_t size_) {
+    if (fileNum_ == kAutosaveFileNum) {
+        snprintf(name_, size_, "%s%s", kAutosaveFileBase, kFileEnd);
+    } else {
+        snprintf(name_, size_, "%s%03u%s", kFileStart, static_cast<unsigned>(fileNum_ + 1), kFileEnd);
+    }
 }
 
-SdResult Controller::sd_saveNotes(uint8_t fileNum_) {
-    /// @brief Writes the TONE settings and notes of the project. A project that uses neither
-    /// gets no note file (a stale one is removed), so drum-only projects look exactly as before.
+SdResult Controller::sd_saveNotes(const char* path_, bool& written_) {
+    /// @brief Writes the TONE settings and notes of the project to path_ (the temporary side
+    /// file of a safe save). A project that uses neither gets no note file (written_ = false;
+    /// the commit then removes a stale one), so drum-only projects look exactly as before.
+
+    written_ = false;
 
     bool needed = false;
     for (uint8_t l = 0; (l < kLayerLibrarySize) && !needed; l++) {
@@ -1633,14 +1654,10 @@ SdResult Controller::sd_saveNotes(uint8_t fileNum_) {
         }
     }
 
-    char name[50];
-    noteFileName(fileNum_, name, sizeof(name));
-    if (!needed) {
-        f_unlink(name);
-        return SD_OK;
-    }
+    if (!needed) return SD_OK;
 
-    if (f_open(&sd.file, name, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) return SD_ERROR;
+    if (f_open(&sd.file, path_, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) return SD_ERROR;
+    written_ = true;
     uint32_t errorCount = 0;
 
     if (sd_write(kNoteFileRef, strlen(kNoteFileRef)) != FR_OK) errorCount += 1;
@@ -2520,10 +2537,11 @@ SdResult Controller::sd_saveDrumkit(uint8_t kitNum_) {
         HAL_SD_Abort(&hsd2);
     }
 
-    // 5. FILE WRITE PIPELINE
+    // 5. FILE WRITE PIPELINE (crash-safe since v2.01: temporary file + commit)
     // Write header, drumkit block, and EOF marker.
+    sd_beginSafeSave();
     if (sd_checkDrumkit(kitNum_) == SD_OK) {
-        if (f_open(&sd.file, drumkitName, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK) {
+        if (f_open(&sd.file, kSaveTempMain, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK) {
             if (sd_write(kDrumkitRef, strlen(kDrumkitRef)) == FR_OK) {
                 // 5.1 DRUMKIT BLOCK WRITE
                 // Stream encoded drumkit payload in 512-byte chunks.
@@ -2565,7 +2583,9 @@ SdResult Controller::sd_saveDrumkit(uint8_t kitNum_) {
         }
         // f_close flushes the last cached sector; a failure here means the file is incomplete.
         if (f_close(&sd.file) != FR_OK) result = SD_ERROR;
+        if (result == SD_OK) result = sd_commitSafeSave(drumkitName, "", autosave::kSideKeep);
     }
+    if (result != SD_OK) sd_beginSafeSave();
 
     // 6. INPUT RESTORATION
     // Re-enable keyboard interrupts before returning to caller.
@@ -2597,10 +2617,11 @@ SdResult Controller::sd_clearDrumkit(uint8_t kitNum_) {
         HAL_SD_Abort(&hsd2);
     }
 
-    // 3. FILE RE-CREATION
+    // 3. FILE RE-CREATION (crash-safe since v2.01: temporary file + commit)
     // Re-create the target slot to wipe any previous drumkit data.
+    sd_beginSafeSave();
     if (sd_checkDrumkit(kitNum_) == SD_OK) {
-        if (f_open(&sd.file, drumkitName, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK) {
+        if (f_open(&sd.file, kSaveTempMain, FA_WRITE | FA_CREATE_ALWAYS) == FR_OK) {
             // 4. HEADER WRITE
             // Write standard drumkit signature header.
             if (sd_write(kDrumkitRef, strlen(kDrumkitRef)) == FR_OK) {
@@ -2638,7 +2659,9 @@ SdResult Controller::sd_clearDrumkit(uint8_t kitNum_) {
         }
         // f_close flushes the last cached sector; a failure here means the file is incomplete.
         if (f_close(&sd.file) != FR_OK) result = SD_ERROR;
+        if (result == SD_OK) result = sd_commitSafeSave(drumkitName, "", autosave::kSideKeep);
     }
+    if (result != SD_OK) sd_beginSafeSave();
 
     // 6. INPUT RESTORATION
     // Re-enable keyboard interrupts before returning to caller.

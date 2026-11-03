@@ -5,7 +5,7 @@ Moffe Edition is **unofficial community firmware** for the Drumboy Pro, based on
 is not affiliated with or endorsed by Randomwaves. This page collects everything that is new
 compared with the factory firmware: what each feature does and how to use it on the device.
 
-- **Current version:** v2.00 — download from the
+- **Current version:** v2.01 — download from the
   [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest);
   how to install: [README → Install](README.md#install)
 - **User manual:** published by Randomwaves at [randomwaves.io](https://www.randomwaves.io) (it
@@ -25,10 +25,19 @@ compared with the factory firmware: what each feature does and how to use it on 
 > TRANSPOSE, and the CPU meter (v1.09: CPU PEAK about 42 % with all 10 layers playing, two of them
 > TONE, and chorus, delay, reverb and both filters on); the pad keyboard and the melody generator
 > (v1.10); from v2.00, in its test builds: SYNTH layers, erasing on the EUCLID/NOTE pages, DETUNE,
-> SUB, NOISE, DRIVE, GLIDE, WAVE = SAMPLE and SLIDE. **Not yet tested on a device:** the rest of
-> v2.00 (presets, random sounds, AMP and LFO pages, PAD HOLD, VISUALS, the new look). Each
-> release says what has been tested on hardware; please report anything odd in
-> [Issues](../../issues).
+> SUB, NOISE, DRIVE, GLIDE, WAVE = SAMPLE and SLIDE; AUTOSAVE and resume (v2.01). **Not yet
+> tested on a device:** the rest of v2.00 (presets, random sounds, AMP and LFO pages, PAD HOLD,
+> VISUALS, the new look). Each release says what has been tested on hardware; please report
+> anything odd in [Issues](../../issues).
+
+## What's new in v2.01 – never lose a session
+
+| | New | What it means for you |
+|---|---|---|
+| 🛟 | **[AUTOSAVE](#10-autosave-and-resume-v201)** | The Drumboy saves your session by itself whenever you have changed something and then leave it alone for a moment (10 s when stopped, 30 s while playing; never while recording). On by default; File menu, knob 5. |
+| ⏪ | **[Resume](#10-autosave-and-resume-v201)** | After a power cut, a freeze or simply switching off: at the next power-on the Drumboy asks **RESUME LAST SESSION?** – ADD = yes, CLEAR = no. |
+| 🔒 | **[Crash-safe saving](#10-autosave-and-resume-v201)** | Every save (projects, drumkits, auto-save) now writes a complete new copy first and only then replaces the old one. A power cut in the middle of a save can no longer destroy the project you had. |
+| 📂 | **[File menu starts at your project](#10-autosave-and-resume-v201)** | LOAD / SAVE / CLEAR start at the slot of the project you are working on instead of always at FILE_001. |
 
 ## What's new in v2.00 – the big one
 
@@ -396,6 +405,7 @@ magenta:
 - **Orange** (#FF8A1F) where the factory used magenta: the **KNOB** and **SONG** labels at the
   bottom of the screen and indicators such as MUTE and the rhythm locks.
 - **Gold play button**, and the play bar in gold.
+- **Ruby** for the selected beat in Layer Song, with a wider marker, so you can always see
   where you are on the line (the layer's other beats are light gold).
 - **Boot screen:** MOFFE in gold with a deep ruby drop shadow, a gold rim on the sunglasses, and
   a gold line under a ruby EDITION (see [the boot screen](#2-moffe-edition-boot-screen-v104)).
@@ -405,6 +415,52 @@ Nothing to install for it: the firmware repaints the parts of the SD card's pane
 were coloured, so any card works. The factory test screens keep their original colours. For
 developers: the colours are `kAccentColor`, `kAccent2Color` and `kLayerSelectedColor` in the
 app's `Global.h`.
+
+---
+
+## 10. AUTOSAVE and resume (v2.01)
+
+Pull the plug, trip over the cable, or have the Drumboy freeze: your session is still there.
+
+**How it works**
+- Whenever you have **changed something** (any key or knob) and then **leave the Drumboy alone**
+  for a moment, it saves the whole session to the SD card by itself:
+  - **stopped:** after 10 seconds without touching anything;
+  - **playing:** after 30 seconds without touching anything (a save pauses the screen and the
+    buttons for a split second, the music keeps playing);
+  - **never while recording**, never while a question is on the screen, and at most every 30
+    seconds.
+- The auto-save is its own file, `System/File/Autosave.rwf` (and `.rwn` for notes and synth
+  sounds). It **never overwrites your projects** FILE_001…FILE_100 – those change only when you
+  press SAVE yourself.
+- At the next **power-on** the Drumboy asks **RESUME LAST SESSION?**
+  - **ADD = yes:** the auto-saved session is loaded, exactly as it was (it does not start
+    playing). SAVE in the File menu then offers the slot the project came from.
+  - **CLEAR = no:** you start fresh. The question is not asked again until something new has been
+    auto-saved.
+- It asks instead of loading by itself on purpose: if a project ever made the Drumboy freeze,
+  it would otherwise freeze again at every start.
+
+**Turning it off:** File menu, **knob 5 AUTOSAVE**: right = ON (the default), left = OFF. The
+setting is remembered.
+
+**Crash-safe saving.** Every save – SAVE and CLEAR in the File and Drumkit menus and the
+auto-save – first writes a complete new copy (`System/Save.tmf`, `Save.tmn`), then a small note
+saying where it goes (`System/Save.cmt`), and only then replaces the old file. If the power goes
+during a save, the Drumboy finishes it or throws the half-written copy away at the next power-on:
+you always get either the old version or the new one, never a broken file. (Before v2.01 a save
+wrote straight over the old file.) These three files can appear on the card for a moment; you
+can ignore them.
+
+**File menu starts at your project.** After LOAD or SAVE (or resuming), the LOAD, SAVE and CLEAR
+tabs start at that project's slot instead of FILE_001, so saving again is one press.
+
+**Good to know**
+- The auto-save holds what the project files hold: beats, notes, sounds, effects, tempo, song
+  mode. Global settings (mixer volumes, metronome, MIDI) are saved separately, as before.
+- After a freeze you get the last auto-save: what you did in the last seconds before it, or a
+  recording that was running, may be missing.
+- The factory firmware and older Moffe versions ignore the new files.
 
 ---
 
@@ -453,6 +509,7 @@ app's `Global.h`.
 | v1.09 | Melody layers (TONE) on the NOTE page; audio CPU meter in the IO menu |
 | v1.10 | Pads as a scale keyboard (step entry, live recording); melody generator and variations |
 | **v2.00** | **SYNTH layers**: a built-in synth voice (saw, square, triangle, sine or single-cycle WAVs; DETUNE, SUB, NOISE, DRIVE, four filter types, AMP envelope, LFO page, SLIDE and GLIDE), 66 presets in alphabetical order + 16 USER slots, random sounds and variations, PAD HOLD (also when recording), the synth sound's name in the track list, synth sounds in drumkits and the instrument copy. **VISUALS**: 13 full-screen music visuals in seven colour themes. **The Moffe Edition look**: gold and orange, new boot screen. **NOTE page**: pads only play while stopped (ADD + pad = step entry), wider octave range. (Test builds v1.11–v1.14 led up to it; they were not released.) |
+| **v2.01** | **AUTOSAVE** (File menu, knob 5) and **RESUME LAST SESSION?** at power-on; **crash-safe saving** for projects and drumkits; the File menu starts at the current project's slot. |
 
 ## Coming next
 
@@ -467,10 +524,10 @@ The step-by-step guide (which file to download, where to put it, what the screen
 to do if something goes wrong) is in the **[README → Install](README.md#install)**. In short:
 
 1. Back up the whole SD card.
-2. Download `Drumboy_Pro_Fw_Moffe_02_00.bin` from the
+2. Download `Drumboy_Pro_Fw_Moffe_02_01.bin` from the
    [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest).
 3. Copy it, with its exact name, to the root of the card as the only `Drumboy_Pro_Fw…bin` there.
-4. Power on: *UPDATING FIRMWARE V2.00* → *FIRMWARE UPDATED* → sunglasses.
+4. Power on: *UPDATING FIRMWARE V2.01* → *FIRMWARE UPDATED* → sunglasses.
 
 **Roll back:** install `Drumboy_Pro_Fw_01_01.bin` (factory, in the release Assets and in
 `02 Software/Firmware/`) the same way. The bootloader accepts any version, older or newer.

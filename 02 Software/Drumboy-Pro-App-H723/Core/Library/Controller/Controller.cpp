@@ -340,6 +340,7 @@ void Controller::initialize() {
         loadSystemPreset();   // Restore Global settings
         loadEncoderPreset();  // Restore last-used knob values
         sd_loadSynthUser();   // USER 01..16 synth sounds (none yet = all empty)
+        sd_recoverSave();     // v2.01: finish / discard a save a power cut interrupted
 
         // 4. Enable Global Communication Protocols
         HAL_HalfDuplex_EnableReceiver(&huart1);  // MIDI In (Interrupt)
@@ -351,6 +352,9 @@ void Controller::initialize() {
         menu = GLOBAL_MENU;
         startPlayTimer();       // Start the main Sequencer Heartbeat
         startMidiClockTimer();  // Start the midi Sequencer Heartbeat
+
+        // 6. AUTOSAVE (v2.01): offer to resume the last session (ADD = yes, CLEAR = no).
+        autosave_askResume();
     }
 }
 
@@ -470,6 +474,9 @@ void Controller::update() {
         // Commit dirty preset data to storage.
         if (systemPresetSaveFlag) saveSystemPreset();
         if (encoderPresetSaveFlag) saveEncoderPreset();
+
+        // AUTOSAVE (v2.01): save the session after a quiet spell when it has changed.
+        autosave_service();
 
         // 8. CLIPBOARD OPERATIONS (LFO)
         // Handle copy, paste, and reset actions for LFO data.

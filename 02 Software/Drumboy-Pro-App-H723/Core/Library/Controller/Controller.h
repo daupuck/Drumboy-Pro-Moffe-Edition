@@ -1239,9 +1239,30 @@ class Controller {
     void lcd_drawNoteStrip();
     void lcd_redrawNotePage();
     void noteFileName(uint8_t fileNum_, char* name_, size_t size_);
-    SdResult sd_saveNotes(uint8_t fileNum_);
+    void projectFileName(uint8_t fileNum_, char* name_, size_t size_);  // .rwf; kAutosaveFileNum = the auto-save
+    SdResult sd_saveNotes(const char* path_, bool& written_);
     void sd_loadNotes(uint8_t fileNum_);
-    void sd_deleteNotes(uint8_t fileNum_);
+
+    /* AUTOSAVE + crash-safe saving (v2.01, ControllerAutosave.cpp) ------- */
+
+    bool autosaveEnabled = true;       // File menu knob 5, kept in System.rwp
+    bool autosavePending = false;      // an auto-save waits to be resumed (System.rwp)
+    bool autosaveDirty = false;        // changed since the last auto-save
+    bool autosaveSavedOnce = false;
+    uint32_t autosaveLastInput = 0;
+    uint32_t autosaveLastSave = 0;
+    int8_t currentFileSlot = -1;       // project slot the session came from / was saved to
+    void autosave_noteInput();
+    void autosave_service();           // main loop
+    void autosave_setEnabled(bool on_);
+    void autosave_askResume();         // end of boot
+    void autosave_answerResume(bool yes_);
+    void autosave_writePending(bool pending_);
+    void lcd_drawFile_AutosaveData();
+    void sd_beginSafeSave();           // finishes / discards an earlier save, clears the temp files
+    SdResult sd_commitSafeSave(const char* main_, const char* side_, uint8_t sideMode_);
+    bool sd_applyCommit();
+    void sd_recoverSave();             // power-on
 
     /* Audio CPU Meter -------------------------------------- */
 

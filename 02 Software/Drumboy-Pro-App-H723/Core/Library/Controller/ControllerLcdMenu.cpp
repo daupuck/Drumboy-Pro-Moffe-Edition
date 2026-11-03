@@ -878,6 +878,7 @@ void Controller::lcd_drawFileMenu() {
     lcd.drawText(kHeaderLoad, kMenuHeaderTextSize, kMenuHeaderX[1], kMenuHeaderY[1]);
     lcd.drawText(kHeaderSave, kMenuHeaderTextSize, kMenuHeaderX[2], kMenuHeaderY[2]);
     lcd.drawText(kHeaderClear, kMenuHeaderTextSize, kMenuHeaderX[3], kMenuHeaderY[3]);
+    lcd.drawText(kHeaderAutosave, kMenuHeaderTextSize, kMenuHeaderX[4], kMenuHeaderY[4]);
 
     // 4. SIGN/UNIT DRAW
     // Draw unit/sign text for each parameter slot.
@@ -886,6 +887,7 @@ void Controller::lcd_drawFileMenu() {
     lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[1], kMenuSignBoxY[1]);
     lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[2], kMenuSignBoxY[2]);
     lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[3], kMenuSignBoxY[3]);
+    lcd.drawText("   ", kMenuSignTextSize, kMenuSignBoxX[4], kMenuSignBoxY[4]);
 
     // 5. DATA DRAW
     // Draw tab-dependent data for all operation rows.
@@ -893,6 +895,14 @@ void Controller::lcd_drawFileMenu() {
     lcd_drawFile_LoadData();
     lcd_drawFile_SaveData();
     lcd_drawFile_ClearData();
+    lcd_drawFile_AutosaveData();
+}
+
+void Controller::lcd_drawFile_AutosaveData() {
+    /// @brief Draws AUTOSAVE on/off (File menu, knob 5; v2.01).
+
+    lcd_setMenuDataState(WHITE);
+    lcd.drawText(autosaveEnabled ? kDataOn : kDataOff, kMenuDataTextSize, kMenuDataX[4], kMenuDataY[4]);
 }
 
 void Controller::lcd_drawFile_NewData() {

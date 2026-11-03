@@ -681,6 +681,14 @@ void Controller::lcd_drawAlert() {
         case ALERT_MISSINGSAMPLES:
             alertText = kAlertTextMissingSamples;
             break;
+
+        case ALERT_RESUME:
+            alertText = kAlertTextResume;
+            break;
+
+        default:
+            alertText = "";
+            break;
     }
     // 4. ALERT TEXT DRAW
     // Render resolved message at alert center.

@@ -63,7 +63,7 @@ void Controller::loadSystemPreset() {
 
                         // 7. SAMPLE PREVIEW (v1.05+). Files written by older firmware hold
                         // unrelated bytes here, so anything out of range falls back to defaults.
-                        if (systemPresetBytes >= kSystemPresetDataSize) {
+                        if (systemPresetBytes >= kSystemPresetPreviewSize) {
                             const uint8_t previewByte = dataSystemPreset[21];
                             const uint8_t levelByte = dataSystemPreset[22];
                             previewActive = (previewByte <= 1) ? (previewByte == 1) : kInitialPreviewActive;
@@ -73,6 +73,16 @@ void Controller::loadSystemPreset() {
                             previewLevel = kInitialPreviewLevel;
                         }
                         previewPlay.gain = kNumberDataLibrary[previewLevel].powMultiplier;
+
+                        // 8. AUTOSAVE (v2.01): on/off and "a session waits to be resumed". Tagged
+                        // bytes, so whatever older firmware left here reads as ON / nothing pending.
+                        if (systemPresetBytes >= kSystemPresetDataSize) {
+                            autosaveEnabled = autosave::decodeEnabled(static_cast<uint8_t>(dataSystemPreset[23]));
+                            autosavePending = autosave::decodePending(static_cast<uint8_t>(dataSystemPreset[24]));
+                        } else {
+                            autosaveEnabled = autosave::kDefaultEnabled;
+                            autosavePending = false;
+                        }
 
                         // Enable persistence engine for future change tracking.
                         systemPresetSaveActive = true;
@@ -132,6 +142,10 @@ void Controller::saveSystemPreset() {
             // Sample preview (v1.05+)
             dataSystemPreset[21] = (uint8_t)previewActive;
             dataSystemPreset[22] = previewLevel;
+
+            // AUTOSAVE (v2.01)
+            dataSystemPreset[23] = static_cast<char>(autosave::encodeEnabled(autosaveEnabled));
+            dataSystemPreset[24] = static_cast<char>(autosavePending ? autosave::kPendingMark : 0);
 
             // 4. SD CARD WRITE
             // Seek payload offset and write serialized preset data.
@@ -309,8 +323,8 @@ void Controller::file_menuRight() {
     (menuTab < kMaxMenu4Tab) ? menuTab += 1 : menuTab = kMinMenu4Tab;
 
     // 2. FILE SLOT RESET & STATUS CHECK
-    // Reset slot cursor and evaluate selected file slot status.
-    fileMenuCounter = 0;
+    // Start at the slot of the current project (v2.01; slot 1 when there is none).
+    fileMenuCounter = (currentFileSlot >= 0) ? currentFileSlot : 0;
     sd_checkFile(fileMenuCounter);
 
     // 3. UI TRANSITION
@@ -358,8 +372,8 @@ void Controller::file_menuLeft() {
     (menuTab > kMinMenu4Tab) ? menuTab -= 1 : menuTab = kMaxMenu4Tab;
 
     // 2. FILE SLOT RESET & STATUS CHECK
-    // Reset slot cursor and evaluate selected file slot status.
-    fileMenuCounter = 0;
+    // Start at the slot of the current project (v2.01; slot 1 when there is none).
+    fileMenuCounter = (currentFileSlot >= 0) ? currentFileSlot : 0;
     sd_checkFile(fileMenuCounter);
 
     // 3. UI TRANSITION
@@ -525,6 +539,9 @@ void Controller::file_newAction() {
     effect_reset(0);
     effect_reset(1);
     reverb_reset();
+
+    // 7. A new project belongs to no slot yet (v2.01).
+    currentFileSlot = -1;
 }
 
 void Controller::file_loadSelect() {
@@ -582,6 +599,7 @@ void Controller::file_loadAction() {
     // 4. TRANSACTION FLAG RESTORE
     // Release load-in-progress flag after SD transaction completes.
     loadAction = false;
+    currentFileSlot = fileMenuCounter;  // v2.01: SAVE and AUTOSAVE now belong to this slot
 
     // 5. RESULT ALERT PRESENTATION
     // Display result alert and keep it visible for user acknowledgment.
@@ -627,6 +645,7 @@ void Controller::file_saveAction() {
     // 4. TRANSACTION FLAG RESTORE
     // Release save-in-progress flag after SD transaction completes.
     saveAction = false;
+    if (alertType == ALERT_SAVESUCCESS) currentFileSlot = fileMenuCounter;  // v2.01
 
     // 5. STATUS & LIBRARY REFRESH
     // Re-evaluate slot status and refresh indexed file library cache.
