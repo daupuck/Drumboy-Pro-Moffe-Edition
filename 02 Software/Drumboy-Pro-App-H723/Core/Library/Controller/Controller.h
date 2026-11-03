@@ -1220,9 +1220,13 @@ class Controller {
     void visual_sceneStepGrid(bool init_);
     void visual_sceneOrbit(bool init_);
     void visual_sceneSpectro(bool init_);
-    void visual_sceneTunnel(bool init_);
+    void visual_sceneGeiss(bool init_);
+    void visual_sceneMilk(bool init_);
+    void visual_sceneRobot(bool init_);
+    void visual_sceneCrowd(bool init_);
+    void visual_scenePiano(bool init_);
+    void visual_sceneKeyWheel(bool init_);
     void visual_sceneMandala(bool init_);
-    void visual_sceneDisco(bool init_);
     void visual_sceneRidges(bool init_);
     void visual_sceneLife(bool init_);
     void synth_captureUndo();

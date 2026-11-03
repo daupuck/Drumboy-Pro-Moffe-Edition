@@ -21,8 +21,8 @@
 /* Application Version -------------------------------------------------------*/
 ////////////////////////////////////////////////////////////////////////////////
 
-const uint8_t kVersionMajor                         = 0x02;  // v2.06: retro + crazy VISUALS (CLASSIC, MOUTH, EYEBALLS, ...)
-const uint8_t kVersionMinor                         = 0x06;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMajor                         = 0x02;  // v2.07: VISUALS batch 2 (GEISS, MILK TUNNEL, ROBOT DJ, ...)
+const uint8_t kVersionMinor                         = 0x07;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/

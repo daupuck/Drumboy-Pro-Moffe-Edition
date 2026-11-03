@@ -1624,6 +1624,38 @@ void Lcd::clearRect(uint16_t x, uint16_t y, uint32_t w, uint32_t h) {
     }
 }
 
+void Lcd::drawIndexedScaled(const uint8_t* pixels, const RGB16Color* palette, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t scale) {
+    if (muted) return;  // visuals mode: the normal UI must not draw over it
+    /// @brief v2.06 VISUALS: draws an 8-bit indexed buffer (w x h) through a 256-colour palette,
+    /// every pixel as a scale x scale block, in one pass. A pixel's colour is put on the bus once
+    /// and strobed `scale` times, so a full-screen frame costs one bus write per screen pixel.
+
+    if ((scale == 0) || (w == 0) || (h == 0)) return;
+    const uint32_t wOut = static_cast<uint32_t>(w) * scale;
+    const uint32_t hOut = static_cast<uint32_t>(h) * scale;
+    if ((x + wOut > width) || (y + hOut > height)) return;
+    setAddressWindow(x, y, static_cast<uint16_t>(x + wOut - 1), static_cast<uint16_t>(y + hOut - 1));
+    LCD_CS_LOW;
+    LCD_RS_DATA;
+    volatile uint32_t* dataReg = &(LCD_DATA_GPIO_Port->ODR);
+    volatile uint32_t* wrReg = &(LCD_WR_GPIO_Port->BSRR);
+    const uint32_t wrSet = LCD_WR_Pin;
+    const uint32_t wrReset = LCD_WR_Pin << 16U;
+    for (uint16_t row = 0; row < h; row++) {
+        const uint8_t* line = pixels + (static_cast<uint32_t>(row) * w);
+        for (uint8_t rep = 0; rep < scale; rep++) {
+            for (uint16_t col = 0; col < w; col++) {
+                *dataReg = palette[line[col]];
+                for (uint8_t s = 0; s < scale; s++) {
+                    *wrReg = wrReset;
+                    *wrReg = wrSet;
+                }
+            }
+        }
+    }
+    LCD_CS_HIGH;
+}
+
 void Lcd::drawRGB16Image(const RGB16Color* indexPtr, const uint8_t* pixelPtr, uint8_t indexSize, uint16_t x, uint16_t y, uint16_t w, uint16_t h) {
     if (muted) return;  // visuals mode: the normal UI must not draw over it
     /// @brief Draws an indexed RGB565 image.

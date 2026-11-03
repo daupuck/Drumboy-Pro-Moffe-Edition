@@ -122,6 +122,8 @@ class Lcd {
     /* Image Drawing Functions ----------------------------------- */
 
     void drawRGB16Image(const RGB16Color* indexPtr, const uint8_t* pixelPtr, uint8_t indexSize, uint16_t x, uint16_t y, uint16_t w, uint16_t h);
+    // v2.06 VISUALS (GEISS, MILK TUNNEL): an 8-bit buffer through a palette, scaled up in blocks.
+    void drawIndexedScaled(const uint8_t* pixels, const RGB16Color* palette, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint8_t scale);
     void drawRGB16Image(const RGB16Color* indexPtr, const uint8_t* pixelPtr, uint8_t indexSize, uint8_t alpha, uint16_t x, uint16_t y, uint16_t w, uint16_t h);
     void drawRGB16ImagePartial(const RGB16Color* indexPtr, const uint8_t* pixelPtr, uint8_t indexSize, uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t xStart, uint16_t xWidth);
     void drawRGB24Image(const RGB24RawColor* indexPtr, const uint8_t* pixelPtr, uint8_t indexSize, uint16_t x, uint16_t y, uint16_t w, uint16_t h);

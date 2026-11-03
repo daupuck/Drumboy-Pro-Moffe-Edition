@@ -31,13 +31,17 @@ constexpr int16_t kHintH = 12;          // top band reserved for the hint line
 constexpr uint32_t kFrameMs = 33;       // ~30 frames per second
 constexpr uint32_t kHintMs = 3500;
 
-// v2.06: Winamp-era classics, crazy characters and retro demo styles.
+// v2.06/v2.07: media-player classics, crazy characters, retro demo styles and music views.
 enum Scene : uint8_t {
-    SC_CLASSIC = 0, SC_SHOWTIME, SC_SUPERSCOPE, SC_MOUTH, SC_EYEBALLS, SC_SPEAKER, SC_DEMO, SC_SUNSET,
-    SC_STEPGRID, SC_SPECTRO, SC_TUNNEL, SC_KALEIDO, SC_ORBIT, SC_DISCO, SC_RIDGES, SC_LIFE, kSceneCount
+    SC_CLASSIC = 0, SC_SHOWTIME, SC_SUPERSCOPE, SC_GEISS, SC_MILK, SC_MOUTH, SC_EYEBALLS, SC_SPEAKER, SC_ROBOT, SC_CROWD,
+    SC_DEMO, SC_SUNSET, SC_STEPGRID, SC_PIANO, SC_KEYWHEEL, SC_SPECTRO, SC_KALEIDO, SC_ORBIT, SC_RIDGES, SC_LIFE, kSceneCount
 };
-const char* const kSceneNames[kSceneCount] = {"CLASSIC", "SHOWTIME", "SUPERSCOPE", "MOUTH", "EYEBALLS", "SPEAKER", "DEMO SCENE", "SUNSET DRIVE",
-                                              "STEP GRID", "SPECTRO", "TUNNEL", "KALEIDO", "ORBIT", "DISCO", "RIDGES", "LIFE"};
+const char* const kSceneNames[kSceneCount] = {"CLASSIC", "SHOWTIME", "SUPERSCOPE", "GEISS", "MILK TUNNEL", "MOUTH", "EYEBALLS", "SPEAKER",
+                                              "ROBOT DJ", "DISCO CROWD", "DEMO SCENE", "SUNSET DRIVE", "STEP GRID", "PIANO ROLL", "KEY WHEEL",
+                                              "SPECTRO", "KALEIDO", "ORBIT", "RIDGES", "LIFE"};
+// GEISS and MILK TUNNEL draw a 160 x 88 buffer as 6 x 6 blocks under the hint band.
+constexpr int kPixW = 160, kPixH = 88, kPixScale = 6, kPixY = 12;
+constexpr uint16_t kRollNotes = 200;  // PIANO ROLL
 constexpr uint8_t kThemeCount = 9;
 const char* const kThemeNames[kThemeCount] = {"GOLD RUSH", "SYNTHWAVE", "ACID", "OCEAN", "FIRE", "ICE", "RAINBOW", "WINAMP", "C64"};
 const uint8_t kThemeBase[kThemeCount] = {20, 213, 60, 110, 0, 140, 0, 85, 150};   // GOLD RUSH: orange to gold
@@ -61,8 +65,6 @@ constexpr uint8_t kDemoStars = 48;
 constexpr uint8_t kSunRows = 150;       // SUNSET DRIVE: rows above the horizon the sun can cover
 constexpr uint8_t kTwinkles = 28;
 constexpr uint8_t kRipples = 12;
-constexpr uint8_t kRings = 16;
-constexpr uint8_t kStars = 90;
 constexpr uint8_t kFloorLines = 6;
 constexpr uint8_t kFloorVerticals = 17;
 constexpr int16_t kNone = 0x7FFF;
@@ -85,17 +87,25 @@ struct Spoke {
     int16_t x0, y0, x1, y1;
     uint8_t life;
 };
-struct Ring {
-    float s;
-    int16_t x, y, w, h;
-    uint16_t c;
-    bool on, drawn, bold;
+struct RollNote {  // PIANO ROLL
+    uint16_t start, len;
+    int8_t semis;
+    uint8_t layer, drawn;
+    bool outline;
+    float flash;
 };
-struct Star {
-    float x, y, z;
-    int16_t sx, sy;
-    uint8_t size;
-    bool drawn;
+// The pixel buffers of GEISS (two frames) and MILK TUNNEL (tables + output) share memory.
+union PixelBuffers {
+    struct {
+        uint8_t a[kPixW * kPixH];
+        uint8_t b[kPixW * kPixH];
+    } g;
+    struct {
+        uint8_t dist[kPixW * kPixH];
+        uint8_t angle[kPixW * kPixH];
+        uint8_t shade[kPixW * kPixH];
+        uint8_t out[kPixW * kPixH];
+    } t;
 };
 
 struct Spark {
@@ -194,11 +204,37 @@ struct State {
     // SPECTRO
     uint16_t col;
     uint32_t lastBeatIdx;
-    // TUNNEL
-    Ring rings[kRings];
-    Star stars[kStars];
-    uint32_t lastStep, lastSpawnMs, ringCounter;
+    // Shared timers / glow
+    uint32_t lastStep, lastSpawnMs;
     int16_t glowR;
+    // GEISS / MILK TUNNEL (v2.07)
+    PixelBuffers pix;
+    uint16_t pal[256];
+    uint8_t gFlip;
+    float gTime, gFlash, tShift, tRot;
+    // ROBOT DJ
+    uint8_t eqSeg[8];
+    int16_t headY, arm[2][6], laser[2][4];
+    bool armDrawn[2];
+    uint8_t laserLife[2], scratch, armsUp;
+    float platAngle;
+    // DISCO CROWD
+    float diverX;
+    int16_t diverDX;
+    bool diverOn, diverDrawn;
+    // PIANO ROLL
+    RollNote roll[kRollNotes];
+    uint16_t rollCount;
+    uint32_t rollSig;
+    int16_t rollLo, rollHi, rollHead;
+    int8_t rollTr;
+    uint8_t rollBanner;
+    // KEY WHEEL
+    uint8_t wheelLit[24];
+    float needleA;
+    int16_t needle[4];
+    bool needleDrawn;
+    char keyText[64];
     // SPEAKER glitter
     Spark sparks[kGlitter];
     // MANDALA
@@ -496,7 +532,8 @@ void Controller::visual_service() {
     }
     visual_analyze();
     visual_drawScene();
-    if (visualOverlay && ((visualFrame % 6) == 0)) visual_drawOverlay();
+    // (GEISS and MILK TUNNEL repaint the whole screen every frame, so the overlay goes on top each time.)
+    if (visualOverlay && (((visualFrame % 6) == 0) || (visualScene == SC_GEISS) || (visualScene == SC_MILK))) visual_drawOverlay();
 
     // Hint line: what this is and how to steer it, for a few seconds after any change.
     if (!visualHintShown && (static_cast<int32_t>(visualHintUntil - now) > 0)) {
@@ -599,17 +636,21 @@ void Controller::visual_runScene(bool init_) {
         case SC_CLASSIC: visual_sceneClassic(init_); break;
         case SC_SHOWTIME: visual_sceneShowtime(init_); break;
         case SC_SUPERSCOPE: visual_sceneSuperscope(init_); break;
+        case SC_GEISS: visual_sceneGeiss(init_); break;
+        case SC_MILK: visual_sceneMilk(init_); break;
         case SC_MOUTH: visual_sceneMouth(init_); break;
         case SC_EYEBALLS: visual_sceneEyeballs(init_); break;
         case SC_SPEAKER: visual_sceneSpeaker(init_); break;
+        case SC_ROBOT: visual_sceneRobot(init_); break;
+        case SC_CROWD: visual_sceneCrowd(init_); break;
         case SC_DEMO: visual_sceneDemo(init_); break;
         case SC_SUNSET: visual_sceneSunset(init_); break;
         case SC_STEPGRID: visual_sceneStepGrid(init_); break;
+        case SC_PIANO: visual_scenePiano(init_); break;
+        case SC_KEYWHEEL: visual_sceneKeyWheel(init_); break;
         case SC_SPECTRO: visual_sceneSpectro(init_); break;
-        case SC_TUNNEL: visual_sceneTunnel(init_); break;
         case SC_KALEIDO: visual_sceneMandala(init_); break;
         case SC_ORBIT: visual_sceneOrbit(init_); break;
-        case SC_DISCO: visual_sceneDisco(init_); break;
         case SC_RIDGES: visual_sceneRidges(init_); break;
         default: visual_sceneLife(init_); break;
     }
@@ -889,121 +930,6 @@ void Controller::visual_sceneSpectro(bool init_) {
     box(d, kX0 + (s.col * 3), kBottom - (64 * kCell), 2, 64 * kCell, WHITE);  // the write head
 }
 
-void Controller::visual_sceneTunnel(bool init_) {
-    /// @brief Flying through a tunnel of frames, one per eighth note (a bold one on each bar),
-    /// through a starfield whose speed follows the music.
-
-    State& s = vs;
-    Lcd& d = lcd;
-    const uint8_t t = visualTheme;
-    constexpr int kCx = 480, kCy = 276;
-
-    if (init_) {
-        for (uint8_t i = 0; i < kRings; i++) s.rings[i].on = false;
-        for (uint8_t i = 0; i < kStars; i++) {
-            Star& st = s.stars[i];
-            st.x = static_cast<float>(s.rng.range(-1000, 1000)) / 1000.0f;
-            st.y = static_cast<float>(s.rng.range(-1000, 1000)) / 1000.0f;
-            st.z = static_cast<float>(s.rng.range(100, 1000)) / 1000.0f;
-            st.drawn = false;
-        }
-        s.lastStep = s.step8;
-        s.lastSpawnMs = HAL_GetTick();
-        s.glowR = 0;
-        return;
-    }
-
-    // Spawn: on every eighth note while playing; on bass hits (or a slow pulse) when stopped.
-    const uint32_t now = HAL_GetTick();
-    bool spawn = false;
-    bool bold = false;
-    if (s.playing) {
-        if (s.step8 != s.lastStep) {
-            spawn = true;
-            const uint32_t eighthsPerBar = 2u * ((rhythm.measure > 0) ? rhythm.measure : 4u);
-            bold = (s.step8 % eighthsPerBar) == 0;
-            s.lastStep = s.step8;
-        }
-    } else if ((((now - s.lastSpawnMs) > 150) && (s.bass > 0.55f)) || ((now - s.lastSpawnMs) > 600)) {
-        spawn = true;
-    }
-    if (spawn) {
-        s.lastSpawnMs = now;
-        for (uint8_t i = 0; i < kRings; i++) {
-            Ring& r = s.rings[i];
-            if (r.on) continue;
-            r.on = true;
-            r.drawn = false;
-            r.s = 6.0f;
-            r.bold = bold;
-            r.c = bold ? WHITE : themeColor(t, s.ringCounter * 23u);
-            s.ringCounter++;
-            break;
-        }
-    }
-
-    // Frames: erase, grow (faster when it is loud), draw.
-    const float grow = 1.06f + (s.energy * 0.08f);
-    for (uint8_t i = 0; i < kRings; i++) {
-        Ring& r = s.rings[i];
-        if (!r.on) continue;
-        if (r.drawn) {
-            d.setForeColor(BLACK);
-            d.drawRect(static_cast<uint16_t>(r.x), static_cast<uint16_t>(r.y), static_cast<uint32_t>(r.w), static_cast<uint32_t>(r.h));
-            if (r.bold && (r.w > 8) && (r.h > 8)) d.drawRect(static_cast<uint16_t>(r.x + 3), static_cast<uint16_t>(r.y + 3), static_cast<uint32_t>(r.w - 6), static_cast<uint32_t>(r.h - 6));
-        }
-        r.s *= grow;
-        const int w = static_cast<int>(r.s * 1.78f);
-        const int h = static_cast<int>(r.s);
-        if ((w >= kW - 4) || (h >= kH - 4)) {
-            r.on = false;
-            continue;
-        }
-        r.x = static_cast<int16_t>(kCx - (w / 2));
-        r.y = static_cast<int16_t>(kCy - (h / 2));
-        r.w = static_cast<int16_t>(w);
-        r.h = static_cast<int16_t>(h);
-        const uint8_t v = static_cast<uint8_t>(90 + ((r.s * 0.6f > 165.0f) ? 165.0f : (r.s * 0.6f)));
-        d.setForeColor(vis::dim(r.c, v));
-        d.drawRect(static_cast<uint16_t>(r.x), static_cast<uint16_t>(r.y), static_cast<uint32_t>(r.w), static_cast<uint32_t>(r.h));
-        if (r.bold && (w > 8) && (h > 8)) d.drawRect(static_cast<uint16_t>(r.x + 3), static_cast<uint16_t>(r.y + 3), static_cast<uint32_t>(w - 6), static_cast<uint32_t>(h - 6));
-        r.drawn = true;
-    }
-
-    // Stars: closer = bigger and brighter.
-    const float speed = 0.006f + (s.energy * 0.05f) + (s.bass * 0.02f);
-    for (uint8_t i = 0; i < kStars; i++) {
-        Star& st = s.stars[i];
-        if (st.drawn) box(d, st.sx, st.sy, st.size, st.size, BLACK);
-        st.drawn = false;
-        st.z -= speed;
-        if (st.z <= 0.04f) {
-            st.x = static_cast<float>(s.rng.range(-1000, 1000)) / 1000.0f;
-            st.y = static_cast<float>(s.rng.range(-1000, 1000)) / 1000.0f;
-            st.z = 1.0f;
-            continue;
-        }
-        const int sx = kCx + static_cast<int>((st.x / st.z) * 260.0f);
-        const int sy = kCy + static_cast<int>((st.y / st.z) * 160.0f);
-        if ((sx < 0) || (sx >= kW - 4) || (sy < kHintH) || (sy >= kH - 4)) {
-            st.z = 1.0f;
-            continue;
-        }
-        st.sx = static_cast<int16_t>(sx);
-        st.sy = static_cast<int16_t>(sy);
-        st.size = static_cast<uint8_t>(1 + ((1.0f - st.z) * 3.0f));
-        const uint8_t g = static_cast<uint8_t>((1.0f - st.z) * 255.0f);
-        box(d, sx, sy, st.size, st.size, vis::rgb(g, g, g));
-        st.drawn = true;
-    }
-
-    // The light at the end of the tunnel.
-    const int16_t glow = static_cast<int16_t>(3 + (s.bass * 14.0f));
-    if (glow < s.glowR) disc(d, kCx, kCy, s.glowR, BLACK);
-    disc(d, kCx, kCy, glow, themeColor(t, visualFrame * 2u));
-    s.glowR = glow;
-}
-
 void Controller::visual_sceneMandala(bool init_) {
     /// @brief A kaleidoscope: the waveform (outer ring) and the spectrum (inner ring) mirrored
     /// into eight wedges around the centre, slowly turning; louder = wider and faster.
@@ -1066,79 +992,6 @@ void Controller::visual_sceneMandala(bool init_) {
     if (glow < s.glowR) disc(d, kCx, kCy, s.glowR, BLACK);
     disc(d, kCx, kCy, glow, WHITE);
     s.glowR = glow;
-}
-
-void Controller::visual_sceneDisco(bool init_) {
-    /// @brief A light-up dance floor: patterns flash on every eighth note (a checkerboard on each
-    /// bar), every hit lights a tile in its layer's part of the floor, and tiles fade out.
-
-    State& s = vs;
-    Lcd& d = lcd;
-    const uint8_t t = visualTheme;
-    constexpr uint8_t kTiles = kDiscoCols * kDiscoRows;
-    const uint16_t dark = vis::rgb(18, 18, 26);
-    auto tileBox = [&](uint8_t i, uint16_t c) { box(d, ((i % kDiscoCols) * 60) + 2, 40 + ((i / kDiscoCols) * 60) + 2, 56, 56, c); };
-
-    if (init_) {
-        for (uint8_t i = 0; i < kTiles; i++) {
-            s.tileLvl[i] = 0.0f;
-            s.tileDrawn[i] = 0;
-            s.tileHue[i] = 0;
-            tileBox(i, dark);
-        }
-        s.lastStep = s.step8;
-        s.lastSpawnMs = HAL_GetTick();
-        return;
-    }
-
-    auto light = [&](uint8_t i, float lvl, uint8_t hue) {
-        if (lvl > s.tileLvl[i]) {
-            s.tileLvl[i] = lvl;
-            s.tileHue[i] = hue;
-        }
-    };
-    const uint32_t now = HAL_GetTick();
-    bool step = false;
-    if (s.playing) {
-        step = (s.step8 != s.lastStep);
-    } else {
-        step = ((now - s.lastSpawnMs) > 400) || (((now - s.lastSpawnMs) > 150) && (s.bass > 0.6f));
-    }
-    if (step) {
-        s.lastStep = s.step8;
-        s.lastSpawnMs = now;
-        const uint8_t hue = static_cast<uint8_t>(s.step8 * 19u);
-        if (s.barStart && ((s.step8 & 1u) == 0)) {  // the bar: a checkerboard
-            for (uint8_t i = 0; i < kTiles; i++) {
-                if ((((i % kDiscoCols) + (i / kDiscoCols) + (s.beatIdx / 4u)) & 1u) == 0) light(i, 1.0f, hue);
-            }
-        } else {
-            switch (s.step8 % 4) {
-                case 0:  // a column sweeps across
-                    for (uint8_t r = 0; r < kDiscoRows; r++) light(static_cast<uint8_t>((r * kDiscoCols) + ((s.step8 / 4) % kDiscoCols)), 0.9f, hue);
-                    break;
-                case 2:  // a diagonal
-                    for (uint8_t r = 0; r < kDiscoRows; r++) light(static_cast<uint8_t>((r * kDiscoCols) + ((r + s.step8) % kDiscoCols)), 0.8f, hue);
-                    break;
-                default:  // sparkles
-                    for (uint8_t k = 0; k < 6; k++) light(static_cast<uint8_t>(s.rng.range(0, kTiles - 1)), 0.7f + (s.energy * 0.3f), static_cast<uint8_t>(hue + (k * 30)));
-                    break;
-            }
-        }
-    }
-    for (uint8_t i = 0; i < vis::kLayers; i++) {  // hits: the layer's part of the floor
-        if (s.hitNow[i] <= 0.0f) continue;
-        const uint8_t col = static_cast<uint8_t>(clampi(static_cast<int>((i * 1.6f) + s.rng.range(0, 1)), 0, kDiscoCols - 1));
-        light(static_cast<uint8_t>((s.rng.range(0, kDiscoRows - 1) * kDiscoCols) + col), s.hitNow[i], static_cast<uint8_t>(i * 25));
-    }
-
-    for (uint8_t i = 0; i < kTiles; i++) {
-        s.tileLvl[i] *= 0.86f;
-        const uint8_t q = static_cast<uint8_t>(s.tileLvl[i] * 7.99f);
-        if (q == s.tileDrawn[i]) continue;
-        tileBox(i, (q == 0) ? dark : themeColor(t, s.tileHue[i], static_cast<uint8_t>(40 + (q * 30))));
-        s.tileDrawn[i] = q;
-    }
 }
 
 void Controller::visual_sceneRidges(bool init_) {
@@ -2253,5 +2106,701 @@ void Controller::visual_sceneSunset(bool init_) {
         if (on == s.twOn[k]) continue;
         box(d, s.twX[k], s.twY[k], 2, 2, on ? WHITE : skyColor(s.twY[k], kHorizon));
         s.twOn[k] = on;
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/* v2.07 styles --------------------------------------------------------------*/
+////////////////////////////////////////////////////////////////////////////////
+
+namespace {
+
+inline void unpack565(uint16_t c, int& r, int& g, int& b) {
+    r = ((c >> 11) & 0x1F) << 3;
+    g = ((c >> 5) & 0x3F) << 2;
+    b = (c & 0x1F) << 3;
+}
+
+// The 256-colour palette of GEISS / MILK TUNNEL: black -> the theme's colours (cycling) -> white.
+inline void makePalette(uint16_t* pal, uint8_t theme, uint32_t cycle, float flash) {
+    for (int i = 0; i < 256; i++) {
+        uint16_t c;
+        if (i < 176) {
+            c = themeColor(theme, static_cast<uint32_t>(i / 2) + cycle, static_cast<uint8_t>((i * 255) / 176));
+        } else {
+            int r, g, b;
+            unpack565(themeColor(theme, 88u + cycle), r, g, b);
+            const int k = ((i - 176) * 255) / 79;
+            c = vis::rgb(static_cast<uint8_t>(r + (((255 - r) * k) >> 8)), static_cast<uint8_t>(g + (((255 - g) * k) >> 8)),
+                         static_cast<uint8_t>(b + (((255 - b) * k) >> 8)));
+        }
+        if (flash > 0.01f) {  // a flash on the bar lifts everything towards white
+            int r, g, b;
+            unpack565(c, r, g, b);
+            const int k = static_cast<int>(flash * 160.0f);
+            c = vis::rgb(static_cast<uint8_t>(r + (((255 - r) * k) >> 8)), static_cast<uint8_t>(g + (((255 - g) * k) >> 8)),
+                         static_cast<uint8_t>(b + (((255 - b) * k) >> 8)));
+        }
+        pal[i] = c;
+    }
+}
+
+constexpr const char* kRoman[7] = {"I", "II", "III", "IV", "V", "VI", "VII"};
+
+}  // namespace
+
+void Controller::visual_sceneGeiss(bool init_) {
+    /// @brief GEISS: a feedback plasma in the spirit of the classic plug-ins. Every frame the
+    /// last picture is zoomed, turned, blurred and faded a little, and the waveform, the hits and
+    /// a ring on every bar are painted into it - so everything smears into flowing trails. Drawn
+    /// in a 160 x 88 buffer, shown as 6 x 6 blocks over the whole screen.
+
+    State& s = vs;
+    if (init_) {
+        memset(s.pix.g.a, 0, sizeof(s.pix.g.a));
+        memset(s.pix.g.b, 0, sizeof(s.pix.g.b));
+        s.gFlip = 0;
+        s.gTime = 0.0f;
+        s.gFlash = 0.0f;
+        s.lastBeatIdx = s.beatIdx;
+        return;
+    }
+    const uint8_t* src = s.gFlip ? s.pix.g.b : s.pix.g.a;
+    uint8_t* dst = s.gFlip ? s.pix.g.a : s.pix.g.b;
+    s.gTime += 0.033f * (1.0f + s.energy);
+
+    // 1. WARP: zoom in (the picture flows outwards), turn, blur 2 x 2, fade.
+    const float zoom = 0.955f - (s.bass * 0.035f);
+    const float rot = (0.035f * sinf(s.gTime * 0.4f)) + (0.02f * sinf(s.gTime * 0.13f));
+    const int32_t cz = static_cast<int32_t>(cosf(rot) * zoom * 65536.0f);
+    const int32_t sz = static_cast<int32_t>(sinf(rot) * zoom * 65536.0f);
+    const int decay = 3;
+    for (int y = 0; y < kPixH; y++) {
+        const int32_t dy = (y - (kPixH / 2)) * 65536;
+        for (int x = 0; x < kPixW; x++) {
+            const int32_t dx = (x - (kPixW / 2)) * 65536;
+            const int32_t fx = static_cast<int32_t>(((static_cast<int64_t>(dx) * cz) - (static_cast<int64_t>(dy) * sz)) >> 16) + ((kPixW / 2) * 65536);
+            const int32_t fy = static_cast<int32_t>(((static_cast<int64_t>(dx) * sz) + (static_cast<int64_t>(dy) * cz)) >> 16) + ((kPixH / 2) * 65536);
+            const int sx = clampi(fx >> 16, 0, kPixW - 2);
+            const int sy = clampi(fy >> 16, 0, kPixH - 2);
+            const uint8_t* p = src + (sy * kPixW) + sx;
+            const int v = (p[0] + p[1] + p[kPixW] + p[kPixW + 1]) >> 2;
+            dst[(y * kPixW) + x] = static_cast<uint8_t>((v > decay) ? (v - decay) : 0);
+        }
+    }
+
+    // 2. PAINT: the waveform across the middle, sparks for hits, a ring on every bar.
+    const uint32_t end = visTap.pos;
+    const uint32_t start = end - (kPixW * 4) - 1;
+    float peak = 0.02f;
+    for (int x = 0; x < kPixW; x++) peak = fmaxf(peak, fabsf(mono(start + (x * 4))));
+    const float gain = fminf(1.0f / peak, 8.0f) * 26.0f;
+    for (int x = 0; x < kPixW; x++) {
+        const int y = clampi((kPixH / 2) + static_cast<int>(mono(start + (x * 4)) * gain), 1, kPixH - 2);
+        dst[(y * kPixW) + x] = 255;
+        if (dst[((y - 1) * kPixW) + x] < 190) dst[((y - 1) * kPixW) + x] = 190;
+        if (dst[((y + 1) * kPixW) + x] < 190) dst[((y + 1) * kPixW) + x] = 190;
+    }
+    for (uint8_t i = 0; i < vis::kLayers; i++) {
+        if (s.hitNow[i] <= 0.0f) continue;
+        const int x = clampi(8 + (i * 16) + s.rng.range(-4, 4), 1, kPixW - 2);
+        const int y = s.rng.range(4, kPixH - 5);
+        for (int k = -1; k <= 1; k++) {
+            dst[((y + k) * kPixW) + x] = 255;
+            dst[(y * kPixW) + x + k] = 255;
+        }
+    }
+    if (s.beatIdx != s.lastBeatIdx) {
+        if (s.barStart) {
+            s.gFlash = 1.0f;
+            for (int k = 0; k < 64; k++) {
+                const float a = k * 0.0982f;
+                const int x = (kPixW / 2) + static_cast<int>(cosf(a) * 34.0f);
+                const int y = (kPixH / 2) + static_cast<int>(sinf(a) * 22.0f);
+                if ((x >= 0) && (x < kPixW) && (y >= 0) && (y < kPixH)) dst[(y * kPixW) + x] = 240;
+            }
+        }
+        s.lastBeatIdx = s.beatIdx;
+    }
+    s.gFlash *= 0.8f;
+
+    // 3. SHOW IT.
+    makePalette(s.pal, visualTheme, visualFrame, s.gFlash * 0.5f);
+    lcd.drawIndexedScaled(dst, s.pal, 0, kPixY, kPixW, kPixH, kPixScale);
+    s.gFlip ^= 1;
+}
+
+void Controller::visual_sceneMilk(bool init_) {
+    /// @brief MILK TUNNEL: flying down a warping, colour-cycling tunnel (the classic demo-scene
+    /// texture tunnel): the kick pushes you forward, the hi-hats twist it, it breathes with the
+    /// music and flashes on every bar. Same 160 x 88 buffer as GEISS.
+
+    State& s = vs;
+    if (init_) {
+        for (int y = 0; y < kPixH; y++) {
+            for (int x = 0; x < kPixW; x++) {
+                const float dx = (x - (kPixW / 2)) + 0.5f;
+                const float dy = (y - (kPixH / 2)) + 0.5f;
+                const float dist = sqrtf((dx * dx) + (dy * dy));
+                const int i = (y * kPixW) + x;
+                s.pix.t.dist[i] = static_cast<uint8_t>(static_cast<int>(1400.0f / (dist + 0.5f)) & 0xFF);
+                s.pix.t.angle[i] = static_cast<uint8_t>(static_cast<int>((atan2f(dy, dx) + 3.14159265f) * (128.0f / 3.14159265f)) & 0xFF);
+                s.pix.t.shade[i] = static_cast<uint8_t>(fminf(255.0f, dist * 5.0f));
+            }
+        }
+        s.tShift = 0.0f;
+        s.tRot = 0.0f;
+        s.gFlash = 0.0f;
+        s.lastBeatIdx = s.beatIdx;
+        return;
+    }
+
+    float highs = 0.0f;
+    for (uint8_t b = 20; b < 32; b++) highs += s.band32[b];
+    highs /= 12.0f;
+    s.tShift += 1.2f + (s.bass * 7.0f);
+    s.tRot += 0.4f + (highs * 6.0f);
+    if (s.beatIdx != s.lastBeatIdx) {
+        if (s.barStart) s.gFlash = 1.0f;
+        s.lastBeatIdx = s.beatIdx;
+    }
+    s.gFlash *= 0.82f;
+    // The warp: each depth ring is pushed sideways by its own wave.
+    int8_t warp[256];
+    for (int d = 0; d < 256; d++) warp[d] = static_cast<int8_t>(sinf((d * 0.06f) + (visualFrame * 0.07f)) * (10.0f + (s.energy * 30.0f)));
+    const int shift = static_cast<int>(s.tShift);
+    const int turn = static_cast<int>(s.tRot);
+    for (int i = 0; i < kPixW * kPixH; i++) {
+        const int d = s.pix.t.dist[i];
+        const int u = d + shift;
+        const int v = s.pix.t.angle[i] + turn + warp[d];
+        const int tex = (((u ^ v) & 0x3F) * 3) + 32;  // the checker / XOR texture
+        s.pix.t.out[i] = static_cast<uint8_t>((tex * s.pix.t.shade[i]) >> 8);
+    }
+    makePalette(s.pal, visualTheme, visualFrame / 2u, s.gFlash * 0.6f);
+    lcd.drawIndexedScaled(s.pix.t.out, s.pal, 0, kPixY, kPixW, kPixH, kPixScale);
+}
+
+void Controller::visual_sceneRobot(bool init_) {
+    /// @brief ROBOT DJ: a pixel robot behind two turntables and a mixer. Its head nods on the
+    /// beat, the chest light thumps with the bass, the mixer's meters dance, it scratches on big
+    /// hits, throws its arms up on a loud bar and fires laser eyes on accents.
+
+    State& s = vs;
+    Lcd& d = lcd;
+    const uint8_t t = visualTheme;
+    constexpr int kTable = 392, kPlatR = 72, kHeadW = 120, kHeadH = 90;
+    const int platX[2] = {210, 750};
+    constexpr int kPlatY = 456;
+    const uint16_t metal = vis::rgb(110, 110, 126);
+    const uint16_t dark = vis::rgb(40, 40, 46);
+    auto thick = [&](int x0, int y0, int x1, int y1, uint16_t c) {
+        for (int w = -2; w <= 2; w++) {
+            line(d, x0 + w, y0, x1 + w, y1, c);
+            line(d, x0, y0 + w, x1, y1 + w, c);
+        }
+    };
+
+    if (init_) {
+        box(d, 400, 404, 160, 98, vis::rgb(70, 70, 80));  // the mixer
+        bevel(d, 400, 404, 160, 98, true, vis::rgb(150, 150, 160), vis::rgb(20, 20, 26));
+        label(d, "DJ MOFFE", FONT_10x14, CENTER, 480, 516, themeColor(t, 0), BLACK);
+        memset(s.eqSeg, 0, sizeof(s.eqSeg));
+        s.headY = kNone;
+        for (int k = 0; k < 2; k++) {
+            s.armDrawn[k] = false;
+            s.laserLife[k] = 0;
+        }
+        s.platAngle = 0.0f;
+        s.scratch = 0;
+        s.armsUp = 0;
+        s.lastBeatIdx = s.beatIdx;
+        return;
+    }
+
+    // 1. ERASE what moves: arms, lasers, the head if it moved.
+    for (int k = 0; k < 2; k++) {
+        if (s.armDrawn[k]) {
+            thick(s.arm[k][0], s.arm[k][1], s.arm[k][2], s.arm[k][3], BLACK);
+            thick(s.arm[k][2], s.arm[k][3], s.arm[k][4], s.arm[k][5], BLACK);
+            disc(d, s.arm[k][4], s.arm[k][5], 9, BLACK);  // the hand
+            s.armDrawn[k] = false;
+        }
+        if (s.laserLife[k] > 0) {
+            if (--s.laserLife[k] == 0) line(d, s.laser[k][0], s.laser[k][1], s.laser[k][2], s.laser[k][3], BLACK);
+        }
+    }
+    const int nod = static_cast<int>(fabsf(sinf(s.beatPhase * 3.14159f)) * 14.0f);
+    const int headY = 140 + (s.playing ? nod : 0);
+    if ((s.headY != kNone) && (s.headY != headY)) box(d, 480 - (kHeadW / 2), s.headY - 34, kHeadW, kHeadH + 34, BLACK);
+
+    // 2. MOODS: scratch on big hits, arms up on a loud bar.
+    for (uint8_t i = 0; i < vis::kLayers; i++) {
+        if (s.hitNow[i] > 0.85f) s.scratch = 8;
+    }
+    if (s.beatIdx != s.lastBeatIdx) {
+        if (s.barStart && (s.energy > 0.5f)) s.armsUp = 10;
+        s.lastBeatIdx = s.beatIdx;
+    }
+
+    // 3. TURNTABLES (spinning with the tempo, jittering while scratching), table edge.
+    const float tempo = static_cast<float>((rhythm.tempo > 0) ? rhythm.tempo : 120) / 120.0f;
+    s.platAngle += s.playing ? (0.14f * tempo) : 0.02f;
+    for (int k = 0; k < 2; k++) {
+        const float a = s.platAngle + ((s.scratch > 0) ? (sinf(visualFrame * 1.7f) * 0.8f) : 0.0f) + (k * 1.3f);
+        disc(d, platX[k], kPlatY, kPlatR, dark);
+        ring(d, platX[k], kPlatY, kPlatR - 10, vis::rgb(60, 60, 68));
+        ring(d, platX[k], kPlatY, kPlatR - 22, vis::rgb(60, 60, 68));
+        disc(d, platX[k], kPlatY, 22, themeColor(t, k * 128u));
+        line(d, platX[k], kPlatY, platX[k] + static_cast<int>(cosf(a) * (kPlatR - 4)), kPlatY + static_cast<int>(sinf(a) * (kPlatR - 4)), WHITE);
+    }
+    box(d, 0, kTable, kW, 2, themeColor(t, 0, 160));
+
+    // 4. MIXER METERS.
+    for (uint8_t b = 0; b < 8; b++) {
+        segBar(d, 412 + (b * 18), 494, -1, 12, 4, 2, s.eqSeg[b], static_cast<uint8_t>(s.band32[b * 4] * 13.0f),
+               [&](int i) { return (i >= 10) ? vis::rgb(255, 50, 50) : themeColor(t, static_cast<uint32_t>(i * 20)); });
+    }
+
+    // 5. BODY with a chest light, HEAD with eyes, mouth LEDs and an antenna.
+    box(d, 430, 250, 100, 136, metal);
+    bevel(d, 430, 250, 100, 136, true, vis::rgb(170, 170, 185), vis::rgb(50, 50, 60));
+    disc(d, 480, 300, 26, dark);
+    disc(d, 480, 300, 8 + static_cast<int>(s.bass * 18.0f), themeColor(t, visualFrame * 2u));
+    for (int k = 0; k < 4; k++) box(d, 446 + (k * 18), 350, 12, 6, ((k * 0.25f) < s.energy) ? themeColor(t, k * 40u) : dark);
+    box(d, 480 - (kHeadW / 2), headY, kHeadW, kHeadH, metal);
+    bevel(d, 480 - (kHeadW / 2), headY, kHeadW, kHeadH, true, vis::rgb(170, 170, 185), vis::rgb(50, 50, 60));
+    bool flashEye = false;
+    for (uint8_t i = 0; i < vis::kLayers; i++) flashEye = flashEye || (s.flash[i] > 0.7f);
+    const uint16_t eyeC = flashEye ? WHITE : themeColor(t, 0);
+    box(d, 440, headY + 26, 28, 16, eyeC);
+    box(d, 492, headY + 26, 28, 16, eyeC);
+    for (int k = 0; k < 5; k++) box(d, 446 + (k * 14), headY + 62, 10, 8, ((k * 0.2f) < s.vuL) ? themeColor(t, 120u + (k * 20u)) : dark);
+    line(d, 480, headY, 480, headY - 26, metal);
+    disc(d, 480, headY - 30, 6, s.barStart ? WHITE : themeColor(t, 60));
+    s.headY = static_cast<int16_t>(headY);
+
+    // 6. ARMS: on the decks (scratching), or up in the air.
+    for (int k = 0; k < 2; k++) {
+        const int sx = (k == 0) ? 432 : 528, sy = 266;
+        int hx, hy, ex, ey;
+        if (s.armsUp > 0) {
+            hx = (k == 0) ? 360 : 600;
+            hy = 60;
+            ex = (k == 0) ? 380 : 580;
+            ey = 170;
+        } else {
+            const int wobble = (s.scratch > 0) ? static_cast<int>(sinf((visualFrame * 1.9f) + k) * 20.0f) : 0;
+            hx = ((k == 0) ? (platX[0] + 40) : (platX[1] - 40)) + wobble;
+            hy = kPlatY - 30;
+            ex = (k == 0) ? 360 : 600;
+            ey = 330;
+        }
+        thick(sx, sy, ex, ey, metal);
+        thick(ex, ey, hx, hy, metal);
+        disc(d, hx, hy, 9, vis::rgb(200, 200, 210));
+        const int16_t a[6] = {static_cast<int16_t>(sx), static_cast<int16_t>(sy), static_cast<int16_t>(ex), static_cast<int16_t>(ey), static_cast<int16_t>(hx), static_cast<int16_t>(hy)};
+        memcpy(s.arm[k], a, sizeof(a));
+        s.armDrawn[k] = true;
+    }
+    if (s.scratch > 0) s.scratch--;
+    if (s.armsUp > 0) s.armsUp--;
+
+    // 7. LASER EYES on accents.
+    bool accent = false;
+    for (uint8_t i = 0; i < vis::kLayers; i++) accent = accent || (s.hitNow[i] > 0.95f);
+    if (accent) {
+        for (int k = 0; k < 2; k++) {
+            if (s.laserLife[k] > 0) line(d, s.laser[k][0], s.laser[k][1], s.laser[k][2], s.laser[k][3], BLACK);
+            const int x0 = (k == 0) ? 454 : 506, y0 = headY + 34;
+            const int x1 = s.rng.range(20, kW - 20), y1 = s.rng.range(kHintH + 2, 100);
+            line(d, x0, y0, x1, y1, vis::rgb(255, 40, 40));
+            const int16_t l[4] = {static_cast<int16_t>(x0), static_cast<int16_t>(y0), static_cast<int16_t>(x1), static_cast<int16_t>(y1)};
+            memcpy(s.laser[k], l, sizeof(l));
+            s.laserLife[k] = 3;
+        }
+    }
+}
+
+void Controller::visual_sceneCrowd(bool init_) {
+    /// @brief DISCO CROWD: a mirror ball throwing sparkles, eight pixel dancers (one per layer)
+    /// jumping on their hits and waving with the hi-hats, a stage-diver surfing over them every
+    /// four bars, and the light-up floor flashing patterns under their feet.
+
+    State& s = vs;
+    Lcd& d = lcd;
+    const uint8_t t = visualTheme;
+    constexpr int kFeet = 318, kFloorY = 330, kCols = 16, kRows = 4, kBallX = 480, kBallY = 64, kBallR = 34;
+    const uint16_t dark = vis::rgb(18, 18, 26);
+    auto tile = [&](uint8_t i, uint16_t c) { box(d, ((i % kCols) * 60) + 2, kFloorY + ((i / kCols) * 52) + 2, 56, 48, c); };
+
+    if (init_) {
+        for (uint8_t i = 0; i < kCols * kRows; i++) {
+            s.tileLvl[i] = 0.0f;
+            s.tileDrawn[i] = 0;
+            s.tileHue[i] = 0;
+            tile(i, dark);
+        }
+        line(d, kBallX, kHintH, kBallX, kBallY - kBallR, vis::rgb(120, 120, 130));
+        for (uint8_t k = 0; k < kTwinkles; k++) {
+            s.twX[k] = static_cast<int16_t>(s.rng.range(20, kW - 24));
+            s.twY[k] = static_cast<int16_t>(s.rng.range(kHintH + 4, 160));
+            s.twOn[k] = 0;
+        }
+        s.diverOn = false;
+        s.diverDrawn = false;
+        s.lastStep = s.step8;
+        s.lastSpawnMs = HAL_GetTick();
+        s.lastBeatIdx = s.beatIdx;
+        return;
+    }
+
+    // 1. THE MIRROR BALL (every other frame) and its sparkles.
+    if ((visualFrame & 1u) == 0) {
+        disc(d, kBallX, kBallY, kBallR, vis::rgb(150, 150, 165));
+        const float ph = visualFrame * 0.06f;
+        for (int k = 0; k < 8; k++) {  // turning meridians
+            const float a = ph + (k * 0.3927f);
+            if (cosf(a) < 0.0f) continue;
+            const int x = kBallX + static_cast<int>(sinf(a) * kBallR);
+            line(d, x, kBallY - kBallR + 6, x, kBallY + kBallR - 6, vis::rgb(90, 90, 105));
+        }
+        for (int k = -2; k <= 2; k++) box(d, kBallX - kBallR + 6, kBallY + (k * 12), (2 * kBallR) - 12, 1, vis::rgb(90, 90, 105));
+        for (int k = 0; k < 6; k++) box(d, kBallX + s.rng.range(-24, 20), kBallY + s.rng.range(-24, 20), 5, 5, (k < 2) ? WHITE : themeColor(t, s.rng.next()));
+    }
+    for (uint8_t k = 0; k < kTwinkles; k++) {
+        const uint8_t on = ((s.rng.next() % 100) < static_cast<uint32_t>(15 + (s.energy * 70.0f))) ? 1 : 0;
+        if (on == s.twOn[k]) continue;
+        const int dx = s.twX[k] - kBallX, dy = s.twY[k] - kBallY;
+        if (((dx * dx) + (dy * dy)) < ((kBallR + 6) * (kBallR + 6))) continue;  // not on the ball
+        box(d, s.twX[k], s.twY[k], 3, 3, on ? themeColor(t, k * 9u) : BLACK);
+        s.twOn[k] = on;
+    }
+
+    // 2. THE STAGE-DIVER: every four bars someone surfs across over the crowd.
+    const uint32_t beatsPerBar = (rhythm.measure > 0) ? rhythm.measure : 4;
+    if (s.beatIdx != s.lastBeatIdx) {
+        if (s.barStart && (((s.beatIdx / beatsPerBar) % 4) == 0) && !s.diverOn) {
+            s.diverOn = true;
+            s.diverX = -60.0f;
+        }
+        s.lastBeatIdx = s.beatIdx;
+    }
+    if (s.diverDrawn) box(d, s.diverDX - 40, 168, 84, 30, BLACK);
+    s.diverDrawn = false;
+
+    // 3. THE DANCERS: jump with their layer, arms wave with the beat and the highs.
+    float highs = 0.0f;
+    for (uint8_t b = 20; b < 32; b++) highs += s.band32[b];
+    highs /= 12.0f;
+    for (uint8_t i = 0; i < 8; i++) {
+        const int x = 90 + (i * 112);
+        const int jump = static_cast<int>((s.flash[i] * 24.0f) + (s.bass * 6.0f));
+        const int feet = kFeet - jump;
+        box(d, x - 36, kFeet - 150, 72, 152, BLACK);
+        const uint16_t c = themeColor(t, i * 32u, static_cast<uint8_t>(150 + (s.layer[i] * 105.0f)));
+        disc(d, x, feet - 96, 11, c);                       // head
+        box(d, x - 9, feet - 84, 18, 40, c);                // body
+        line(d, x - 6, feet - 44, x - 12, feet, c);         // legs
+        line(d, x + 6, feet - 44, x + 12, feet, c);
+        line(d, x - 5, feet - 44, x - 11, feet, c);
+        line(d, x + 5, feet - 44, x + 11, feet, c);
+        const float wave = sinf((s.beatPhase * 6.2832f) + (i * 0.8f)) * (0.4f + highs);
+        for (int k = 0; k < 2; k++) {                       // arms: raised 0.2 .. 1.4 rad, waving
+            const int sgn = (k == 0) ? -1 : 1;
+            const float up = fminf(1.4f, fmaxf(0.2f, 0.8f + (wave * sgn)));
+            const int sx = x + (sgn * 9), sy = feet - 80;
+            const int hx = sx + (sgn * static_cast<int>(cosf(up) * 30.0f));
+            const int hy = sy - static_cast<int>(sinf(up) * 30.0f);
+            line(d, sx, sy, hx, hy, c);
+            line(d, sx, sy + 1, hx, hy + 1, c);
+        }
+    }
+    if (s.diverOn) {
+        s.diverX += 14.0f;
+        if (s.diverX > kW + 60) {
+            s.diverOn = false;
+        } else {
+            const int x = static_cast<int>(s.diverX);
+            const uint16_t c = WHITE;
+            disc(d, x + 30, 182, 10, c);       // head first
+            box(d, x - 20, 176, 42, 14, c);    // body flat
+            line(d, x - 20, 178, x - 38, 172, c);
+            line(d, x - 20, 188, x - 38, 194, c);
+            line(d, x + 14, 176, x + 24, 168, c);
+            s.diverDX = static_cast<int16_t>(x);
+            s.diverDrawn = true;
+        }
+    }
+
+    // 4. THE FLOOR (as DISCO, four rows under the dancers).
+    const uint32_t now = HAL_GetTick();
+    bool step = s.playing ? (s.step8 != s.lastStep) : (((now - s.lastSpawnMs) > 400) || (((now - s.lastSpawnMs) > 150) && (s.bass > 0.6f)));
+    auto light = [&](uint8_t i, float lvl, uint8_t hue) {
+        if (lvl > s.tileLvl[i]) {
+            s.tileLvl[i] = lvl;
+            s.tileHue[i] = hue;
+        }
+    };
+    if (step) {
+        s.lastStep = s.step8;
+        s.lastSpawnMs = now;
+        const uint8_t hue = static_cast<uint8_t>(s.step8 * 19u);
+        if (s.barStart && ((s.step8 & 1u) == 0)) {
+            for (uint8_t i = 0; i < kCols * kRows; i++) {
+                if ((((i % kCols) + (i / kCols) + (s.beatIdx / 4u)) & 1u) == 0) light(i, 1.0f, hue);
+            }
+        } else if ((s.step8 % 2) == 0) {
+            for (uint8_t r = 0; r < kRows; r++) light(static_cast<uint8_t>((r * kCols) + ((r + s.step8) % kCols)), 0.85f, hue);
+        } else {
+            for (uint8_t k = 0; k < 5; k++) light(static_cast<uint8_t>(s.rng.range(0, (kCols * kRows) - 1)), 0.7f + (s.energy * 0.3f), static_cast<uint8_t>(hue + (k * 30)));
+        }
+    }
+    for (uint8_t i = 0; i < 8; i++) {  // a dancer's hit lights the tile under its feet
+        if (s.hitNow[i] > 0.0f) light(static_cast<uint8_t>((i * 2) + (s.rng.range(0, 1))), s.hitNow[i], static_cast<uint8_t>(i * 32));
+    }
+    for (uint8_t i = 0; i < kCols * kRows; i++) {
+        s.tileLvl[i] *= 0.86f;
+        const uint8_t q = static_cast<uint8_t>(s.tileLvl[i] * 7.99f);
+        if (q == s.tileDrawn[i]) continue;
+        tile(i, (q == 0) ? dark : themeColor(t, s.tileHue[i], static_cast<uint8_t>(40 + (q * 30))));
+        s.tileDrawn[i] = q;
+    }
+}
+
+void Controller::visual_scenePiano(bool init_) {
+    /// @brief PIANO ROLL: every note of the bank's melody layers (TONE / SYNTH) at its pitch and
+    /// length across the loop, in its layer's colour; harmony layers as outlined notes beside
+    /// their leader. Notes light up as the play head passes; a song TRANSPOSE moves them all and
+    /// shows the new key step.
+
+    State& s = vs;
+    Lcd& d = lcd;
+    const uint8_t t = visualTheme;
+    constexpr int kX0 = 40, kWd = 880, kTop = 40, kBot = 500;
+
+    // 1. COLLECT THE NOTES (a few times a second; a change redraws the roll).
+    if (init_ || ((visualFrame % 12) == 0)) {
+        const int8_t tr = song_transposeNow();
+        uint32_t sig = 2166136261u ^ static_cast<uint32_t>(tr) ^ (activeSongBank << 8) ^ (songInterval << 12);
+        uint16_t n = 0;
+        int lo = 1000, hi = -1000;
+        for (uint8_t l = 0; (l < kLayerLibrarySize) && (n < kRollNotes); l++) {
+            const Layer& layer = layerLibrary[l];
+            if (!tone::playsNotes(layer.toneMode) || layer_follows(l)) continue;
+            const Bank& bank = layer.bankLibrary[activeSongBank];
+            for (int16_t k = 0; (k <= bank.lastActiveBeatNum) && (n < kRollNotes); k++) {
+                const Beat& beat = bank.beatLibrary[k];
+                if (!beat.getActive()) continue;
+                const uint16_t st = beat.getStartInterval();
+                uint16_t len = (beat.getHold() > 0) ? beat.getHold() : ((beat.getEndInterval() > st) ? (beat.getEndInterval() - st) : 200);
+                auto add = [&](uint8_t layerIdx, int semis, bool outline) {
+                    if (n >= kRollNotes) return;
+                    RollNote& r = s.roll[n++];
+                    r.start = st;
+                    r.len = len;
+                    r.semis = static_cast<int8_t>(clampi(semis, -60, 60));
+                    r.layer = layerIdx;
+                    r.outline = outline;
+                    lo = (semis < lo) ? semis : lo;
+                    hi = (semis > hi) ? semis : hi;
+                    sig = (sig ^ (st + (static_cast<uint32_t>(semis + 64) << 16) + (layerIdx << 24))) * 16777619u;
+                };
+                add(l, tone::semitones(beat.getNote() + tr, layer.toneScale, layer.toneRoot), false);
+                for (uint8_t h = 0; h < kLayerLibrarySize; h++) {  // its harmony layers
+                    const Layer& f = layerLibrary[h];
+                    if ((h == l) || (f.followLayer != static_cast<int8_t>(l)) || !tone::playsNotes(f.toneMode)) continue;
+                    add(h, tone::semitones(harmony::note(beat.getNote(), f.harmonyInterval, layer.toneScale) + tr, layer.toneScale, layer.toneRoot), true);
+                }
+            }
+        }
+        if (init_ || (sig != s.rollSig)) {
+            box(d, 0, kTop - 12, kW, (kBot - kTop) + 24, BLACK);
+            s.rollCount = n;
+            s.rollSig = sig;
+            if (n == 0) {
+                label(d, "NO MELODY LAYERS: SET A LAYER TO TONE OR SYNTH ON ITS NOTE PAGE", FONT_07x09, CENTER, 480, 270, themeColor(t, 0), BLACK);
+            } else {
+                if (hi - lo < 12) {  // at least an octave of room
+                    const int mid = (hi + lo) / 2;
+                    lo = mid - 6;
+                    hi = mid + 6;
+                }
+                s.rollLo = static_cast<int16_t>(lo - 1);
+                s.rollHi = static_cast<int16_t>(hi + 1);
+                const int range = s.rollHi - s.rollLo;
+                for (int semi = s.rollLo; semi <= s.rollHi; semi++) {  // octave lines on every C
+                    if (((semi % 12) + 12) % 12 != 0) continue;
+                    const int y = kBot - (((semi - s.rollLo) * (kBot - kTop)) / range);
+                    box(d, kX0, y, kWd, 1, vis::rgb(40, 40, 52));
+                }
+                for (uint16_t i = 0; i < n; i++) s.roll[i].drawn = 0xFF;
+            }
+            if ((tr != s.rollTr) && !init_) {
+                char msg[24];
+                snprintf(msg, sizeof(msg), "TRANSPOSE %s%d", (tr > 0) ? "+" : "", tr);
+                label(d, msg, FONT_10x14, CENTER, 480, kBot + 14, themeColor(t, 0), BLACK);
+                s.rollBanner = 30;
+            }
+            s.rollTr = tr;
+            s.rollHead = -1;
+        }
+    }
+    if (init_) {
+        s.rollBanner = 0;
+        return;
+    }
+    if (s.rollBanner > 0) {
+        if (--s.rollBanner == 0) box(d, 0, kBot + 12, kW, 18, BLACK);
+    }
+    if (s.rollCount == 0) return;
+
+    // 2. THE PLAY HEAD (a marker above and below the roll) and the notes it passes.
+    const int range = (s.rollHi > s.rollLo) ? (s.rollHi - s.rollLo) : 1;
+    const int noteH = clampi((kBot - kTop) / range, 4, 16);
+    const int head = (s.playing && (songInterval > 0)) ? static_cast<int>((static_cast<uint32_t>(playInterval) * kWd) / songInterval) : -1;
+    const int prevHead = s.rollHead;
+    if (head != s.rollHead) {
+        if (s.rollHead >= 0) {
+            box(d, kX0 + s.rollHead - 2, kTop - 12, 5, 6, BLACK);
+            box(d, kX0 + s.rollHead - 2, kBot + 6, 5, 6, BLACK);
+        }
+        if (head >= 0) {
+            box(d, kX0 + head - 2, kTop - 12, 5, 6, themeColor(t, 0));
+            box(d, kX0 + head - 2, kBot + 6, 5, 6, themeColor(t, 0));
+        }
+        s.rollHead = static_cast<int16_t>(head);
+    }
+    for (uint16_t i = 0; i < s.rollCount; i++) {
+        RollNote& r = s.roll[i];
+        const int x = kX0 + static_cast<int>((static_cast<uint32_t>(r.start) * kWd) / songInterval);
+        // Flash every note whose start the head passed since the last frame (it moves several
+        // pixels per frame, and wraps at the loop end).
+        const int rel = x - kX0;
+        if ((head >= 0) && (prevHead >= 0) && (head != prevHead)) {
+            const bool passed = (head > prevHead) ? ((rel > prevHead) && (rel <= head)) : ((rel > prevHead) || (rel <= head));
+            if (passed) r.flash = 1.0f;
+        }
+        r.flash *= 0.85f;
+        const uint8_t q = static_cast<uint8_t>(r.flash * 4.99f);
+        if (q == r.drawn) continue;
+        int w = static_cast<int>((static_cast<uint32_t>(r.len) * kWd) / songInterval) - 1;
+        w = clampi(w, 3, kWd);
+        const int y = kBot - (((r.semis - s.rollLo) * (kBot - kTop)) / range) - (noteH / 2);
+        const uint16_t c = (q > 0) ? vis::dim(WHITE, static_cast<uint8_t>(140 + (q * 28))) : themeColor(t, r.layer * 25u, 200);
+        if (r.outline) {
+            box(d, x, y, w, noteH, BLACK);
+            d.setForeColor(c);
+            d.drawRect(static_cast<uint16_t>(clampi(x, 0, kW - 1)), static_cast<uint16_t>(clampi(y, 0, kH - 1)), static_cast<uint32_t>(w), static_cast<uint32_t>(noteH));
+        } else {
+            box(d, x, y, w, noteH, c);
+        }
+        r.drawn = q;
+    }
+}
+
+void Controller::visual_sceneKeyWheel(bool init_) {
+    /// @brief KEY WHEEL: the circle of fifths (major keys outside, their relative minors inside)
+    /// with the song's key lit, a needle pointing at the chord the song is on right now (song
+    /// TRANSPOSE walks it round), the chord's notes marked, and a heart beating with the bass.
+
+    State& s = vs;
+    Lcd& d = lcd;
+    const uint8_t t = visualTheme;
+    constexpr int kCx = 480, kCy = 270, kOuter = 200, kInner = 128;
+    auto posAngle = [](int k) { return -1.5708f + (k * 0.5236f); };
+    auto posOfMajor = [](int pc) { return ((pc * 7) % 12); };  // circle-of-fifths position of a major key
+
+    // 1. WHICH KEY: the first melody layer that is not a harmony layer.
+    int root = 0;
+    uint8_t scale = tone::kDefaultScale;
+    bool found = false;
+    for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
+        if (tone::playsNotes(layerLibrary[l].toneMode) && !layer_follows(l)) {
+            root = layerLibrary[l].toneRoot % 12;
+            scale = tone::safeScale(layerLibrary[l].toneScale);
+            found = true;
+            break;
+        }
+    }
+    const tone::Scale& sc = tone::kScales[scale];
+    const bool minorKey = (sc.size >= 3) && (sc.steps[2] == 3);
+    const int keyPos = minorKey ? posOfMajor((root + 3) % 12) : posOfMajor(root);
+    // The chord: the scale step the song is on (TRANSPOSE), with its third deciding major / minor.
+    const int size = sc.size;
+    const int deg = ((song_transposeNow() % size) + size) % size;
+    const int chordRoot = (root + sc.steps[deg]) % 12;
+    int third = (size >= 3) ? (sc.steps[(deg + 2) % size] - sc.steps[deg]) : 4;
+    if (third < 0) third += 12;
+    const bool minorChord = (third == 3);
+    const int chordPos = minorChord ? posOfMajor((chordRoot + 3) % 12) : posOfMajor(chordRoot);
+
+    if (init_) {
+        label(d, "MAJOR KEYS OUTSIDE - MINOR KEYS INSIDE", FONT_05x07, CENTER, 480, 20, vis::rgb(120, 120, 140), BLACK);
+        for (int k = 0; k < 24; k++) s.wheelLit[k] = 0xFF;
+        s.needleA = posAngle(chordPos);
+        s.needleDrawn = false;
+        s.keyText[0] = 0;
+        s.glowR = 0;
+        return;
+    }
+
+    // 2. THE DISCS: 12 majors outside, 12 minors inside; key = theme colour, chord = white/gold.
+    for (int k = 0; k < 24; k++) {
+        const bool inner = k >= 12;
+        const int p = k % 12;
+        const uint8_t lit = (p == chordPos) && (inner == minorChord) ? 2 : (((p == keyPos) && (inner == minorKey)) ? 1 : 0);
+        const uint8_t state = static_cast<uint8_t>(lit + ((s.barStart && (lit == 2)) ? 3 : 0));
+        if (state == s.wheelLit[k]) continue;
+        const float a = posAngle(p);
+        const int r = inner ? kInner : kOuter;
+        const int x = kCx + static_cast<int>(cosf(a) * r * 1.25f);
+        const int y = kCy + static_cast<int>(sinf(a) * r);
+        const int rad = inner ? 24 : 30;
+        const uint16_t c = (lit == 2) ? ((state > 2) ? WHITE : themeColor(t, 0)) : ((lit == 1) ? themeColor(t, 128, 200) : vis::rgb(36, 36, 48));
+        disc(d, x, y, rad, c);
+        const int pc = inner ? (((p * 7) + 9) % 12) : ((p * 7) % 12);
+        label(d, tone::kNoteNames[pc], inner ? FONT_07x09 : FONT_10x14, CENTER, x, y - (inner ? 4 : 7), (lit > 0) ? BLACK : vis::rgb(170, 170, 190), c);
+        s.wheelLit[k] = state;
+    }
+
+    // 3. THE NEEDLE glides to the chord.
+    float target = posAngle(chordPos);
+    while (target - s.needleA > 3.14159f) target -= 6.28318f;
+    while (target - s.needleA < -3.14159f) target += 6.28318f;
+    const float a = s.needleA + ((target - s.needleA) * 0.2f);
+    const int x0 = kCx + static_cast<int>(cosf(a) * 48.0f * 1.25f), y0 = kCy + static_cast<int>(sinf(a) * 48.0f);
+    const int x1 = kCx + static_cast<int>(cosf(a) * 96.0f * 1.25f), y1 = kCy + static_cast<int>(sinf(a) * 96.0f);
+    if (!s.needleDrawn || (x1 != s.needle[2]) || (y1 != s.needle[3])) {
+        if (s.needleDrawn) {
+            for (int w = -1; w <= 1; w++) line(d, s.needle[0] + w, s.needle[1], s.needle[2] + w, s.needle[3], BLACK);
+        }
+        for (int w = -1; w <= 1; w++) line(d, x0 + w, y0, x1 + w, y1, themeColor(t, 0));
+        const int16_t n[4] = {static_cast<int16_t>(x0), static_cast<int16_t>(y0), static_cast<int16_t>(x1), static_cast<int16_t>(y1)};
+        memcpy(s.needle, n, sizeof(n));
+        s.needleDrawn = true;
+    }
+    s.needleA = a;
+
+    // 4. THE HEART beats with the bass.
+    const int16_t glow = static_cast<int16_t>(14 + (s.bass * 26.0f));
+    if (glow < s.glowR) disc(d, kCx, kCy, s.glowR, BLACK);
+    disc(d, kCx, kCy, glow, themeColor(t, visualFrame * 2u, static_cast<uint8_t>(120 + (s.bass * 135.0f))));
+    s.glowR = glow;
+
+    // 5. KEY + CHORD in words.
+    char text[64];
+    if (!found) {
+        snprintf(text, sizeof(text), "NO MELODY LAYERS - SHOWING C MAJOR");
+    } else if (size == 7) {
+        snprintf(text, sizeof(text), "KEY %s %s     CHORD %s %s %s", tone::kNoteNames[root], sc.name, kRoman[deg], tone::kNoteNames[chordRoot], minorChord ? "MINOR" : "MAJOR");
+    } else {
+        snprintf(text, sizeof(text), "KEY %s %s     STEP %d  %s", tone::kNoteNames[root], sc.name, deg + 1, tone::kNoteNames[chordRoot]);
+    }
+    if (strcmp(text, s.keyText) != 0) {
+        box(d, 0, 506, kW, 18, BLACK);
+        label(d, text, FONT_10x14, CENTER, 480, 508, themeColor(t, 0), BLACK);
+        static_assert(sizeof(s.keyText) == sizeof(text), "same size: a plain copy keeps the terminator");
+        memcpy(s.keyText, text, sizeof(s.keyText));
     }
 }

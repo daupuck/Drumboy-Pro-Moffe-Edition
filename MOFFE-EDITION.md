@@ -5,7 +5,7 @@ Moffe Edition is **unofficial community firmware** for the Drumboy Pro, based on
 is not affiliated with or endorsed by Randomwaves. This page collects everything that is new
 compared with the factory firmware: what each feature does and how to use it on the device.
 
-- **Current version:** v2.06 — download from the
+- **Current version:** v2.07 — download from the
   [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest);
   how to install: [README → Install](README.md#install)
 - **User manual:** published by Randomwaves at [randomwaves.io](https://www.randomwaves.io) (it
@@ -27,8 +27,16 @@ compared with the factory firmware: what each feature does and how to use it on 
 > (v1.10); from v2.00, in its test builds: SYNTH layers, erasing on the EUCLID/NOTE pages, DETUNE,
 > SUB, NOISE, DRIVE, GLIDE, WAVE = SAMPLE and SLIDE; AUTOSAVE and resume (v2.01); names for
 > projects and drumkits (v2.02); song transpose (v2.03). **Not yet tested on a device:** the rest of v2.00 (presets,
-> random sounds, AMP and LFO pages, PAD HOLD, VISUALS, the new look), v2.04 (harmony layers), v2.05 (FM, pitch envelope, filter attack) and v2.06 (the new visuals). Each release says what has been tested on hardware;
+> random sounds, AMP and LFO pages, PAD HOLD, VISUALS, the new look), v2.04 (harmony layers), v2.05 (FM, pitch envelope, filter attack), v2.06 and v2.07 (the new visuals). Each release says what has been tested on hardware;
 > please report anything odd in [Issues](../../issues).
+
+## What's new in v2.07 – more light show
+
+| | New | What it means for you |
+|---|---|---|
+| 🌀 | **[GEISS, MILK TUNNEL](#8-visuals--full-screen-music-visuals-v200-all-new-line-up-in-v206)** | A smearing feedback plasma and a warping texture tunnel, full screen in chunky retro pixels. |
+| 🤖 | **[ROBOT DJ, DISCO CROWD](#8-visuals--full-screen-music-visuals-v200-all-new-line-up-in-v206)** | A scratching, nodding, laser-eyed robot at the decks; dancers, a mirror ball and a stage-diver. |
+| 🎼 | **[PIANO ROLL, KEY WHEEL](#8-visuals--full-screen-music-visuals-v200-all-new-line-up-in-v206)** | Your melodies and harmonies as notes; the circle of fifths following your key and song transpose. 20 styles in all. |
 
 ## What's new in v2.06 – a new light show
 
@@ -542,7 +550,7 @@ PLAY/STOP/REC, MUTE/FILL/STYLE + pad and the home-screen knobs all work while it
 | Key | What it does |
 |---|---|
 | **HOME** (centre key) on the home screen | VISUALS on. (HOME in any other menu still goes to the home screen, as before.) |
-| **LEFT / RIGHT** | The previous / next style (16). |
+| **LEFT / RIGHT** | The previous / next style (20). |
 | **UP / DOWN** | The colour theme: GOLD RUSH (the default), SYNTHWAVE, ACID, OCEAN, FIRE, ICE, RAINBOW, **WINAMP** (classic green-yellow-red) and **C64** (retro blue-purple). |
 | **ADD** | **AUTO** on / off (v2.06): a new random style every 16 bars, exactly on the bar (every 20 s when stopped) – like the old media-player visualisers. |
 | **CLEAR** | **INFO** on / off (v2.06): project name, tempo, bar.beat and song step in the bottom-right corner. |
@@ -554,25 +562,29 @@ at the top shows the style, the theme, `[AUTO]` and the keys for a few seconds a
 
 | Style | What you see |
 |---|---|
-| **1 CLASSIC** | A tribute to the 1998 media-player look: a bevelled grey window with a ribbed `MOFFE AMP` title bar, an LCD with the play time, a scrolling marquee (project, tempo, bank), L/R level bars and an oscilloscope, a big 32-bar spectrum analyser with falling peak dots, a position bar, transport buttons, SHUFFLE (= AUTO) and REPEAT (= song loop) lights and a volume slider. Try it with the WINAMP theme. |
+| **1 CLASSIC** | A tribute to the 1998 media-player look: a bevelled grey window with a ribbed `MOFFE AMP` title bar, an LCD with the play time, a scrolling marquee (project, tempo, bank), L/R level bars and an oscilloscope, a big 32-bar spectrum analyser with falling peak dots, a position bar, transport buttons, SHUFFLE (= AUTO) and REPEAT (= song loop) lights and a volume slider. Try it with the WINAMP theme. (v2.06) |
 | **2 SHOWTIME** | Everything at once: ten layer lights that flash on every hit, VU columns at both edges, a spectrum skyline with falling caps, an oscilloscope across the horizon and a neon floor rolling towards you on the beat. |
-| **3 SUPERSCOPE** | The waveform as a glowing 3D ribbon that slowly tumbles; every bar it takes a new shape – ring, spiral, figure eight, wave carpet – and the bass pumps its size. |
-| **4 MOUTH** | A huge cartoon mouth: the jaw opens with the bass, the ten upper teeth are the layers' meters (they stretch with each layer and flash on its hits), the ten lower teeth are the spectrum, and the tongue wobbles with the music. |
-| **5 EYEBALLS** | Ten eyes, one per layer: they pop wide on their hits, all stare at the loudest layer, the pupils widen with the bass, they blink in quiet parts and turn **bloodshot** while the limiter works. |
-| **6 SPEAKER** | A big woofer pumping on the kick (the cone rings and dust cap push out), glitter flying off on accents, the tweeter fizzing with the highs and the bass port puffing rings. |
-| **7 DEMO SCENE** | A home-computer demo: copper bars rolling through the middle (wider with the bass), a sine-wave text scroller with your project and tempo, a parallax starfield and a chrome MOFFE logo bouncing on the beat. |
-| **8 SUNSET DRIVE** | An 80s neon sunset: violet-to-orange sky with twinkling stars, a striped sun that breathes with the bass while its stripes slide down, mountain silhouettes, palm trees and a neon grid road rolling towards you on the beat. |
-| **9 STEP GRID** | Your pattern itself: ten rows (layers) of steps across the bank, a play head sweeping along and every step lighting up as it plays (muted layers dimmed). |
-| **10 SPECTRO** | A spectrogram painting itself across the screen: time left to right, pitch bottom to top, loudness as heat. Ticks underneath mark the beats (white = a new bar). |
-| **11 TUNNEL** | Flying through a tunnel of frames, one per eighth note (a bold white one on each bar), through stars that speed up with the music. |
-| **12 KALEIDO** | A kaleidoscope: the waveform and the spectrum mirrored into eight wedges, slowly turning, with a heart that beats with the bass. (Called MANDALA before v2.06.) |
-| **13 ORBIT** | The ten layers as planets circling a core that breathes with the bass. Every hit sends a ripple out of its planet and a flash of lightning to the core; the orbit turns one planet per bar. |
-| **14 DISCO** | A light-up dance floor: patterns on every eighth note, a checkerboard on each bar, and every hit lights a tile in its layer's part of the floor. |
-| **15 RIDGES** | The spectrum's recent past as stacked mountain ridges, like the famous album cover: the newest line in front. |
-| **16 LIFE** | Conway's Game of Life, one generation per eighth note. Every hit drops a glider into its layer's part of the world (an accent: a wild R-pentomino); newborn cells flash white. |
+| **3 SUPERSCOPE** | The waveform as a glowing 3D ribbon that slowly tumbles; every bar it takes a new shape – ring, spiral, figure eight, wave carpet – and the bass pumps its size. (v2.06) |
+| **4 GEISS** | A feedback plasma in the spirit of the classic visualiser plug-ins: each frame the last picture is zoomed, turned, blurred and faded, and the waveform, the hits and a ring on every bar are painted into it – everything smears into flowing, colour-cycling trails. Chunky 6 x 6 pixels, full screen. (v2.07) |
+| **5 MILK TUNNEL** | Flying down a warping, colour-cycling texture tunnel: the kick pushes you forward, the hi-hats twist it, it breathes with the music and flashes on every bar. (v2.07; replaces TUNNEL) |
+| **6 MOUTH** | A huge cartoon mouth: the jaw opens with the bass, the ten upper teeth are the layers' meters (they stretch with each layer and flash on its hits), the ten lower teeth are the spectrum, and the tongue wobbles with the music. (v2.06) |
+| **7 EYEBALLS** | Ten eyes, one per layer: they pop wide on their hits, all stare at the loudest layer, the pupils widen with the bass, they blink in quiet parts and turn **bloodshot** while the limiter works. (v2.06) |
+| **8 SPEAKER** | A big woofer pumping on the kick (the cone rings and dust cap push out), glitter flying off on accents, the tweeter fizzing with the highs and the bass port puffing rings. (v2.06) |
+| **9 ROBOT DJ** | A pixel robot behind two turntables and a mixer: it nods on the beat, its chest light thumps with the bass, the mixer meters dance, it scratches on big hits, throws its arms up on a loud bar and fires laser eyes on accents. (v2.07) |
+| **10 DISCO CROWD** | A mirror ball throwing sparkles, eight pixel dancers (one per layer) jumping on their hits and waving with the hi-hats, a stage-diver surfing over them every four bars, and the light-up floor flashing under their feet. (v2.07; replaces DISCO) |
+| **11 DEMO SCENE** | A home-computer demo: copper bars rolling through the middle (wider with the bass), a sine-wave text scroller with your project and tempo, a parallax starfield and a chrome MOFFE logo bouncing on the beat. (v2.06) |
+| **12 SUNSET DRIVE** | An 80s neon sunset: violet-to-orange sky with twinkling stars, a striped sun that breathes with the bass while its stripes slide down, mountain silhouettes, palm trees and a neon grid road rolling towards you on the beat. (v2.06) |
+| **13 STEP GRID** | Your pattern itself: ten rows (layers) of steps across the bank, a play head sweeping along and every step lighting up as it plays (muted layers dimmed). (v2.06) |
+| **14 PIANO ROLL** | Every note of the bank's melody layers (TONE / SYNTH) at its pitch and length across the loop in its layer's colour, harmony layers as outlined notes beside their leader. Notes light up as the play head passes; a song TRANSPOSE moves them all and shows the step. (v2.07) |
+| **15 KEY WHEEL** | The circle of fifths – major keys outside, their minors inside – with the song's key lit, a needle that glides to the chord the song is on (song TRANSPOSE walks it round, e.g. I → IV → V), the chord named underneath, and a heart beating with the bass. The key comes from the first melody layer. (v2.07) |
+| **16 SPECTRO** | A spectrogram painting itself across the screen: time left to right, pitch bottom to top, loudness as heat. Ticks underneath mark the beats (white = a new bar). |
+| **17 KALEIDO** | A kaleidoscope: the waveform and the spectrum mirrored into eight wedges, slowly turning, with a heart that beats with the bass. (Called MANDALA before v2.06.) |
+| **18 ORBIT** | The ten layers as planets circling a core that breathes with the bass. Every hit sends a ripple out of its planet and a flash of lightning to the core; the orbit turns one planet per bar. |
+| **19 RIDGES** | The spectrum's recent past as stacked mountain ridges, like the famous album cover: the newest line in front. |
+| **20 LIFE** | Conway's Game of Life, one generation per eighth note. Every hit drops a glider into its layer's part of the world (an accent: a wild R-pentomino); newborn cells flash white. |
 
-v2.06 retired PHASE (now SUPERSCOPE), SPECTRUM (now CLASSIC), METERS (now MOUTH), RAIN and
-FIREWORKS (now DEMO SCENE and SUNSET DRIVE).
+v2.06/v2.07 retired PHASE (now SUPERSCOPE), SPECTRUM (now CLASSIC), METERS (now MOUTH), RAIN and
+FIREWORKS (now DEMO SCENE and SUNSET DRIVE), TUNNEL (now MILK TUNNEL) and DISCO (now DISCO CROWD).
 
 - The visuals follow the sequencer while it plays (floor, road, orbit, tunnel, logo bounce and beat
   ticks lock to the tempo) and the TEMPO setting when it is stopped.
@@ -737,6 +749,7 @@ Your projects and drumkits have names now – yours, or a random one like `TURBO
 | **v2.01** | **AUTOSAVE** (File menu, knob 5) and **RESUME LAST SESSION?** at power-on; **crash-safe saving** for projects and drumkits; the File menu starts at the current project's slot. |
 | **v2.02** | **Names** for projects and drumkits: shown in LOAD / SAVE / CLEAR, edited with knobs 6–7, or rolled at random with knob 8. |
 | **v2.03** | Song mode **TRANSPOSE** per chain step (ADD + knob 7 in the Rhythm menu): melody layers move along their scale, drums stay. |
+| **v2.07** | **VISUALS** batch 2: GEISS (feedback plasma), MILK TUNNEL, ROBOT DJ, DISCO CROWD, PIANO ROLL, KEY WHEEL – 20 styles. |
 | **v2.06** | **VISUALS** line-up: CLASSIC, SUPERSCOPE, MOUTH, EYEBALLS, SPEAKER, DEMO SCENE, SUNSET DRIVE, STEP GRID (16 styles); themes WINAMP and C64 (9); AUTO (ADD) and INFO (CLEAR). |
 | **v2.05** | **FM voice** (WAVE = FM) and a **MOD** page: FM RATIO / AMOUNT / DECAY, PITCH ENV + PITCH DEC (synth drums, zaps), FILT ATK (filter envelope attack); 13 new presets (79); random sounds use them. |
 | **v2.04** | **Harmony layers**: a TONE/SYNTH layer FOLLOWs another and plays its notes at an interval, in its key (NOTE page knob 4, ADD + knob 4 = interval). |
@@ -754,10 +767,10 @@ The step-by-step guide (which file to download, where to put it, what the screen
 to do if something goes wrong) is in the **[README → Install](README.md#install)**. In short:
 
 1. Back up the whole SD card.
-2. Download `Drumboy_Pro_Fw_Moffe_02_06.bin` from the
+2. Download `Drumboy_Pro_Fw_Moffe_02_07.bin` from the
    [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest).
 3. Copy it, with its exact name, to the root of the card as the only `Drumboy_Pro_Fw…bin` there.
-4. Power on: *UPDATING FIRMWARE V2.06* → *FIRMWARE UPDATED* → sunglasses.
+4. Power on: *UPDATING FIRMWARE V2.07* → *FIRMWARE UPDATED* → sunglasses.
 
 **Roll back:** install `Drumboy_Pro_Fw_01_01.bin` (factory, in the release Assets and in
 `02 Software/Firmware/`) the same way. The bootloader accepts any version, older or newer.
