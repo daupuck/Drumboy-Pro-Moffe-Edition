@@ -4294,6 +4294,127 @@ void Controller::lcd_redrawNotePage() {
     lcd_drawNoteStrip();
 }
 
+/* Lcd Layer Song ARP Page Functions (v2.08) ---------------------------------*/
+
+void Controller::lcd_drawLayerSongArpMenu(uint8_t layerNum_) {
+    /// @brief Draws the ARP page of the Layer Song menu: headers, values and pattern preview.
+
+    // 1. ICON + LAYER NUMBER (same as the edit page)
+    lcd_drawMenuIcon(LAYER_SONG_MENU);
+    lcd_setMenuHeaderState(kAccentColor);
+    lcd.drawText(kDataMenuNum + layerNum_, 1, kMenuNumX, kMenuNumY);
+
+    // 2. HEADERS (knob 1 ARP, 2 RATE, 5 OCTAVES, 6 CHORD, 7 GATE, 8 HOLD)
+    static const char kHeaders[8][kMenuHeaderTextSize + 1] = {"ARP       ", "RATE      ", "", "", "OCTAVES   ", "CHORD     ", "GATE      ", "PAD HOLD  "};
+    const uint8_t slots[6] = {0, 1, 4, 5, 6, 7};
+    lcd_setMenuHeaderState(kAccentColor);
+    for (uint8_t i = 0; i < 6; i++) lcd.drawText(kHeaders[slots[i]], kMenuHeaderTextSize, kMenuHeaderX[slots[i]], kMenuHeaderY[slots[i]]);
+
+    // 3. SIGNS
+    lcd_setMenuSignState(kAccentColor);
+    for (uint8_t i = 0; i < 6; i++) lcd.drawText((slots[i] == 6) ? "  %" : "   ", kMenuSignTextSize, kMenuSignBoxX[slots[i]], kMenuSignBoxY[slots[i]]);
+
+    // 4. VALUES + PREVIEW
+    for (uint8_t i = 0; i < 6; i++) lcd_drawArpData(slots[i]);
+    lcd_drawArpStrip();
+}
+
+void Controller::lcd_drawArpData(uint8_t slot_) {
+    /// @brief Draws one ARP page value (slot = knob position 0..7). Grey while the layer cannot
+    /// arpeggiate (a DRUM layer, or one that FOLLOWs another).
+
+    if (!arpPageActive() || (selectedLayerNum == -1)) return;
+    const Layer& layer = layerLibrary[selectedLayerNum];
+    const arp::Settings s = arp::sanitize(layer.arp);
+    char text[kMenuDataTextSize + 1];
+    const bool usable = tone::playsNotes(layer.toneMode) && !layer_follows(static_cast<uint8_t>(selectedLayerNum));
+    RGB16Color color = usable ? WHITE : GRAY_50;
+
+    switch (slot_) {
+        case 0:
+            snprintf(text, sizeof(text), "%10.10s", arp::kModeNames[s.mode]);
+            if (usable && (s.mode != arp::OFF)) color = kAccentColor;
+            break;
+        case 1:
+            snprintf(text, sizeof(text), "%10.10s", arp::kRateNames[s.rate]);
+            break;
+        case 4:
+            snprintf(text, sizeof(text), "%10.10s", kNumberDataLibrary[s.octaves].nameLongR);
+            break;
+        case 5:
+            snprintf(text, sizeof(text), "%10.10s", arp::kChordNames[s.chord]);
+            break;
+        case 6:
+            snprintf(text, sizeof(text), "%10.10s", kNumberDataLibrary[s.gate].nameLongR);
+            break;
+        case 7:
+            snprintf(text, sizeof(text), "%10.10s", layer.synth.padHold ? "ON" : "OFF");
+            color = tone::playsNotes(layer.toneMode) ? WHITE : GRAY_50;
+            break;
+        default:
+            return;
+    }
+    lcd_setMenuDataState(color);
+    lcd.drawText(text, kMenuDataTextSize, kMenuDataX[slot_], kMenuDataY[slot_]);
+}
+
+void Controller::lcd_drawArpStrip() {
+    /// @brief Draws the pattern preview in the graph area: one cycle of the arpeggio (up to 16
+    /// notes) as marks at their height, as wide as the GATE, plus a title and a key hint.
+
+    if (!arpPageActive() || (selectedLayerNum == -1)) return;
+    const Layer& layer = layerLibrary[selectedLayerNum];
+    const arp::Settings s = arp::sanitize(layer.arp);
+    const bool notes = tone::playsNotes(layer.toneMode);
+    const bool follows = layer_follows(static_cast<uint8_t>(selectedLayerNum));
+
+    lcd.setBackColor(BLACK);
+    lcd.clearRect(kBeatGraphStartX, kBeatGraphStartY, kBeatGraphWidth + 1, kBeatGraphHeight + 1);
+
+    // Title: what it does, or why it does nothing.
+    char title[40];
+    if (!notes) {
+        snprintf(title, sizeof(title), "ARP: TONE / SYNTH LAYERS ONLY");
+    } else if (follows) {
+        snprintf(title, sizeof(title), "ARP: FOLLOWS L%u (SET ARP THERE)", static_cast<unsigned>(layer.followLayer + 1));
+    } else if (s.mode == arp::OFF) {
+        snprintf(title, sizeof(title), "ARP OFF");
+    } else {
+        snprintf(title, sizeof(title), "ARP %s %s %s X%u", arp::kModeNames[s.mode], arp::kRateNames[s.rate], arp::kChordNames[s.chord], static_cast<unsigned>(s.octaves));
+    }
+    lcd.setFont(FONT_05x07);
+    lcd.setAlignment(LEFT);
+    lcd.setForeColor(GRAY_75);
+    lcd.drawText(title, strlen(title), kBeatGraphStartX, kBeatGraphStartY + 2);
+
+    // Pattern: with OFF the UP pattern is shown greyed, so the other knobs still show something.
+    arp::Settings shown = s;
+    if (shown.mode == arp::OFF) shown.mode = arp::UP;
+    const uint8_t size = tone::kScales[tone::safeScale(layerLibrary[layer_keyLayer(static_cast<uint8_t>(selectedLayerNum))].toneScale)].size;
+    const uint8_t cycle = arp::cycleLength(shown);
+    const uint8_t count = (cycle >= 16) ? 16 : static_cast<uint8_t>((16 / cycle) * cycle);  // whole cycles
+    const int top = arp::noteOfRun(shown, static_cast<uint8_t>(arp::runLength(shown) - 1), size);
+    const uint16_t pitch = static_cast<uint16_t>(kBeatGraphWidth / 16);
+    const uint16_t markMax = (pitch > 3) ? static_cast<uint16_t>(pitch - 2) : 1;
+    uint16_t markWidth = static_cast<uint16_t>((markMax * s.gate) / 100);
+    if (markWidth < 2) markWidth = 2;
+    const uint16_t rollTop = kBeatGraphStartY + 14;
+    const uint16_t rollBottom = kBeatGraphEndY - 14;
+    const RGB16Color markColor = (notes && !follows && (s.mode != arp::OFF)) ? kAccentColor : GRAY_50;
+    for (uint8_t i = 0; i < count; i++) {
+        const int offset = arp::noteAt(shown, i, size, i * 2654435761u);
+        const uint16_t y = (top > 0) ? static_cast<uint16_t>(rollBottom - (((rollBottom - rollTop) * offset) / top)) : rollBottom;
+        lcd.setForeColor(markColor);
+        lcd.fillRect(kBeatGraphStartX + (i * pitch), y - 2, markWidth, 4);
+    }
+
+    // Hint, bottom right (no '=' in the font).
+    lcd.setFont(FONT_05x07);
+    lcd.setAlignment(RIGHT);
+    lcd.setForeColor(GRAY_50);
+    lcd.drawText("PADS: PLAY  UP/DOWN: OCT  CLEAR: OFF", 36, kBeatGraphEndX, kBeatGraphEndY - 6);
+}
+
 void Controller::lcd_drawLayerSong_BeatFillGraphData(uint8_t layerNum_) {
     if (layerSongAltPageActive()) return;  // the EUCLID and NOTE pages use these slots
 

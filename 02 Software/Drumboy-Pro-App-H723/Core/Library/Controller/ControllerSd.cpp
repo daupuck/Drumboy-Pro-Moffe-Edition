@@ -1664,6 +1664,7 @@ SdResult Controller::sd_saveNotes(const char* path_, bool& written_) {
         if ((layer.toneMode != tone::kModeDrum) || (layer.toneRoot != 0) || (layer.toneScale != tone::kDefaultScale) || (layer.toneGlide != 0)) needed = true;
         if (!synth::isDefault(layer.synth)) needed = true;
         if (layer.followLayer >= 0) needed = true;  // v2.04 harmony
+        if (!arp::isDefault(layer.arp)) needed = true;  // v2.08 arpeggiator
         for (uint8_t b = 0; (b < kBankLibrarySize) && !needed; b++) {
             const Bank& bank = layer.bankLibrary[b];
             for (int16_t k = 0; k <= bank.lastActiveBeatNum; k++) {
@@ -1779,6 +1780,13 @@ SdResult Controller::sd_saveNotes(const char* path_, bool& written_) {
     uint8_t ext[kLayerLibrarySize * synth::kExtSize];
     for (uint8_t l = 0; l < kLayerLibrarySize; l++) synth::packExt(layerLibrary[l].synth, &ext[l * synth::kExtSize]);
     if (sd_write(ext, sizeof(ext)) != FR_OK) errorCount += 1;
+    if (sd_write("EOF", 3) != FR_OK) errorCount += 1;
+
+    // v2.08: the ARP page of every layer.
+    if (sd_write(kArpRef, strlen(kArpRef)) != FR_OK) errorCount += 1;
+    uint8_t arps[kLayerLibrarySize * arp::kPackedSize];
+    for (uint8_t l = 0; l < kLayerLibrarySize; l++) arp::pack(layerLibrary[l].arp, &arps[l * arp::kPackedSize]);
+    if (sd_write(arps, sizeof(arps)) != FR_OK) errorCount += 1;
     if (sd_write("EOF", 3) != FR_OK) errorCount += 1;
 
     if (f_close(&sd.file) != FR_OK) errorCount += 1;
@@ -1937,6 +1945,14 @@ void Controller::sd_loadNotes(uint8_t fileNum_) {
                             (strncmp(extTag, kSynthExtRef, strlen(kSynthExtRef)) == 0) && (sd_read(ext, sizeof(ext)) == FR_OK)) {
                             for (uint8_t l = 0; l < kLayerLibrarySize; l++) {
                                 layerLibrary[l].synth = synth::unpackExt(layerLibrary[l].synth, &ext[l * synth::kExtSize]);
+                            }
+
+                            // Arpeggiator (v2.08+), after the MOD page's "EOF".
+                            char arpTag[sizeof(kArpRef)] = {};
+                            uint8_t arps[kLayerLibrarySize * arp::kPackedSize];
+                            if ((sd_read(eof, 3) == FR_OK) && (sd_read(arpTag, strlen(kArpRef)) == FR_OK) &&
+                                (strncmp(arpTag, kArpRef, strlen(kArpRef)) == 0) && (sd_read(arps, sizeof(arps)) == FR_OK)) {
+                                for (uint8_t l = 0; l < kLayerLibrarySize; l++) layerLibrary[l].arp = arp::unpack(&arps[l * arp::kPackedSize]);  // sanitized
                             }
                         }
                     }

@@ -5,7 +5,7 @@ Moffe Edition is **unofficial community firmware** for the Drumboy Pro, based on
 is not affiliated with or endorsed by Randomwaves. This page collects everything that is new
 compared with the factory firmware: what each feature does and how to use it on the device.
 
-- **Current version:** v2.07 — download from the
+- **Current version:** v2.08 — download from the
   [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest);
   how to install: [README → Install](README.md#install)
 - **User manual:** published by Randomwaves at [randomwaves.io](https://www.randomwaves.io) (it
@@ -27,8 +27,16 @@ compared with the factory firmware: what each feature does and how to use it on 
 > (v1.10); from v2.00, in its test builds: SYNTH layers, erasing on the EUCLID/NOTE pages, DETUNE,
 > SUB, NOISE, DRIVE, GLIDE, WAVE = SAMPLE and SLIDE; AUTOSAVE and resume (v2.01); names for
 > projects and drumkits (v2.02); song transpose (v2.03). **Not yet tested on a device:** the rest of v2.00 (presets,
-> random sounds, AMP and LFO pages, PAD HOLD, VISUALS, the new look), v2.04 (harmony layers), v2.05 (FM, pitch envelope, filter attack), v2.06 and v2.07 (the new visuals). Each release says what has been tested on hardware;
+> random sounds, AMP and LFO pages, PAD HOLD, VISUALS, the new look), v2.04 (harmony layers), v2.05 (FM, pitch envelope, filter attack), v2.06 and v2.07 (the new visuals), v2.08 (MIDI keyboard, arpeggiator). Each release says what has been tested on hardware;
 > please report anything odd in [Issues](../../issues).
+
+## What's new in v2.08 – play it from a keyboard, arpeggiate it
+
+| | New | What it means for you |
+|---|---|---|
+| 🎹 | **[MIDI keyboard plays the synth](#12-midi-keyboard-and-arpeggiator-v208)** | While the pads are a keyboard (NOTE or ARP page, or a SYNTH layer's sound pages), a MIDI keyboard plays that layer: in its scale, with velocity, held as long as you hold the key, recorded with REC. |
+| 🔁 | **[ARP page](#12-midi-keyboard-and-arpeggiator-v208)** | A new Layer Song page: every note of a TONE / SYNTH layer becomes an arpeggio – UP, DOWN, UP/DOWN or RANDOM, 1/8 to 1/32 with triplets, 1–3 octaves, five chord shapes, GATE. Harmony layers follow every arp note. |
+| 🩹 | **Better MIDI in** | Notes sent with running status, and Note On with velocity 0 (how most keyboards end a note), are now understood; fast chords and releases are no longer lost. |
 
 ## What's new in v2.07 – more light show
 
@@ -268,7 +276,8 @@ Any layer can now be a **DRUM** layer (as before) or a **TONE** layer that plays
 own note. Your kick becomes an 808 bassline, a vocal chop a melody, a pad sample a chord riff.
 
 **Open the page:** **S + layer key**, then **S + the same layer key** twice more (edit → EUCLID →
-NOTE). Once more goes back to the edit page.
+NOTE). Once more opens the ARP page (v2.08, [section 12](#12-midi-keyboard-and-arpeggiator-v208)),
+and once more goes back to the edit page.
 
 ```
  Top:     [1 MODE]   [2 NOTE]    [ note strip: a small piano roll ]
@@ -322,8 +331,9 @@ A quick bassline: EUCLID page E(5,16), then the NOTE page, MODE TONE, hold ADD u
   NEW FILE resets everything; drumkits don't store notes.
 - **Good to know:** one note at a time per layer (use several layers – or harmony layers – for chords). As on any
   sampler, higher notes play the sample faster, so they are also shorter. Outside the NOTE page
-  the pads, and MIDI in, play the root; on the NOTE page of a TONE layer the pads only play that
-  layer (go back to the edit page to play the drums).
+  the pads play the root; on the NOTE page of a TONE layer the pads only play that layer (go back
+  to the edit page to play the drums). MIDI in plays the layer like the pads do from v2.08 – see
+  [section 12](#12-midi-keyboard-and-arpeggiator-v208).
 
 ### Harmony layers (v2.04)
 
@@ -701,6 +711,98 @@ Your projects and drumkits have names now – yours, or a random one like `TURBO
 
 ---
 
+## 12. MIDI keyboard and arpeggiator (v2.08)
+
+### Play a melody layer from a MIDI keyboard
+
+1. Connect the keyboard's MIDI OUT to the Drumboy Pro's MIDI IN.
+2. **IO menu, knob 3 MIDI-IN:** set it to **NOTE** (or **NOTE+SYNC**); **ADD + knob 3** sets the
+   channel, which must match the keyboard's.
+3. Open a page where the **pads are a keyboard**: the **NOTE** or **ARP** page of a TONE / SYNTH
+   layer (S + layer key, S + the same key until it shows), or any **synth page** of a SYNTH layer
+   (I + layer key).
+
+Now the keyboard plays that layer:
+
+- **In key:** every key is snapped to the layer's ROOT and SCALE (a key outside the scale plays the
+  nearest scale note, the lower one when two are equally near). Middle C (MIDI note 60) is C4, the
+  note the pads call C4. A harmony layer plays in the key of the layer it follows.
+- **Velocity:** soft keys play softer (and, on SYNTH layers, darker: the filter and FM respond to
+  it, as for GHOST beats).
+- **Held:** the note sounds as long as you hold the key and goes into its RELEASE when you let go –
+  always, whatever PAD HOLD is set to.
+- **One note at a time** per layer, like the pads: a new key takes over, and only the newest key's
+  release ends the note.
+- **Recording:** PLAY + REC and play: the notes are written like pad notes, with how long you held
+  each key, so the song plays them back just as long.
+- **Step entry:** stopped, hold **ADD** and press keys: each key gives the selected beat its note
+  and moves on, as with ADD + pad.
+- **Elsewhere** (home screen, other menus) MIDI notes trigger the drum layers as before: C = layer
+  1, C# = layer 2 … A = layer 10.
+- **Fixed in v2.08:** notes sent with *running status*, and Note On with velocity 0 (how many
+  keyboards end a note), used to be missed or played as hits; up to 32 notes are now buffered, so
+  chords and fast releases are not lost.
+
+### ARP page – the arpeggiator
+
+Every note of a TONE / SYNTH layer can become an **arpeggio**: the notes of a chord in the layer's
+scale, played one after another in time with the tempo.
+
+**Open the page:** **S + layer key**, then **S + the same layer key** until **ARP** shows (edit →
+EUCLID → NOTE → ARP).
+
+```
+ Top:     [1 ARP]      [2 RATE]    [ pattern preview ]
+ Bottom:  [5 OCTAVES]  [6 CHORD]   [7 GATE]   [8 PAD HOLD]
+```
+
+| Control | What it does |
+|---|---|
+| **1 ARP** | **OFF** (the default: notes play as before), **UP**, **DOWN**, **UP/DOWN** (up and back down without repeating the top and bottom note) or **RANDOM**. |
+| **2 RATE** | How fast: **1/8**, **1/8T**, **1/16** (the default), **1/16T** or **1/32**, locked to the tempo. |
+| **5 OCTAVES** | 1, 2 or 3 octaves: the chord is repeated higher up. |
+| **6 CHORD** | Which notes, in scale steps above the played note: **TRIAD** (1-3-5), **7TH** (1-3-5-7), **POWER** (1-5), **SUS4** (1-4-5) or **OCTAVE** (just the note, in octaves – great with 2 or 3 OCTAVES). Always in key: in a minor scale TRIAD is a minor chord, in major a major one. |
+| **7 GATE** | How long each arp note sounds, as a share of one step: 10 % (staccato blips) to 100 % (legato). |
+| **8 PAD HOLD** | The same setting as on the NOTE page: **ON** = an arpeggio runs as long as you hold the pad. |
+| **The pads** | A scale keyboard, as on the NOTE page: press a pad and hear its arpeggio. |
+| **UP / DOWN** | The pad keyboard's octave. |
+| **CLEAR** (tap) | ARP OFF (the other settings are kept). |
+| **CLEAR** (hold) | Erases the layer's beats in this bank, as on the other pages. |
+
+**How long an arpeggio lasts:**
+
+- **A beat of the song:** from the beat until the next beat (or as long as a note recorded with
+  PAD HOLD was held). So a long note in the pattern gives a long arpeggio, a short one a few notes.
+- **A pad or MIDI key held:** as long as you hold it (pads need PAD HOLD on; MIDI keys always hold).
+- **A pad tap** (PAD HOLD off): one quarter note.
+
+It works with the transport stopped too: hold a key and play.
+
+- **The preview** shows one pattern cycle at its pitches, as wide as GATE. Grey means the ARP is OFF
+  or the layer can't arpeggiate; the title says why (`TONE / SYNTH LAYERS ONLY`, `FOLLOWS L3`).
+- **Harmony layers follow every arp note**, at their interval: one arpeggiating layer plus a
+  harmony layer a 3rd up gives arpeggiated chords. The ARP of a harmony layer itself is not used
+  (it plays its leader's notes).
+- **Recording** writes the note you played, not the arp notes: the arpeggio is played from it every
+  time, so you can change ARP, RATE or CHORD afterwards and the whole part follows.
+- **MIDI out** sends every arp note, so the Drumboy Pro can arpeggiate an external synth.
+- **Song transpose** (v2.03) moves the arpeggios along with the melody.
+- **Saved with the project** (in the `.rwn` file) and restored by AUTOSAVE resume; NEW FILE resets
+  it. Older firmware plays the plain notes.
+- **A first arpeggio:** a SYNTH layer with preset `ZEN PLUCK` or `DX PIANO`, ROOT A, SCALE MINOR.
+  ARP page: ARP UP, RATE 1/16, OCTAVES 2, GATE 50. Hold PAD HOLD on, hold a pad, then try another.
+  Put a few long beats on the layer and press PLAY: a chord progression becomes a running arpeggio.
+
+#### No arpeggio to hear?
+
+- **MODE** on the NOTE page is TONE or SYNTH, and the layer isn't FOLLOWing another (see the title)?
+- **ARP** isn't OFF?
+- On a TONE layer, a very short sample ends before the next arp note: try a longer sample or a
+  SYNTH layer.
+- No sound at all? Check **MASTER MUTE** in the Mixer menu (select it and hold ADD to unmute).
+
+---
+
 ## Improvements and fixes
 
 ### Audio CPU meter (v1.09)
@@ -749,6 +851,7 @@ Your projects and drumkits have names now – yours, or a random one like `TURBO
 | **v2.01** | **AUTOSAVE** (File menu, knob 5) and **RESUME LAST SESSION?** at power-on; **crash-safe saving** for projects and drumkits; the File menu starts at the current project's slot. |
 | **v2.02** | **Names** for projects and drumkits: shown in LOAD / SAVE / CLEAR, edited with knobs 6–7, or rolled at random with knob 8. |
 | **v2.03** | Song mode **TRANSPOSE** per chain step (ADD + knob 7 in the Rhythm menu): melody layers move along their scale, drums stay. |
+| **v2.08** | **MIDI keyboard** plays the selected TONE / SYNTH layer (in key, velocity, held, recorded); **ARP page** in Layer Song: arpeggiator with 5 modes, 5 rates, 1–3 octaves, 5 chords, GATE; MIDI in understands running status and velocity-0 note offs. |
 | **v2.07** | **VISUALS** batch 2: GEISS (feedback plasma), MILK TUNNEL, ROBOT DJ, DISCO CROWD, PIANO ROLL, KEY WHEEL – 20 styles. |
 | **v2.06** | **VISUALS** line-up: CLASSIC, SUPERSCOPE, MOUTH, EYEBALLS, SPEAKER, DEMO SCENE, SUNSET DRIVE, STEP GRID (16 styles); themes WINAMP and C64 (9); AUTO (ADD) and INFO (CLEAR). |
 | **v2.05** | **FM voice** (WAVE = FM) and a **MOD** page: FM RATIO / AMOUNT / DECAY, PITCH ENV + PITCH DEC (synth drums, zaps), FILT ATK (filter envelope attack); 13 new presets (79); random sounds use them. |
@@ -758,8 +861,8 @@ Your projects and drumkits have names now – yours, or a random one like `TURBO
 
 Plans, not promises; each step is released only after it has been tried on a device.
 
-- **Song transpose and harmony:** each song-mode step can change key, and a layer can follow
-  another a third or fifth higher.
+- Ideas welcome in [Issues](../../issues). Song transpose and harmony (the last plan listed here)
+  came in v2.03 and v2.04; the MIDI keyboard and the arpeggiator in v2.08.
 
 ## Install and roll back
 
@@ -767,10 +870,10 @@ The step-by-step guide (which file to download, where to put it, what the screen
 to do if something goes wrong) is in the **[README → Install](README.md#install)**. In short:
 
 1. Back up the whole SD card.
-2. Download `Drumboy_Pro_Fw_Moffe_02_07.bin` from the
+2. Download `Drumboy_Pro_Fw_Moffe_02_08.bin` from the
    [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest).
 3. Copy it, with its exact name, to the root of the card as the only `Drumboy_Pro_Fw…bin` there.
-4. Power on: *UPDATING FIRMWARE V2.07* → *FIRMWARE UPDATED* → sunglasses.
+4. Power on: *UPDATING FIRMWARE V2.08* → *FIRMWARE UPDATED* → sunglasses.
 
 **Roll back:** install `Drumboy_Pro_Fw_01_01.bin` (factory, in the release Assets and in
 `02 Software/Firmware/`) the same way. The bootloader accepts any version, older or newer.

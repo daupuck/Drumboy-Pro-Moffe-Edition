@@ -200,6 +200,22 @@ inline int semitones(int degree, uint8_t scale, uint8_t root) {
     return rootOffset(root) + (octave * 12) + s.steps[index];
 }
 
+// v2.08 MIDI in: the scale degree whose pitch is nearest to `target` semitones from C (MIDI note
+// 60 = 0). Notes outside the scale snap to the nearest scale note (the lower one on a tie).
+inline int8_t degreeForSemitone(int target, uint8_t scale, uint8_t root) {
+    int best = 0;
+    int bestDiff = 1 << 30;
+    for (int d = minDegree(scale); d <= maxDegree(scale); d++) {
+        const int diff = semitones(d, scale, root) - target;
+        const int a = (diff < 0) ? -diff : diff;
+        if (a < bestDiff) {
+            bestDiff = a;
+            best = d;
+        }
+    }
+    return static_cast<int8_t>(best);
+}
+
 // 2^(semitones/12) without powf: one table lookup and a few octave doublings/halvings.
 inline float ratio(int semis) {
     static constexpr float kSemitoneRatio[12] = {1.0f,          1.059463094f, 1.122462048f, 1.189207115f,

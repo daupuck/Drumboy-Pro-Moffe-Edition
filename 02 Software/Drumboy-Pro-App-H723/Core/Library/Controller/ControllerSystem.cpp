@@ -159,6 +159,14 @@ void Controller::receiveMidiCommand() {
         return;
     }
 
+    // 3. NOTE ON / NOTE OFF (v2.08, MidiNoteIn.h): every other byte goes through the note parser
+    // (a status byte such as SysEx start ends running status), with running status and
+    // velocity 0 = note off. Notes are queued for the main loop when rxNotes is on.
+    {
+        midiin::Event event;
+        if (midiNoteParser.feed(rxData, io.midi.rxChannel, event) && io.midi.rxNotes) midiNoteQueue.push(event);
+    }
+
     if (rxData == kMidiSysExStart) {
         io.midi.rxSysExStage = 1;
         io.midi.rxSysExCmd = 0;
@@ -201,38 +209,6 @@ void Controller::receiveMidiCommand() {
         return;
     }
 
-    // 3. NOTE ON PARSER (0x90 + CHANNEL)
-    // Only processed when rxNotes is enabled (NOTES or SYN+NOT mode).
-    if (io.midi.rxNotes) {
-        if ((io.midi.rxNoteOnReadStage == 0) && (rxData == (0x90 + io.midi.rxChannel))) {
-            // Stage 0: Valid Status byte detected for the selected channel.
-            io.midi.rxNoteOnReadStage = 1;
-        } else if (io.midi.rxNoteOnReadStage == 1) {
-            // Stage 1: Capture the Note Number (0–127).
-            io.midi.rxNoteOnKey = rxData;
-            io.midi.rxNoteOnReadStage = 2;
-        } else if (io.midi.rxNoteOnReadStage == 2) {
-            // Stage 2: Capture the Velocity and finalize the message.
-            io.midi.rxNoteOnVelocity = rxData;
-            io.midi.rxNoteOnReadStage = 0;
-            io.midi.rxNoteOnWriteFlag = 1;
-        }
-
-        // 4. NOTE OFF PARSER (0x80 + CHANNEL)
-        if ((io.midi.rxNoteOffReadStage == 0) && (rxData == (0x80 + io.midi.rxChannel))) {
-            // Stage 0: Valid Note Off Status byte detected.
-            io.midi.rxNoteOffReadStage = 1;
-        } else if (io.midi.rxNoteOffReadStage == 1) {
-            // Stage 1: Capture the Note Number.
-            io.midi.rxNoteOffKey = rxData;
-            io.midi.rxNoteOffReadStage = 2;
-        } else if (io.midi.rxNoteOffReadStage == 2) {
-            // Stage 2: Capture the Release Velocity and finalize.
-            io.midi.rxNoteOffVelocity = rxData;
-            io.midi.rxNoteOffReadStage = 0;
-            io.midi.rxNoteOffWriteFlag = 1;
-        }
-    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
