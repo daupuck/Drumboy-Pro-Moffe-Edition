@@ -3,6 +3,51 @@
 Application firmware versions (`kVersionMajor.kVersionMinor` in the app's `Global.h`; the
 SD-card package is named after it). Rolling back = installing an older package.
 
+## v2.09
+
+Freeze fixes: the device could stop responding at random. `kVersionMinor` 9; the package is
+`Drumboy_Pro_Fw_Moffe_02_09.bin`. Most of these bugs are in the factory code (v1.01) too.
+
+- **I2C3 recovery re-initialises the bus** (`I2C3_BusRecover()` in `Core/Src/i2c.c`). The old
+  `keyboard_resetI2C()` only pulsed the RCC reset, which left I2C3 disabled with `TIMINGR = 0` while
+  the HAL handle stayed READY. The next keypad read never finished, so pads and buttons were dead.
+  The codec (same bus) then hung for good on the next volume / mute / line-in change. The recovery
+  now de-inits, clocks up to 9 SCL pulses as GPIO until SDA is released, sends a STOP, resets the
+  peripheral and runs the full init again. It never calls `Error_Handler`. `i2c3RecoverCount`
+  lets an in-flight keypad read know its buffer is stale.
+- **Keypad scanner timeouts** (`keyboard_read`): a read that has not finished after 20 ms, or a bus
+  that is not ready after 50 ms, triggers the recovery and retries the same keypad. A transfer that
+  ends with an error (NACK, bus error), or one interrupted by a recovery, is retried instead of
+  parsed, so it can no longer invent key presses.
+- **Lost MCP23017 interrupts**: INT lines are edge-triggered, so one missed edge left INT low and
+  that keypad dead. The scanner now also reads a keypad whose INT pin has been low for 5 ms with no
+  read pending.
+- **Codec transfers are bounded** (`Dac.cpp`): `HAL_MAX_DELAY` replaced by 10 ms, and the
+  ready-wait by 20 ms. A timeout recovers the bus. `readRegister()` reports failure, so
+  `writeRegisterMask()` no longer writes a random value back, and the headphone / line-out
+  ramps jump straight to the target instead of stepping up to 255 times from garbage
+  (up to ~25 s stall before).
+- **Beat generator out of the ISR**: holding ADD in Layer Song ran `layerSong_generateBeat()`
+  inside TIM14 (top priority, same as audio), rewriting the beat list under the sequencer and
+  drawing on the bit-banged LCD over the main loop. The ISR now only sets
+  `layerBeatGenerateType`; `update()` runs it with TIM15 masked. A stage waits until the previous
+  one has run.
+- **SD removal out of the ISR**: TIM17 used to `f_close`, unmount and draw the alert itself
+  (FatFs is not re-entrant). It now sets `sdRemovedFlag`; `update()` does the shutdown, leaves
+  the VISUALS first (they mute the UI, so the "insert SD" wait looked like a freeze) and shows
+  the alert.
+- **Bitcrusher FOLD**: the reflect loop in the audio ISR never ended for an infinite sample and
+  took huge numbers of passes for a very loud one. Now the same fold in closed form
+  (`fmodf`, period 4 × limit), with NaN / inf / >1e6 samples zeroed.
+- **Crashes restart instead of freezing** (`Core/Src/crash_log.c`): HardFault, MemManage,
+  BusFault, UsageFault, NMI (clock failure) and `Error_Handler` write a record (type, PC, LR,
+  CFSR, HFSR, fault address) to DTCM (NOLOAD, unused by the bootloader) and reset. The next boot
+  shows *RESTARTED AFTER A CRASH* and e.g. *HARDFAULT 0801A2B4* for ~5 s, before the RESUME
+  question.
+- **Watchdog**: IWDG1 at ~32 s (LSI, /256, reload 4095), started at the end of boot and kicked by
+  `update()` and the long SD loops (card wait, library scan, sample loading). Frozen while a
+  debugger halts the core. A watchdog restart is shown as *RESTARTED: IT FROZE*.
+
 ## v2.08
 
 MIDI keyboard for melody layers and an arpeggiator. `kVersionMinor` 8; the package is

@@ -23,6 +23,17 @@ rolled back to the factory firmware the same way.
 > SD card first** and keep the factory firmware for rolling back. Modifying the firmware may affect
 > your warranty with Randomwaves.
 
+## 🧯 New in v2.09: no more random freezes
+
+- Fixes the bugs behind the device sometimes **freezing** (pads and buttons dead, or the whole
+  screen stuck): the button and codec bus now recovers properly, and nothing waits forever any
+  more. Most of these bugs were in the factory firmware too.
+- If it still **crashes or hangs**, it restarts by itself and tells you at start-up
+  (*RESTARTED AFTER A CRASH* plus a code). With AUTOSAVE on you can resume your session.
+  Please report the code in [Issues](../../issues).
+
+→ **[What changed](MOFFE-EDITION.md#whats-new-in-v209--no-more-random-freezes)**
+
 ## 🎹 New in v2.08: MIDI keyboard and arpeggiator
 
 - **Play the synth from a MIDI keyboard:** on the NOTE page (or a SYNTH layer's sound pages) a
@@ -148,7 +159,8 @@ the **[CHANGELOG](CHANGELOG.md)**, and each published version has its firmware f
 
 | Version | Highlights |
 |---|---|
-| **v2.08** (latest) | MIDI keyboard plays the melody layers (in key, velocity, held, recorded) · ARP page: arpeggiator · better MIDI in |
+| **v2.09** (latest) | Freeze fixes: button/codec bus recovery, no endless waits, crashes and hangs restart the device and say so |
+| v2.08 | MIDI keyboard plays the melody layers (in key, velocity, held, recorded) · ARP page: arpeggiator · better MIDI in |
 | v2.07 | VISUALS batch 2: GEISS, MILK TUNNEL, ROBOT DJ, DISCO CROWD, PIANO ROLL, KEY WHEEL (20 styles) |
 | v2.06 | 16 VISUALS incl. CLASSIC, MOUTH, EYEBALLS, SPEAKER, DEMO SCENE, SUNSET DRIVE, SUPERSCOPE, STEP GRID · AUTO + INFO · WINAMP and C64 themes |
 | v2.05 | FM voice and MOD page (FM ratio / amount / decay, pitch envelope, filter attack) · 13 new presets (79) |

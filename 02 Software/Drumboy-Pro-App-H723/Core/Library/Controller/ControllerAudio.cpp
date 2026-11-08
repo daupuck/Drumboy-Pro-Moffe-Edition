@@ -1968,13 +1968,17 @@ float Controller::processAudioEffectHelper(uint8_t effectNum_, float audio_) {
                         if (bit_.mode == BIT_FOLD) {
                             // WAVEFOLDING: Reflects the signal back when it exceeds thresholds.
                             // Creates rich, complex harmonics compared to hard clipping.
-                            while (processed > limPos || processed < limNeg) {
-                                if (processed > limPos) {
-                                    processed = limPos - (processed - limPos);
-                                }
-                                if (processed < limNeg) {
-                                    processed = limNeg - (processed - limNeg);
-                                }
+                            // v2.09 freeze fix: this used to reflect in a while loop, which
+                            // never ends for an infinite sample (inf -> -inf -> inf ...) and
+                            // takes huge numbers of passes for a very loud one, hanging the
+                            // audio ISR and with it the whole device. Same fold in closed
+                            // form: it repeats every 4 x limit (limNeg is always -limPos).
+                            if (!(fabsf(processed) < 1.0e6f)) processed = 0.0f;  // NaN / inf / runaway
+                            if (processed > limPos || processed < limNeg) {
+                                const float period = 4.0f * limPos;
+                                float t = fmodf(processed + limPos, period);  // 0 .. 4L (sign of x)
+                                if (t < 0.0f) t += period;
+                                processed = (t < 2.0f * limPos) ? (t - limPos) : (3.0f * limPos - t);
                             }
                         } else {
                             // HARD CLIPPING: Simply clamps the signal at the thresholds.

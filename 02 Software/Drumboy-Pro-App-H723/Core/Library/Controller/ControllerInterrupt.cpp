@@ -1460,38 +1460,23 @@ void Controller::interruptLongKeyRead() {
 
         // MULTI-STAGE BEAT GENERATION
         // Cycle beat-generation presets on repeated long-press steps.
+        // v2.09 freeze fix: this ISR (TIM14) runs at the same top priority as the audio. It used
+        // to call layerSong_generateBeat() here, which rewrites the beat list the sequencer reads
+        // and draws on the LCD in the middle of whatever the main loop was drawing. Now it only
+        // asks the main loop to do it (update(): layerBeatGenerateType); a stage waits until the
+        // previous one has been carried out, so no stage is skipped.
         else if (layerBeatKeyFlag) {
             keyboard.longKeyCounter = 0;
             layerSongAddPending = false;  // long press: generator, not a single-beat tap
-            switch (layerBeatKeyStage) {
-                case 0:
-                    layerSong_generateBeat(0);
-                    layerBeatKeyStage = 1;
-                    break;
-
-                case 1:
-                    layerSong_generateBeat(1);
-                    layerBeatKeyStage = 2;
-                    break;
-
-                case 2:
-                    layerSong_generateBeat(2);
-                    layerBeatKeyStage = 3;
-                    break;
-
-                case 3:
-                    // Apply BASIC_4 fill to all beats (4 hits per beat).
-                    layerSong_generateBeat(3);
-                    layerBeatKeyStage = 4;
-                    break;
-
-                case 4:
-                    // Apply BASIC_8 fill to all beats (8 hits per beat).
-                    layerSong_generateBeat(4);
+            if (layerBeatGenerateType == -1) {
+                // Stages 0-2: beat layouts; 3: BASIC_4 fill (4 hits per beat); 4: BASIC_8 fill.
+                layerBeatGenerateType = (int8_t)layerBeatKeyStage;
+                if (layerBeatKeyStage < 4) {
+                    layerBeatKeyStage += 1;
+                } else {
                     layerBeatKeyFlag = false;
                     stopLongKeyTimer();
-                    keyboard.longKeyCounter = 0;
-                    break;
+                }
             }
         } else {
             // Default: Reset and stop if no valid flag is identified
@@ -1533,21 +1518,13 @@ void Controller::interruptSd() {
 
     // 1. SD REMOVAL DETECTION
     // Detect unexpected SD card removal using hardware detect signal.
+    // v2.09 freeze fix: closing the file, unmounting and drawing the alert used to happen right
+    // here. FatFs is not re-entrant and the LCD is bit-banged, so doing that from an ISR in the
+    // middle of a main-loop save / sample preview / screen update could corrupt both. The ISR
+    // now only flags the removal; Controller::update() does the shutdown.
     if ((sd.detect) && (sd_detect() == SD_ERROR)) {
-        // 2. FILE SYSTEM SHUTDOWN
-        // Close active file handle and unmount SD interface safely.
-        f_close(&sd.file);
-
-        // Detach the SD card driver from the system
-        sd_unmount();
-
-        // 3. STATE & UI ALERT UPDATE
-        // Reset SD flags and notify UI about removal condition.
         sd.detect = false;
-        sd.ready = false;
-
-        // Display a critical error message on the LCD for the user
-        lcd_drawSdAlert(SD_ERROR_DETECT);
+        sdRemovedFlag = true;
     }
 }
 

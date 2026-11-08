@@ -21,8 +21,8 @@
 /* Application Version -------------------------------------------------------*/
 ////////////////////////////////////////////////////////////////////////////////
 
-const uint8_t kVersionMajor                         = 0x02;  // v2.08: MIDI IN plays the synth, ARPEGGIATOR
-const uint8_t kVersionMinor                         = 0x08;  // also sets the SD package version (make_fw_package.py)
+const uint8_t kVersionMajor                         = 0x02;  // v2.09: freeze fixes (I2C recovery, timeouts, crash restart)
+const uint8_t kVersionMinor                         = 0x09;  // also sets the SD package version (make_fw_package.py)
 
 ////////////////////////////////////////////////////////////////////////////////
 /* Application Address -------------------------------------------------------*/

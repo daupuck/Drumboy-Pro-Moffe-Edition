@@ -1318,6 +1318,7 @@ void Controller::layerInst_setSampleLoaded(uint8_t layerNum_) {
 
                     // Main Polling Loop
                     while (bytesReadTotal < totalBytes) {
+                        Watchdog_Kick();  // v2.09: loading a long sample is not a hang
                         uint32_t toRead = (totalBytes - bytesReadTotal > rawArraySize) ? rawArraySize : (totalBytes - bytesReadTotal);
 
                         // Hardware Guard: Check status register for errors during the loop
