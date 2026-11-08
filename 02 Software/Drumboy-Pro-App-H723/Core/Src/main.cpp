@@ -11,6 +11,7 @@
 #include "sdmmc.h"
 #include "tim.h"
 #include "usart.h"
+#include "crash_log.h"
 
 /* Extern Function Declarations ---------------------------------- */
 
@@ -344,9 +345,8 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef* huart) {
 }
 
 void Error_Handler(void) {
-    __disable_irq();
-    while (1) {
-    }
+    // v2.09: record the caller and restart instead of hanging forever (crash_log.c).
+    CrashLog_Reset(CRASH_ERROR_HANDLER, (uint32_t)__builtin_return_address(0));
 }
 
 #ifdef USE_FULL_ASSERT

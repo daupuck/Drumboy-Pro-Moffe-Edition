@@ -106,7 +106,40 @@ void Controller::keyboard_read() {
 
     static ScanState currentState = STATE_IDLE;
     static uint32_t delayStart = 0;
+    static uint32_t readStart = 0;
+    static uint32_t readRecoverCount = 0;  // i2c3RecoverCount when the read started
     static uint8_t targetKeypad = 0;  // 0: Layer, 1: Left, 2: Right
+    static uint32_t intLowSince[3] = {0, 0, 0};
+
+    // Timeouts (v2.09 freeze fix): a transfer that never finishes, or a bus that never gets
+    // ready, used to leave the scanner waiting forever with every pad and button dead.
+    const uint32_t kReadTimeoutMs = 20;    // one 2-byte read takes well under 1 ms
+    const uint32_t kSettleTimeoutMs = 50;  // the codec's blocking writes are short
+    const uint32_t kIntStuckMs = 5;        // INT low this long with no read = a lost edge
+
+    // 0. LOST-INTERRUPT WATCHDOG (v2.09 freeze fix)
+    // The MCP23017 INT lines are active low and only their falling edge raises readFlag. If one
+    // edge is missed (a change during a read, a dropped transfer), INT stays low, no new edge
+    // ever comes and that keypad is dead. So: INT still low for a while with no read pending ->
+    // read that keypad anyway (the read clears INT).
+    if (currentState == STATE_IDLE) {
+        const bool intLow[3] = {
+            HAL_GPIO_ReadPin(MX_X_INT_GPIO_Port, MX_X_INT_Pin) == GPIO_PIN_RESET,
+            HAL_GPIO_ReadPin(MX_A_INT_GPIO_Port, MX_A_INT_Pin) == GPIO_PIN_RESET,
+            HAL_GPIO_ReadPin(MX_B_INT_GPIO_Port, MX_B_INT_Pin) == GPIO_PIN_RESET};
+        Keypad* const pads[3] = {&keyboard.keyLayer, &keyboard.keyLeft, &keyboard.keyRight};
+        const uint32_t now = HAL_GetTick();
+        for (uint8_t i = 0; i < 3; i++) {
+            if (!intLow[i] || pads[i]->readFlag) {
+                intLowSince[i] = 0;
+            } else if (intLowSince[i] == 0) {
+                intLowSince[i] = now | 1u;  // 0 means "not low"
+            } else if ((now - intLowSince[i]) >= kIntStuckMs) {
+                pads[i]->readFlag = true;
+                intLowSince[i] = 0;
+            }
+        }
+    }
 
     // 1. REQUEST ARBITRATION (IDLE)
     if (currentState == STATE_IDLE) {
@@ -140,13 +173,23 @@ void Controller::keyboard_read() {
 
                 // Start asynchronous GPIO register read via DMA.
                 if (HAL_I2C_Mem_Read_DMA(&hi2c3, kp->address, MCP23017_GPIOA, I2C_MEMADD_SIZE_8BIT, i2c3_rxData, 2) == HAL_OK) {
+                    readStart = HAL_GetTick();
+                    readRecoverCount = i2c3RecoverCount;
                     currentState = STATE_READING;
                 } else {
                     // 2.1 ERROR HANDLING
-                    // Recover from bus lock/failure and return to IDLE.
+                    // Recover from bus lock/failure, then read the same keypad again.
                     keyboard_resetI2C();
+                    kp->readFlag = true;
                     currentState = STATE_IDLE;
                 }
+            } else if ((HAL_GetTick() - delayStart) >= kSettleTimeoutMs) {
+                // 2.2 BUS NEVER GOT READY: recover and retry this keypad.
+                keyboard_resetI2C();
+                Keypad* kp = (targetKeypad == 0) ? &keyboard.keyLayer : (targetKeypad == 1) ? &keyboard.keyLeft
+                                                                                            : &keyboard.keyRight;
+                kp->readFlag = true;
+                currentState = STATE_IDLE;
             }
         }
         return;  // Yield while DMA transfer is in progress.
@@ -154,10 +197,29 @@ void Controller::keyboard_read() {
 
     // 3. DMA RESULT PARSING (READING)
     if (currentState == STATE_READING) {
+        // 3.0 TRANSFER TIMEOUT: the read never completed -> recover the bus and retry.
+        if ((HAL_I2C_GetState(&hi2c3) != HAL_I2C_STATE_READY) && ((HAL_GetTick() - readStart) >= kReadTimeoutMs)) {
+            keyboard_resetI2C();
+            Keypad* kp = (targetKeypad == 0) ? &keyboard.keyLayer : (targetKeypad == 1) ? &keyboard.keyLeft
+                                                                                        : &keyboard.keyRight;
+            kp->readFlag = true;
+            currentState = STATE_IDLE;
+            return;
+        }
+
         // Parse data only after DMA and I2C transaction complete.
         if (HAL_I2C_GetState(&hi2c3) == HAL_I2C_STATE_READY) {
             Keypad* kp = (targetKeypad == 0) ? &keyboard.keyLayer : (targetKeypad == 1) ? &keyboard.keyLeft
                                                                                         : &keyboard.keyRight;
+
+            // 3.1 FAILED TRANSFER (NACK, bus error): the buffer holds no fresh data, so parsing it
+            // would invent key presses. Ask for another read instead (v2.09).
+            // A bus recovery meanwhile (e.g. from a codec write) also discards the transfer.
+            if ((HAL_I2C_GetError(&hi2c3) != HAL_I2C_ERROR_NONE) || (readRecoverCount != i2c3RecoverCount)) {
+                kp->readFlag = true;
+                currentState = STATE_IDLE;
+                return;
+            }
 
             // Reconstruct 16-bit GPIO state from port A/B bytes.
             uint16_t newState = (i2c3_rxData[1] << 8) | i2c3_rxData[0];
@@ -1607,17 +1669,11 @@ void Controller::keyboard_resetI2C() {
     /// @brief Resets I2C3 peripheral hardware to recover from keyboard bus lockups.
     /// Used when MCP23017 transactions fail and the bus state machine stalls.
 
-    // 1. FORCE RESET ASSERT
-    // Clear internal peripheral state via RCC reset line.
-    __HAL_RCC_I2C3_FORCE_RESET();
-
-    // 2. STABILIZATION DELAY
-    // Short wait to guarantee reset propagation.
-    HAL_Delay(1);
-
-    // 3. RESET RELEASE
-    // Return peripheral to operational state for subsequent HAL transactions.
-    __HAL_RCC_I2C3_RELEASE_RESET();
+    // v2.09 freeze fix: the old version only pulsed the RCC reset, which left I2C3 switched off
+    // with no timing while the HAL still thought it was READY. Every later keypad read and
+    // codec write then hung or failed until power-off. I2C3_BusRecover() (i2c.c) frees a stuck
+    // bus with 9 SCL clocks + STOP and runs the full peripheral init again.
+    I2C3_BusRecover();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

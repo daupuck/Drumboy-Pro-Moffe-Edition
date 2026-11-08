@@ -5,7 +5,7 @@ Moffe Edition is **unofficial community firmware** for the Drumboy Pro, based on
 is not affiliated with or endorsed by Randomwaves. This page collects everything that is new
 compared with the factory firmware: what each feature does and how to use it on the device.
 
-- **Current version:** v2.08 — download from the
+- **Current version:** v2.09 — download from the
   [latest release](https://github.com/daupuck/Drumboy-Pro-Moffe-Edition/releases/latest);
   how to install: [README → Install](README.md#install)
 - **User manual:** published by Randomwaves at [randomwaves.io](https://www.randomwaves.io) (it
@@ -27,8 +27,16 @@ compared with the factory firmware: what each feature does and how to use it on 
 > (v1.10); from v2.00, in its test builds: SYNTH layers, erasing on the EUCLID/NOTE pages, DETUNE,
 > SUB, NOISE, DRIVE, GLIDE, WAVE = SAMPLE and SLIDE; AUTOSAVE and resume (v2.01); names for
 > projects and drumkits (v2.02); song transpose (v2.03). **Not yet tested on a device:** the rest of v2.00 (presets,
-> random sounds, AMP and LFO pages, PAD HOLD, VISUALS, the new look), v2.04 (harmony layers), v2.05 (FM, pitch envelope, filter attack), v2.06 and v2.07 (the new visuals), v2.08 (MIDI keyboard, arpeggiator). Each release says what has been tested on hardware;
+> random sounds, AMP and LFO pages, PAD HOLD, VISUALS, the new look), v2.04 (harmony layers), v2.05 (FM, pitch envelope, filter attack), v2.06 and v2.07 (the new visuals), v2.08 (MIDI keyboard, arpeggiator), v2.09 (freeze fixes). Each release says what has been tested on hardware;
 > please report anything odd in [Issues](../../issues).
+
+## What's new in v2.09 – no more random freezes
+
+| | New | What it means for you |
+|---|---|---|
+| 🧯 | **Freeze fixes** | The device could freeze at random: pads and buttons stopped working, or the whole screen got stuck after a volume change. The bus behind the buttons and the audio chip now recovers properly, and nothing waits forever any more. Most of these bugs were in the factory firmware too. |
+| 🔁 | **Restarts instead of hanging** | If the firmware still crashes or hangs, the device restarts by itself after a moment (at most about 30 s for a hang). At start-up it shows *RESTARTED AFTER A CRASH* and a short code (e.g. *HARDFAULT 0801A2B4*), or *RESTARTED: IT FROZE*. With AUTOSAVE on you can resume your session. Please report the code in [Issues](../../issues): it points to the place in the code. |
+| 🩹 | **Safer in the background** | Holding ADD in Layer Song (beat generator) and pulling out the SD card no longer do their work inside an interrupt, where they could clash with the screen and the sequencer. Pulling the card out while VISUALS are on now shows the "insert SD card" message instead of looking frozen. The bitcrusher's FOLD mode can no longer lock up the audio on a very loud signal. |
 
 ## What's new in v2.08 – play it from a keyboard, arpeggiate it
 

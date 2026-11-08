@@ -198,11 +198,13 @@ SdResult Controller::sd_reinitialize() {
             if (sdResult == SD_ERROR_DETECT) {
                 while (sd_detect() != SD_OK) {
                     lcd_update();  // Keep the UI responsive while waiting for card
+                    Watchdog_Kick();  // v2.09: waiting for the user is not a hang
                 }
             } else {
                 sd_unmount();
                 while (sd_detect() == SD_OK) {
                     lcd_update();  // Wait for user to remove the "wrong" card
+                    Watchdog_Kick();
                 }
             }
             HAL_Delay(500);
@@ -555,6 +557,7 @@ void Controller::sd_getInstLibrary() {
     // Open Sample root and collect valid instrument folders into SDRAM.
     if (f_opendir(&sd.dir, "/Sample") == FR_OK) {
         while (instLibrarySize < kInstLibraryMaxSize) {
+            Watchdog_Kick();  // v2.09: a big card can take a while to index
             // 2.1 ENTRY READING
             // Fetch the next directory item; exit if end of folder or error.
             if (f_readdir(&sd.dir, &sd.fileInfo) != FR_OK || sd.fileInfo.fname[0] == 0) {
@@ -668,6 +671,7 @@ void Controller::sd_getSampleLibrary() {
             snprintf(pathBuffer, sizeof(pathBuffer), "Sample/%s", instName);
             if (f_opendir(&sd.dir, pathBuffer) == FR_OK) {
                 while (sampleLibrarySize[i] < kInstSampleLibraryMaxSize) {
+                    Watchdog_Kick();
                     if (f_readdir(&sd.dir, &sd.fileInfo) != FR_OK || sd.fileInfo.fname[0] == 0) {
                         break;
                     }

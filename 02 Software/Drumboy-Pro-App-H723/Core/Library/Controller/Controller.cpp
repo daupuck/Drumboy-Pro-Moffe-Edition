@@ -205,6 +205,9 @@ void Controller::initialize() {
     // Initialize timing base and DSP modules with startup defaults.
     dwt_initialize();  // High-resolution microsecond timing for profiling
 
+    // v2.09: did the last run end in a crash or a watchdog restart? (shown at the end of boot)
+    bootCrashFound = (CrashLog_Take(&bootCrash) != 0);
+
     // Initialize individual DSP modules to default states
     eq.initialize();
     filter[0].initialize();
@@ -354,12 +357,55 @@ void Controller::initialize() {
         startPlayTimer();       // Start the main Sequencer Heartbeat
         startMidiClockTimer();  // Start the midi Sequencer Heartbeat
 
-        // 6. AUTOSAVE (v2.01): offer to resume the last session (ADD = yes, CLEAR = no).
+        // 6. CRASH NOTICE (v2.09): say so when the last run crashed or froze (crash_log.c).
+        // Before the RESUME question, which then offers the auto-saved session.
+        crash_showNotice();
+
+        // 7. AUTOSAVE (v2.01): offer to resume the last session (ADD = yes, CLEAR = no).
         autosave_askResume();
+
+        // 8. WATCHDOG (v2.09): from now on a main loop that stops running restarts the device.
+        Watchdog_Start();
     }
 }
 
+void Controller::crash_showNotice() {
+    /// @brief v2.09: tells the user the device restarted itself, and where it crashed, so a
+    /// "random freeze" leaves a clue. Two short lines in the SD alert box, ~5 s in total.
+
+    if (!bootCrashFound) return;
+    bootCrashFound = false;
+
+    static const char* const kCrashNames[] = {"", "HARDFAULT", "MEMFAULT", "BUSFAULT", "USAGEFAULT", "ERROR", "CLOCK FAIL", "WATCHDOG"};
+    const char* name = (bootCrash.type < (sizeof(kCrashNames) / sizeof(kCrashNames[0]))) ? kCrashNames[bootCrash.type] : "UNKNOWN";
+
+    char line1[32];
+    char line2[32];
+    if (bootCrash.type == CRASH_WATCHDOG) {
+        snprintf(line1, sizeof(line1), "RESTARTED: IT FROZE");
+        snprintf(line2, sizeof(line2), "BY THE WATCHDOG");
+    } else {
+        snprintf(line1, sizeof(line1), "RESTARTED AFTER A CRASH");
+        snprintf(line2, sizeof(line2), "%s %08lX", name, (unsigned long)bootCrash.pc);
+    }
+
+    const char* const lines[2] = {line1, line2};
+    for (uint8_t i = 0; i < 2; i++) {
+        lcd.setAlignment(CENTER);
+        lcd.setFont(FONT_07x09);
+        lcd.setForeColor(kAccentColor);
+        lcd.setBackColor(BLACK);
+        lcd.clearRect(355, 260, 250, 20);
+        lcd.drawRect(355, 260, 250, 20);
+        lcd.drawText(lines[i], strlen(lines[i]), 480, 265);
+        HAL_Delay(i == 0 ? 2000 : 3000);
+    }
+    lcd_clearSdAlert();
+}
+
 void Controller::update() {
+    Watchdog_Kick();  // v2.09: a main loop that stops for ~32 s restarts the device
+
     /// @brief Main execution loop handling state transitions, I/O processing, and system tasks.
     /// Orchestrates high-level logic based on hardware flags and user input.
 
@@ -407,6 +453,17 @@ void Controller::update() {
 
         // 4. FILESYSTEM MAINTENANCE
         // Recover SD subsystem if media access is lost.
+        // v2.09: the SD-detect ISR only flags a removed card; the shutdown happens here, outside
+        // any FatFs call and LCD transfer. The visuals are left first: they mute the normal UI,
+        // so the "insert SD card" alert (and the wait for the card) would look like a freeze.
+        if (sdRemovedFlag) {
+            sdRemovedFlag = false;
+            f_close(&sd.file);
+            sd_unmount();
+            sd.ready = false;
+            visual_exit();
+            lcd_drawSdAlert(SD_ERROR_DETECT);
+        }
         if (!sd.ready) {
             sd_reinitialize();
         }
@@ -538,6 +595,19 @@ void Controller::update() {
                 lcd_drawNoteData(7);
                 lcd_redrawNotePage();
             }
+        }
+        // v2.09: beat generator stage requested by the long-key ISR (ADD held in Layer Song).
+        // The sequencer tick (TIM15) is masked meanwhile, as it was implicitly when this ran
+        // inside the top-priority ISR, so interruptPlay never sees a half-built beat list.
+        if (layerBeatGenerateType != -1) {
+            const uint8_t type = (uint8_t)layerBeatGenerateType;
+            const bool seqWasEnabled = (NVIC_GetEnableIRQ(TIM15_IRQn) != 0);
+            NVIC_DisableIRQ(TIM15_IRQn);
+            __DSB();
+            __ISB();
+            if (selectedLayerNum != -1) layerSong_generateBeat(type);
+            if (seqWasEnabled) NVIC_EnableIRQ(TIM15_IRQn);
+            layerBeatGenerateType = -1;
         }
         if (noteMelodyActionFlag) {
             noteMelodyActionFlag = false;

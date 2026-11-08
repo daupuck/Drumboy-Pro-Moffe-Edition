@@ -8,6 +8,7 @@
 #include "Lcd.h"
 #include "SampleFormat.h"
 #include "Visuals.h"
+#include "crash_log.h"
 #include "fatfs.h"
 #include "main.h"
 #include "sdmmc.h"
@@ -320,6 +321,7 @@ class Controller {
 
     bool textCopyFlag, textPasteFlag, textClearFlag, textArmedFlag;
     bool limitAlertShowFlag, limitAlertClearFlag, limitAlertActive;
+    volatile bool sdRemovedFlag = false;  // v2.09: SD-detect ISR -> main loop: the card was pulled out
     bool limitLayerFlag[kLayerLibrarySize];
 
     bool systemPresetSaveFlag, systemPresetSaveActive;
@@ -337,7 +339,8 @@ class Controller {
     bool transitionShowMenu, transitionClearMenu;
     bool transitionShowEncoder[kEncoderSize], transitionClearEncoder[kEncoderSize];
 
-    uint8_t layerBeatKeyStage;                                        
+    uint8_t layerBeatKeyStage;
+    volatile int8_t layerBeatGenerateType = -1;  // v2.09: long-key ISR -> main loop: run layerSong_generateBeat(type), -1 = none
 
     /* Input Engine Status --------------------------------------- */
 
@@ -1310,6 +1313,11 @@ class Controller {
     void autosave_service();           // main loop
     void autosave_setEnabled(bool on_);
     void autosave_askResume();         // end of boot
+
+    /* Crash notice (v2.09, crash_log.h) ------------------------- */
+    CrashInfo bootCrash = {};
+    bool bootCrashFound = false;
+    void crash_showNotice();  // end of boot: "RESTARTED AFTER A CRASH" + where
     void autosave_answerResume(bool yes_);
     void autosave_writePending(bool pending_);
     void lcd_drawFile_AutosaveData();
